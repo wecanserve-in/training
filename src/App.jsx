@@ -15,8 +15,12 @@ import AddQuestion from "./pages/AddQuestion";
 import ManageQuestions from "./pages/ManageQuestions";
 import AdminResults from "./pages/AdminResults";
 import EditVideo from "./pages/EditVideo";
-import EditQuestion from "./pages/EditQuestion";  
+import EditQuestion from "./pages/EditQuestion";
 import MyResults from "./pages/MyResults";
+import CourseDetails from "./pages/CourseDetails";
+
+import AddCourse from "./pages/AddCourse";
+import ManageCourses from "./pages/ManageCourses";
 
 function App() {
   return (
@@ -24,122 +28,159 @@ function App() {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
+
         <Route
-  path="/dashboard"
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+
+<Route
+  path="/course/:id"
   element={
     <ProtectedRoute>
-      <Dashboard />
+      <CourseDetails />
     </ProtectedRoute>
   }
 />
 
-<Route
-  path="/video/:id"
-  element={
-    <ProtectedRoute>
-      <VideoPage />
-    </ProtectedRoute>
-  }
-/>
+        <Route
+          path="/video/:id"
+          element={
+            <ProtectedRoute>
+              <VideoPage />
+            </ProtectedRoute>
+          }
+        />
 
-<Route
-  path="/quiz/:id"
-  element={
-    <ProtectedRoute>
-      <QuizPage />
-    </ProtectedRoute>
-  }
-/>
+        <Route
+          path="/quiz/:id"
+          element={
+            <ProtectedRoute>
+              <QuizPage />
+            </ProtectedRoute>
+          }
+        />
 
-<Route
-  path="/result/:id"
-  element={
-    <ProtectedRoute>
-      <ResultPage />
-    </ProtectedRoute>
-  }
-/>
+        <Route
+          path="/result/:id"
+          element={
+            <ProtectedRoute>
+              <ResultPage />
+            </ProtectedRoute>
+          }
+        />
 
-<Route
-  path="/certificate/:id"
-  element={
-    <ProtectedRoute>
-      <CertificatePage />
-    </ProtectedRoute>
-  }
-/>
-<Route
-  path="/my-results"
-  element={
-    <ProtectedRoute>
-      <MyResults />
-    </ProtectedRoute>
-  }
-/>
-<Route
-  path="/admin"
-  element={
-    <AdminRoute>
-      <AdminDashboard />
-    </AdminRoute>
-  }
-/>
-<Route
-  path="/admin/add-video"
-  element={
-    <AdminRoute>
-      <AddVideo />
-    </AdminRoute>
-  }
-/>
-<Route
-  path="/admin/videos"
-  element={
-    <AdminRoute>
-      <ManageVideos />
-    </AdminRoute>
-  }
-/>
-<Route
-  path="/admin/add-question"
-  element={
-    <AdminRoute>
-      <AddQuestion />
-    </AdminRoute>
-  }
-/>
-<Route
-  path="/admin/questions"
-  element={
-    <AdminRoute>
-      <ManageQuestions />
-    </AdminRoute>
-  }
-/>
-<Route
-  path="/admin/results"
-  element={
-    <AdminRoute>
-      <AdminResults />
-    </AdminRoute>
-  }
-/>
-<Route
-  path="/admin/edit-video/:id"
-  element={
-    <AdminRoute>
-      <EditVideo />
-    </AdminRoute>
-  }
-/>
-<Route
-  path="/admin/edit-question/:videoId/:questionId"
-  element={
-    <AdminRoute>
-      <EditQuestion />
-    </AdminRoute>
-  }
-/>
+        <Route
+          path="/certificate/:id"
+          element={
+            <ProtectedRoute>
+              <CertificatePage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/my-results"
+          element={
+            <ProtectedRoute>
+              <MyResults />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <AdminDashboard />
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/admin/add-course"
+          element={
+            <AdminRoute>
+              <AddCourse />
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/admin/courses"
+          element={
+            <AdminRoute>
+              <ManageCourses />
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/admin/add-video"
+          element={
+            <AdminRoute>
+              <AddVideo />
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/admin/videos"
+          element={
+            <AdminRoute>
+              <ManageVideos />
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/admin/add-question"
+          element={
+            <AdminRoute>
+              <AddQuestion />
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/admin/questions"
+          element={
+            <AdminRoute>
+              <ManageQuestions />
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/admin/results"
+          element={
+            <AdminRoute>
+              <AdminResults />
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/admin/edit-video/:id"
+          element={
+            <AdminRoute>
+              <EditVideo />
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/admin/edit-question/:videoId/:questionId"
+          element={
+            <AdminRoute>
+              <EditQuestion />
+            </AdminRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );

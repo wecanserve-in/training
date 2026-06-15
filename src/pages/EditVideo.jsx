@@ -1,19 +1,19 @@
 import { useEffect, useState } from "react";
 import { ref, get, update } from "firebase/database";
 import { database } from "../firebase";
-import { useNavigate, useParams, Link } from "react-router-dom"; 
-import "../styles/addvideo.css"; 
+import { useNavigate, useParams, Link } from "react-router-dom";
+import "../styles/addvideo.css";
 
 function EditVideo() {
   const { id } = useParams();
   const navigate = useNavigate();
 
+  const departments = ["Sales", "Marketing", "HR", "Production", "Accounts"];
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  
-  // Track just the video name/slug rather than the full URL path
+  const [department, setDepartment] = useState("");
   const [videoSlug, setVideoSlug] = useState("");
-  
   const [passingScore, setPassingScore] = useState(70);
   const [testDuration, setTestDuration] = useState(60);
   const [loading, setLoading] = useState(true);
@@ -27,12 +27,12 @@ function EditVideo() {
 
         setTitle(video.title || "");
         setDescription(video.description || "");
-        
-        // Strip out the "/videos/" prefix from the DB value for clean field rendering
+        setDepartment(video.department || "");
+
         const dbUrl = video.videoUrl || "";
         const extractedSlug = dbUrl.replace(/^\/videos\//, "");
         setVideoSlug(extractedSlug);
-        
+
         setPassingScore(video.passingScore || 70);
         setTestDuration(video.testDuration || 60);
       }
@@ -46,17 +46,20 @@ function EditVideo() {
   const handleUpdate = async (e) => {
     e.preventDefault();
 
-    // Clean up input: remove accidental leading or trailing slashes
+    if (!department) {
+      alert("Please select department");
+      return;
+    }
+
     const cleanSlug = videoSlug.replace(/^\/+|\/+$/g, "");
-    
-    // Auto-assemble the uniform absolute path string
     const finalVideoUrl = `/videos/${cleanSlug}`;
 
     try {
       await update(ref(database, `videos/${id}`), {
         title,
         description,
-        videoUrl: finalVideoUrl, // Saves the absolute uniform route structure back to Firebase
+        department,
+        videoUrl: finalVideoUrl,
         passingScore: Number(passingScore),
         testDuration: Number(testDuration),
         updatedAt: new Date().toISOString(),
@@ -70,7 +73,9 @@ function EditVideo() {
     }
   };
 
-  if (loading) return <h2 className="admin-status-msg">Loading Video Details...</h2>;
+  if (loading) {
+    return <h2 className="admin-status-msg">Loading Video Details...</h2>;
+  }
 
   return (
     <div className="admin-form-container">
@@ -82,7 +87,9 @@ function EditVideo() {
 
       <div className="admin-form-card">
         <h1 className="admin-form-title">Edit Video Course</h1>
-        <p className="admin-form-subtitle">Update core training metadata and modify examination pass parameters.</p>
+        <p className="admin-form-subtitle">
+          Update core training metadata and modify examination pass parameters.
+        </p>
 
         <form onSubmit={handleUpdate} className="admin-core-form">
           <div className="admin-input-group">
@@ -97,7 +104,9 @@ function EditVideo() {
           </div>
 
           <div className="admin-input-group">
-            <label className="admin-field-label">Course Description Summary</label>
+            <label className="admin-field-label">
+              Course Description Summary
+            </label>
             <textarea
               placeholder="Description"
               value={description}
@@ -108,9 +117,28 @@ function EditVideo() {
             />
           </div>
 
-          {/* Locked Content Input Field Wrapper Layout */}
           <div className="admin-input-group">
-            <label className="admin-field-label">Video Content File Name / Slug</label>
+            <label className="admin-field-label">Department</label>
+            <select
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+              className="admin-form-input"
+              required
+            >
+              <option value="">Select Department</option>
+              {departments.map((dept) => (
+                <option key={dept} value={dept}>
+                  {dept}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="admin-input-group">
+            <label className="admin-field-label">
+              Video Content File Name / Slug
+            </label>
+
             <div className="prefix-input-wrapper">
               <span className="route-fixed-prefix">/videos/</span>
               <input
@@ -121,18 +149,19 @@ function EditVideo() {
                 required
               />
             </div>
+
             <small className="field-hint-text">
-              Modifying this path? Type the filename only. Target structure output: <strong>/videos/{videoSlug || "..."}</strong>
+              Target output: <strong>/videos/{videoSlug || "..."}</strong>
             </small>
           </div>
 
-          {/* Double-Column Metric Alignment Layout Grid rule */}
           <div className="admin-form-row-split">
             <div className="admin-input-group">
-              <label className="admin-field-label">Passing Benchmark (%)</label>
+              <label className="admin-field-label">
+                Passing Benchmark (%)
+              </label>
               <input
                 type="number"
-                placeholder="Passing Score"
                 min="0"
                 max="100"
                 value={passingScore}
@@ -143,10 +172,11 @@ function EditVideo() {
             </div>
 
             <div className="admin-input-group">
-              <label className="admin-field-label">Exam Timer Limit (Seconds)</label>
+              <label className="admin-field-label">
+                Exam Timer Limit (Seconds)
+              </label>
               <input
                 type="number"
-                placeholder="Quiz Duration"
                 min="5"
                 value={testDuration}
                 onChange={(e) => setTestDuration(e.target.value)}

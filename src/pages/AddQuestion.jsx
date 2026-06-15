@@ -6,7 +6,16 @@ import { database } from "../firebase";
 import "../styles/addquestion.css";
 
 function AddQuestion() {
+  const departments = ["Sales", "Marketing", "HR", "Production", "Accounts"];
+
+  const [courses, setCourses] = useState([]);
   const [videos, setVideos] = useState([]);
+
+  const [filteredCourses, setFilteredCourses] = useState([]);
+  const [filteredVideos, setFilteredVideos] = useState([]);
+
+  const [department, setDepartment] = useState("");
+  const [courseId, setCourseId] = useState("");
   const [videoId, setVideoId] = useState("");
 
   const [question, setQuestion] = useState("");
@@ -20,11 +29,24 @@ function AddQuestion() {
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
-    const fetchVideos = async () => {
-      const snapshot = await get(ref(database, "videos"));
+    const fetchData = async () => {
+      const coursesSnap = await get(ref(database, "courses"));
 
-      if (snapshot.exists()) {
-        const data = snapshot.val();
+      if (coursesSnap.exists()) {
+        const data = coursesSnap.val();
+
+        const courseArray = Object.keys(data).map((key) => ({
+          id: key,
+          ...data[key],
+        }));
+
+        setCourses(courseArray);
+      }
+
+      const videosSnap = await get(ref(database, "videos"));
+
+      if (videosSnap.exists()) {
+        const data = videosSnap.val();
 
         const videoArray = Object.keys(data).map((key) => ({
           id: key,
@@ -35,14 +57,49 @@ function AddQuestion() {
       }
     };
 
-    fetchVideos();
+    fetchData();
   }, []);
+
+  const handleDepartmentChange = (e) => {
+    const selectedDepartment = e.target.value;
+
+    setDepartment(selectedDepartment);
+    setCourseId("");
+    setVideoId("");
+    setFilteredVideos([]);
+
+    const matchedCourses = courses.filter(
+      (course) => course.department === selectedDepartment
+    );
+
+    setFilteredCourses(matchedCourses);
+  };
+
+  const handleCourseChange = (e) => {
+    const selectedCourseId = e.target.value;
+
+    setCourseId(selectedCourseId);
+    setVideoId("");
+
+    const matchedVideos = videos.filter(
+      (video) => video.courseId === selectedCourseId
+    );
+
+    setFilteredVideos(matchedVideos);
+  };
 
   const downloadTemplate = () => {
     const worksheetData = [
       ["Question", "OptionA", "OptionB", "OptionC", "OptionD", "CorrectAnswer"],
       ["What is React?", "Library", "Database", "Server", "Browser", "A"],
-      ["Which company created React?", "Google", "Microsoft", "Meta", "Amazon", "C"],
+      [
+        "Which company created React?",
+        "Google",
+        "Microsoft",
+        "Meta",
+        "Amazon",
+        "C",
+      ],
     ];
 
     const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
@@ -55,8 +112,18 @@ function AddQuestion() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!department) {
+      alert("Please select department");
+      return;
+    }
+
+    if (!courseId) {
+      alert("Please select course");
+      return;
+    }
+
     if (!videoId) {
-      alert("Please select a video");
+      alert("Please select video");
       return;
     }
 
@@ -68,6 +135,9 @@ function AddQuestion() {
     const options = [optionA, optionB, optionC, optionD];
 
     await push(ref(database, `questions/${videoId}`), {
+      department,
+      courseId,
+      videoId,
       question,
       options,
       correctAnswer,
@@ -85,8 +155,18 @@ function AddQuestion() {
   };
 
   const handleExcelUpload = async () => {
+    if (!department) {
+      alert("Please select department first");
+      return;
+    }
+
+    if (!courseId) {
+      alert("Please select course first");
+      return;
+    }
+
     if (!videoId) {
-      alert("Please select a video course first");
+      alert("Please select video first");
       return;
     }
 
@@ -144,6 +224,9 @@ function AddQuestion() {
           }
 
           await push(ref(database, `questions/${videoId}`), {
+            department,
+            courseId,
+            videoId,
             question: q,
             options,
             correctAnswer: finalCorrectAnswer,
@@ -154,7 +237,9 @@ function AddQuestion() {
           addedCount++;
         }
 
-        alert(`Excel Upload Complete\nAdded: ${addedCount}\nSkipped: ${skippedCount}`);
+        alert(
+          `Excel Upload Complete\nAdded: ${addedCount}\nSkipped: ${skippedCount}`
+        );
 
         setExcelFile(null);
         setUploading(false);
@@ -180,26 +265,82 @@ function AddQuestion() {
         <h1 className="admin-question-title">Create Assessment Question</h1>
 
         <p className="admin-question-subtitle">
-          Add questions manually or bulk upload questions using an Excel sheet.
+          Select department, course, and video before adding questions.
         </p>
 
         <div className="admin-input-group">
-          <label className="admin-field-label">Target Video Course</label>
+          <label className="admin-field-label">Department</label>
+
+          <select
+            value={department}
+            onChange={handleDepartmentChange}
+            className="admin-form-select"
+            required
+          >
+            <option value="">Select Department</option>
+
+            {departments.map((dept) => (
+              <option key={dept} value={dept}>
+                {dept}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="admin-input-group">
+          <label className="admin-field-label">Course / Product / Topic</label>
+
+          <select
+            value={courseId}
+            onChange={handleCourseChange}
+            className="admin-form-select"
+            disabled={!department}
+            required
+          >
+            <option value="">
+              {department ? "Select Course" : "Select Department First"}
+            </option>
+
+            {filteredCourses.map((course) => (
+              <option key={course.id} value={course.id}>
+                {course.title}
+              </option>
+            ))}
+          </select>
+
+          {department && filteredCourses.length === 0 && (
+            <small className="field-hint-text">
+              No courses found for this department.
+            </small>
+          )}
+        </div>
+
+        <div className="admin-input-group">
+          <label className="admin-field-label">Target Video</label>
 
           <select
             value={videoId}
             onChange={(e) => setVideoId(e.target.value)}
             className="admin-form-select"
+            disabled={!courseId}
             required
           >
-            <option value="">-- Choose Training Module --</option>
+            <option value="">
+              {courseId ? "Select Video" : "Select Course First"}
+            </option>
 
-            {videos.map((video) => (
+            {filteredVideos.map((video) => (
               <option key={video.id} value={video.id}>
                 {video.title}
               </option>
             ))}
           </select>
+
+          {courseId && filteredVideos.length === 0 && (
+            <small className="field-hint-text">
+              No videos found for this course.
+            </small>
+          )}
         </div>
 
         <div className="excel-upload-card">
@@ -207,7 +348,10 @@ function AddQuestion() {
 
           <p>
             Upload an Excel file with columns:
-            <strong> Question, OptionA, OptionB, OptionC, OptionD, CorrectAnswer</strong>
+            <strong>
+              {" "}
+              Question, OptionA, OptionB, OptionC, OptionD, CorrectAnswer
+            </strong>
           </p>
 
           <button

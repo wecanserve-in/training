@@ -1,45 +1,111 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom"; // Added useNavigate to redirect after creation
-import { push, ref } from "firebase/database";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { push, ref, get } from "firebase/database";
 import { database } from "../firebase";
-import "../styles/addvideo.css"; 
+import { departmentVideos } from "../data/videos";
+import "../styles/addvideo.css";
 
 function AddVideo() {
   const navigate = useNavigate();
 
+  const departments = ["Sales", "Marketing", "HR", "Production", "Accounts"];
+
+  const [courses, setCourses] = useState([]);
+  const [filteredCourses, setFilteredCourses] = useState([]);
+  const [availableVideos, setAvailableVideos] = useState([]);
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  
-  // Track just the video name/slug instead of the full URL route
+  const [department, setDepartment] = useState("");
+  const [courseId, setCourseId] = useState("");
+  const [courseTitle, setCourseTitle] = useState("");
   const [videoSlug, setVideoSlug] = useState("");
-  
   const [passingScore, setPassingScore] = useState(70);
   const [testDuration, setTestDuration] = useState(60);
+
+  useEffect(() => {
+    const fetchCourses = async () => {
+      const snapshot = await get(ref(database, "courses"));
+
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+
+        const courseArray = Object.keys(data).map((key) => ({
+          id: key,
+          ...data[key],
+        }));
+
+        setCourses(courseArray);
+      }
+    };
+
+    fetchCourses();
+  }, []);
+
+  const handleDepartmentChange = (e) => {
+    const selectedDepartment = e.target.value;
+
+    setDepartment(selectedDepartment);
+    setCourseId("");
+    setCourseTitle("");
+    setVideoSlug("");
+
+    const matchedCourses = courses.filter(
+      (course) => course.department === selectedDepartment
+    );
+
+    setFilteredCourses(matchedCourses);
+    setAvailableVideos(departmentVideos[selectedDepartment] || []);
+  };
+
+  const handleCourseChange = (e) => {
+    const selectedCourseId = e.target.value;
+
+    const selectedCourse = courses.find(
+      (course) => course.id === selectedCourseId
+    );
+
+    setCourseId(selectedCourseId);
+    setCourseTitle(selectedCourse?.title || "");
+    setVideoSlug("");
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Clean up input: remove leading or trailing slashes if typed by mistake
-    const cleanSlug = videoSlug.replace(/^\/+|\/+$/g, "");
-    
-    // Auto-assemble the complete path string
-    const finalVideoUrl = `/videos/${cleanSlug}`;
+    if (!department) {
+      alert("Please select department");
+      return;
+    }
+
+    if (!courseId) {
+      alert("Please select course");
+      return;
+    }
+
+    if (!videoSlug) {
+      alert("Please select video");
+      return;
+    }
+
+    const finalVideoUrl = `/videos/${department}/${videoSlug}`;
 
     try {
       await push(ref(database, "videos"), {
-        title,
-        description,
-        videoUrl: finalVideoUrl, // Saves clean complete location route to Firebase
+        title: title.trim(),
+        description: description.trim(),
+        department,
+        courseId,
+        courseTitle,
+        videoFileName: videoSlug,
+        videoUrl: finalVideoUrl,
         passingScore: Number(passingScore),
         testDuration: Number(testDuration),
         createdAt: new Date().toISOString(),
       });
 
       alert("Video Added Successfully");
-      
-      // Navigate to the video directory layout to view your new addition
       navigate("/admin/videos");
-
     } catch (error) {
       console.error(error);
       alert("Failed to add video");
@@ -55,14 +121,68 @@ function AddVideo() {
       </div>
 
       <div className="admin-form-card">
-        <h1 className="admin-form-title">Add New Video Course</h1>
-        <p className="admin-form-subtitle">Deploy a structural training module asset with associated exam parameters.</p>
+        <h1 className="admin-form-title">Add Video Inside Course</h1>
+
+        <p className="admin-form-subtitle">
+          Select department, choose course, then attach a video from that
+          department folder.
+        </p>
 
         <form onSubmit={handleSubmit} className="admin-core-form">
           <div className="admin-input-group">
-            <label className="admin-field-label">Course Module Title</label>
+            <label className="admin-field-label">Department</label>
+
+            <select
+              value={department}
+              onChange={handleDepartmentChange}
+              className="admin-form-input"
+              required
+            >
+              <option value="">Select Department</option>
+
+              {departments.map((dept) => (
+                <option key={dept} value={dept}>
+                  {dept}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="admin-input-group">
+            <label className="admin-field-label">
+              Select Course / Product / Topic
+            </label>
+
+            <select
+              value={courseId}
+              onChange={handleCourseChange}
+              className="admin-form-input"
+              required
+              disabled={!department}
+            >
+              <option value="">
+                {department ? "Select Course" : "Select Department First"}
+              </option>
+
+              {filteredCourses.map((course) => (
+                <option key={course.id} value={course.id}>
+                  {course.title}
+                </option>
+              ))}
+            </select>
+
+            {department && filteredCourses.length === 0 && (
+              <small className="field-hint-text">
+                No course found for this department. Please create course first.
+              </small>
+            )}
+          </div>
+
+          <div className="admin-input-group">
+            <label className="admin-field-label">Video Title</label>
+
             <input
-              placeholder="e.g., Introduction to Cyber Security Protocol"
+              placeholder="e.g., Introduction Video"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="admin-form-input"
@@ -71,9 +191,10 @@ function AddVideo() {
           </div>
 
           <div className="admin-input-group">
-            <label className="admin-field-label">Course Description Summary</label>
+            <label className="admin-field-label">Video Description</label>
+
             <textarea
-              placeholder="Provide context and summary goals for the training material..."
+              placeholder="Short video description..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="admin-form-textarea"
@@ -82,28 +203,49 @@ function AddVideo() {
             />
           </div>
 
-          {/* Video Routing Input Block with Fixed prefix UI elements */}
           <div className="admin-input-group">
-            <label className="admin-field-label">Video Content File Name / Slug</label>
-            <div className="prefix-input-wrapper">
-              <span className="route-fixed-prefix">/videos/</span>
-              <input
-                placeholder="training1.mp4"
-                value={videoSlug}
-                onChange={(e) => setVideoSlug(e.target.value)}
-                className="admin-form-input source-code-font prefix-attached"
-                required
-              />
-            </div>
+            <label className="admin-field-label">Select Video File</label>
+
+            <select
+              value={videoSlug}
+              onChange={(e) => setVideoSlug(e.target.value)}
+              className="admin-form-input"
+              required
+              disabled={!department}
+            >
+              <option value="">
+                {department ? "Select Video" : "Select Department First"}
+              </option>
+
+              {availableVideos.map((video) => (
+                <option key={video} value={video}>
+                  {video}
+                </option>
+              ))}
+            </select>
+
+            {department && availableVideos.length === 0 && (
+              <small className="field-hint-text">
+                No videos found for this department.
+              </small>
+            )}
+
             <small className="field-hint-text">
-              Type the filename only. Saved output string: <strong>/videos/{videoSlug || "..."}</strong>
+              Saved path:{" "}
+              <strong>
+                {department && videoSlug
+                  ? `/videos/${department}/${videoSlug}`
+                  : "/videos/Department/video.mp4"}
+              </strong>
             </small>
           </div>
 
-          {/* Metrics configuration section grouped as two columns */}
           <div className="admin-form-row-split">
             <div className="admin-input-group">
-              <label className="admin-field-label">Passing Benchmark (%)</label>
+              <label className="admin-field-label">
+                Passing Benchmark (%)
+              </label>
+
               <input
                 type="number"
                 placeholder="70"
@@ -117,7 +259,10 @@ function AddVideo() {
             </div>
 
             <div className="admin-input-group">
-              <label className="admin-field-label">Exam Timer Limit (Seconds)</label>
+              <label className="admin-field-label">
+                Exam Timer Limit (Seconds)
+              </label>
+
               <input
                 type="number"
                 placeholder="60"
@@ -132,7 +277,7 @@ function AddVideo() {
 
           <div className="admin-form-submit-zone">
             <button type="submit" className="btn-admin-submit-form">
-              Save Video Course
+              Save Video
             </button>
           </div>
         </form>
@@ -140,5 +285,9 @@ function AddVideo() {
     </div>
   );
 }
+
+
+
+
 
 export default AddVideo;

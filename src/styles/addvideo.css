@@ -1,196 +1,508 @@
-/* ==========================================================================
-   Admin Content Creation Form Stylesheet - Course Onboarding Portal
-   ========================================================================== */
-
-.admin-form-container {
-  width: 100%;
-  max-width: 800px; /* Provides proper layout focus for information entry cards */
-  margin: 0 auto;
-  padding: 40px 24px 80px 24px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background-color: #f8fafc;
+.course-wizard-page {
   min-height: 100vh;
-  box-sizing: border-box;
+  padding: 18px 24px;
+  background: #f3f7fa;
+  overflow-x: hidden;
 }
 
-/* Backlink Contextual Shortcut navigation wrapper */
-.admin-nav-back-row {
-  margin-bottom: 24px;
+.wizard-topbar {
+  max-width: 1160px;
+  margin: 0 auto 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.btn-admin-back {
-  display: inline-block;
-  color: #64748b;
-  text-decoration: none;
-  font-size: 0.95rem;
-  font-weight: 600;
-  transition: color 0.15s ease;
+.wizard-logo {
+  width: 122px;
+  height: auto;
+  object-fit: contain;
 }
 
-.btn-admin-back:hover {
-  color: #15803d; /* Switches tone highlight cleanly upon track interaction */
+.wizard-card {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 20px 24px;
+  background: #ffffff;
+  border: 1px solid #d6e2ea;
+  border-radius: 18px;
+  box-shadow: 0 12px 30px rgba(6, 25, 67, 0.06);
 }
 
-/* Core Interface Creation Card Block Layout */
-.admin-form-card {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 40px;
-  box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.02), 0 2px 4px -1px rgba(15, 23, 42, 0.02);
+.wizard-header {
+  padding-bottom: 12px;
+  border-bottom: 1px solid #d6e2ea;
 }
 
-.admin-form-title {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0 0 6px 0;
-  letter-spacing: -0.025em;
+.wizard-header .admin-form-title {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.15;
+  color: #061943;
 }
 
-.admin-form-subtitle {
-  font-size: 0.95rem;
-  color: #64748b;
-  margin: 0 0 32px 0;
-  line-height: 1.4;
+.wizard-header .admin-form-subtitle {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: #526b7d;
 }
 
-/* Explicit Form Formats Matrix */
+.wizard-progress {
+  position: relative;
+  margin: 18px 0 16px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.wizard-progress::before {
+  content: "";
+  position: absolute;
+  top: 22px;
+  left: 12%;
+  right: 12%;
+  height: 3px;
+  background: #d6e2ea;
+  border-radius: 999px;
+  z-index: 0;
+}
+
+.wizard-step-circle {
+  position: relative;
+  z-index: 1;
+  border: none;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  cursor: default;
+}
+
+.wizard-step-circle.completed {
+  cursor: pointer;
+}
+
+.circle-number {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #eef4f7;
+  border: 2px solid #cfdde6;
+  color: #60798c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  transition: 0.25s ease;
+}
+
+.circle-label {
+  font-size: 13px;
+  font-weight: 800;
+  color: #60798c;
+}
+
+.wizard-step-circle.active .circle-number {
+  background: #061943;
+  border-color: #061943;
+  color: #ffffff;
+  transform: scale(1.08);
+  box-shadow: 0 8px 18px rgba(6, 25, 67, 0.18);
+}
+
+.wizard-step-circle.completed .circle-number {
+  background: #12b76a;
+  border-color: #12b76a;
+  color: #ffffff;
+  animation: stepComplete 0.35s ease;
+}
+
+.wizard-step-circle.completed .circle-label {
+  color: #12b76a;
+}
+
+@keyframes stepComplete {
+  0% {
+    transform: scale(0.75);
+  }
+  70% {
+    transform: scale(1.14);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.wizard-section {
+  background: #f8fbfd;
+  border: 1px solid #d6e2ea;
+  border-radius: 16px;
+  padding: 16px 18px;
+  animation: formFade 0.25s ease;
+}
+
+@keyframes formFade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.section-mini-title {
+  margin-bottom: 12px;
+}
+
+.section-mini-title span {
+  color: #008a9a;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.section-mini-title h2 {
+  margin: 4px 0 0;
+  color: #061943;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
 .admin-core-form {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 10px;
 }
 
 .admin-input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
+  margin: 0;
 }
 
 .admin-field-label {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #334155;
+  display: block;
+  margin-bottom: 5px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #061943;
 }
 
-/* Form Entry Node Fields Design rules */
 .admin-form-input,
 .admin-form-textarea {
   width: 100%;
-  padding: 12px 16px;
-  font-size: 0.975rem;
-  color: #0f172a;
-  background-color: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  box-sizing: border-box;
-  font-family: inherit;
-  transition: all 0.15s ease;
+  border: 1px solid #cbd9e3;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #061943;
+  font-size: 14px;
+  padding: 11px 13px;
+  transition: 0.2s ease;
+}
+
+.admin-form-input {
+  min-height: 44px;
+}
+
+.admin-form-textarea {
+  min-height: 78px;
+  resize: vertical;
 }
 
 .admin-form-input:focus,
 .admin-form-textarea:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+  border-color: #008a9a;
+  box-shadow: 0 0 0 3px rgba(0, 138, 154, 0.12);
 }
 
-/* Specialty font context for system video route string mapping */
-.admin-form-input.source-code-font {
-  font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
-  font-size: 0.9rem;
-  background-color: #fafafa;
+.input-error {
+  border-color: #e54848 !important;
+  background: #fff8f8;
 }
 
-/* Double-Column Metric Alignment Layout Grid rule */
+.input-error:focus {
+  box-shadow: 0 0 0 3px rgba(229, 72, 72, 0.14);
+}
+
 .admin-form-row-split {
-  display: flex;
-  gap: 20px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 
-/* Action Control Matrix Submission Centers */
-.admin-form-submit-zone {
-  margin-top: 12px;
-  border-top: 1px solid #e2e8f0;
-  padding-top: 24px;
-}
-
-.btn-admin-submit-form {
-  width: 100%;
-  padding: 14px 28px;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #ffffff;
-  background-color: #2563eb; /* Platform Identity Blue Accent */
-  border: none;
-  border-radius: 6px;
+.btn-add-inline {
+  width: fit-content;
+  margin-top: 4px;
+  background: #eef7fb;
+  border: 1px solid #bddce7;
+  color: #007989;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 900;
   cursor: pointer;
-  transition: background-color 0.15s ease;
-  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.15);
+  transition: 0.2s ease;
 }
 
-.btn-admin-submit-form:hover {
-  background-color: #1d4ed8;
+.btn-add-inline:hover {
+  background: #e2f2f7;
+  border-color: #008a9a;
+  transform: translateY(-1px);
 }
 
-/* Media Adaptation Overrides rules */
-@media (max-width: 640px) {
-  .admin-form-card {
-    padding: 24px;
-  }
-  .admin-form-row-split {
-    flex-direction: column;
-    gap: 24px;
-  }
+.added-list-box,
+.excel-upload-card.compact-excel,
+.review-box {
+  margin-top: 8px;
+  padding: 13px 14px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #d6e2ea;
+  animation: formFade 0.25s ease;
 }
-/* ==========================================================================
-   Fixed Route Prefix Layout Framework Inject
-   ========================================================================== */
 
-.prefix-input-wrapper {
+.added-list-box h3,
+.compact-excel h3 {
+  margin: 0 0 8px;
+  color: #061943;
+  font-size: 16px;
+}
+
+.compact-excel p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #60798c;
+}
+
+.added-row {
+  padding: 9px 0;
+  border-top: 1px solid #d6e2ea;
   display: flex;
   align-items: center;
-  background-color: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  overflow: hidden;
-  box-sizing: border-box;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.prefix-input-wrapper:focus-within {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+.added-row:first-of-type {
+  border-top: none;
 }
 
-.route-fixed-prefix {
-  background-color: #f1f5f9;
-  color: #64748b;
-  font-family: SFMono-Regular, Consolas, Monaco, monospace;
-  font-size: 0.9rem;
-  font-weight: 600;
-  padding: 12px 16px;
-  border-right: 1px solid #cbd5e1;
-  user-select: none;
-  white-space: nowrap;
+.added-row strong {
+  color: #061943;
+  font-size: 14px;
 }
 
-/* Overrides inner styles to turn off redundant borders/shadows inside the wrapper container */
-.admin-form-input.prefix-attached {
-  border: none !important;
-  box-shadow: none !important;
-  border-radius: 0 !important;
+.added-row p {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: #60798c;
+}
+
+.btn-remove-small {
+  background: #fff5f3;
+  border: 1px solid #f5c7bd;
+  color: #d83a16;
+  padding: 7px 11px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.excel-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.btn-template-download,
+.btn-excel-upload {
+  border-radius: 9px;
+  padding: 9px 13px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.btn-template-download {
+  border: 1px solid #bddce7;
+  background: #eef7fb;
+  color: #007989;
+}
+
+.btn-excel-upload {
+  border: 1px solid #061943;
+  background: #061943;
+  color: #ffffff;
+}
+
+.btn-excel-upload:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.excel-file-input {
+  max-width: 260px;
+  border: 1px solid #d6e2ea;
+  border-radius: 9px;
+  padding: 8px;
+  background: #ffffff;
+  color: #526b7d;
+  font-size: 13px;
+}
+
+.manual-divider {
+  margin: 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.manual-divider::before,
+.manual-divider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: #d6e2ea;
+}
+
+.manual-divider span {
+  color: #60798c;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.review-box h3 {
+  margin: 0 0 6px;
+  color: #061943;
+  font-size: 22px;
+}
+
+.review-box p {
+  margin: 5px 0;
+  color: #526b7d;
+  font-size: 14px;
+}
+
+.review-video-list {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.review-video-card {
   padding: 12px 14px;
+  border-radius: 12px;
+  background: #f8fbfd;
+  border: 1px solid #d6e2ea;
 }
 
-.field-hint-text {
-  display: block;
-  margin-top: 6px;
-  font-size: 0.8rem;
-  color: #64748b;
+.review-video-card h4 {
+  margin: 0;
+  color: #061943;
+  font-size: 15px;
 }
 
-.field-hint-text strong {
-  color: #0f172a;
+.review-video-card p {
+  margin: 4px 0;
+  color: #60798c;
+  font-size: 13px;
+}
+
+.review-video-card span {
+  display: inline-block;
+  margin-top: 4px;
+  color: #008a9a;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.admin-form-submit-zone {
+  margin-top: 10px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn-admin-submit-form,
+.btn-admin-back {
+  border-radius: 10px;
+  padding: 10px 17px;
+  font-size: 14px;
+  font-weight: 900;
+  transition: 0.2s ease;
+}
+
+.btn-admin-submit-form:hover,
+.btn-admin-back:hover {
+  transform: translateY(-1px);
+}
+
+@media (min-width: 1000px) {
+  .wizard-section {
+    min-height: 360px;
+  }
+
+  .admin-form-textarea[rows="4"] {
+    min-height: 88px;
+  }
+
+  .admin-form-textarea[rows="3"] {
+    min-height: 72px;
+  }
+}
+
+@media (max-width: 900px) {
+  .course-wizard-page {
+    padding: 16px;
+  }
+
+  .wizard-topbar {
+    align-items: flex-start;
+    flex-direction: column-reverse;
+    gap: 12px;
+  }
+
+  .wizard-logo {
+    width: 118px;
+  }
+
+  .wizard-card {
+    padding: 18px;
+  }
+
+  .wizard-progress {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .wizard-progress::before {
+    display: none;
+  }
+
+  .admin-form-row-split {
+    grid-template-columns: 1fr;
+  }
+
+  .excel-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .excel-file-input {
+    max-width: 100%;
+  }
+
+  .admin-form-submit-zone {
+    flex-direction: column;
+  }
+
+  .btn-admin-submit-form,
+  .btn-admin-back,
+  .btn-add-inline {
+    width: 100%;
+  }
 }

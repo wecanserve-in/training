@@ -5,6 +5,7 @@ import {
   FaEnvelope,
   FaLock,
   FaUser,
+  FaBuilding,
 } from "react-icons/fa";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { ref, set } from "firebase/database";
@@ -15,7 +16,10 @@ import "../styles/register.css";
 function Register() {
   const navigate = useNavigate();
 
+  const departments = ["Sales", "Marketing", "HR", "Production", "Accounts"];
+
   const [name, setName] = useState("");
+  const [department, setDepartment] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -25,6 +29,11 @@ function Register() {
 
   const handleRegister = async (e) => {
     e.preventDefault();
+
+    if (!department) {
+      alert("Please select department");
+      return;
+    }
 
     if (password !== confirmPassword) {
       alert("Passwords do not match");
@@ -45,6 +54,7 @@ function Register() {
       await set(ref(database, "users/" + userCredential.user.uid), {
         name: name.trim(),
         email: email.trim(),
+        department,
         createdAt: new Date().toISOString(),
       });
 
@@ -82,82 +92,103 @@ function Register() {
           <h2>Sign Up</h2>
           <div className="title-line"></div>
 
-<form
-  onSubmit={handleRegister}
-  className="register-form"
-  autoComplete="off"
->
-  <input type="text" name="fake-user" style={{ display: "none" }} />
-  <input type="password" name="fake-pass" style={{ display: "none" }} />
+          <form
+            onSubmit={handleRegister}
+            className="register-form"
+            autoComplete="off"
+          >
+            <input type="text" name="fake-user" style={{ display: "none" }} />
+            <input
+              type="password"
+              name="fake-pass"
+              style={{ display: "none" }}
+            />
 
-  <div className="input-group">
-    <FaUser />
-    <input
-      type="text"
-      name="zuvius_full_name"
-      autoComplete="off"
-      placeholder="Full Name"
-      value={name}
-      onChange={(e) => setName(e.target.value)}
-      required
-    />
-  </div>
+            <div className="input-group">
+              <FaUser />
+              <input
+                type="text"
+                name="zuvius_full_name"
+                autoComplete="off"
+                placeholder="Full Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
 
-  <div className="input-group">
-    <FaEnvelope />
-    <input
-      type="email"
-      name="zuvius_register_email"
-      autoComplete="off"
-      placeholder="Email Address"
-      value={email}
-      onChange={(e) => setEmail(e.target.value)}
-      required
-    />
-  </div>
+            <div className="input-group">
+              <FaBuilding />
+              <select
+                name="zuvius_department"
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+                required
+              >
+                <option value="">Select Department</option>
+                {departments.map((dept) => (
+                  <option key={dept} value={dept}>
+                    {dept}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-  <div className="input-group password-group">
-    <FaLock />
-    <input
-      type={showPassword ? "text" : "password"}
-      name="zuvius_new_password"
-      autoComplete="new-password"
-      placeholder="Password"
-      value={password}
-      onChange={(e) => setPassword(e.target.value)}
-      required
-    />
+            <div className="input-group">
+              <FaEnvelope />
+              <input
+                type="email"
+                name="zuvius_register_email"
+                autoComplete="off"
+                placeholder="Email Address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
 
-    <span
-      className="password-toggle"
-      onClick={() => setShowPassword(!showPassword)}
-    >
-      {showPassword ? <FaEyeSlash /> : <FaEye />}
-    </span>
-  </div>
+            <div className="input-group password-group">
+              <FaLock />
+              <input
+                type={showPassword ? "text" : "password"}
+                name="zuvius_new_password"
+                autoComplete="new-password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
 
-  <div className="input-group password-group">
-    <FaLock />
-    <input
-      type={showConfirmPassword ? "text" : "password"}
-      name="zuvius_confirm_password"
-      autoComplete="new-password"
-      placeholder="Confirm Password"
-      value={confirmPassword}
-      onChange={(e) => setConfirmPassword(e.target.value)}
-      required
-    />
+              <span
+                className="password-toggle"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </span>
+            </div>
 
-    <span
-      className="password-toggle"
-      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-    >
-      {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-    </span>
-  </div>
+            <div className="input-group password-group">
+              <FaLock />
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                name="zuvius_confirm_password"
+                autoComplete="new-password"
+                placeholder="Confirm Password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+              />
 
-  <button type="submit">Create Account</button>
-</form>
+              <span
+                className="password-toggle"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+              </span>
+            </div>
+
+            <button type="submit">Create Account</button>
+          </form>
         </div>
       </div>
     </div>

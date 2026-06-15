@@ -1,59 +1,84 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { signOut } from "firebase/auth";
+import { signOut, onAuthStateChanged } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { auth, database } from "../firebase";
 import "../styles/dashboard.css";
 
+const ADMIN_EMAIL = "wemedialabs@gmail.com";
+
 function Dashboard() {
   const navigate = useNavigate();
 
-  const [videos, setVideos] = useState([]);
-  const [progress, setProgress] = useState({});
-  const [completedCourses, setCompletedCourses] = useState({});
+  const [courses, setCourses] = useState([]);
+  const [userDepartment, setUserDepartment] = useState("");
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState("new");
 
   useEffect(() => {
-    const fetchData = async () => {
-      const user = auth.currentUser;
-
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
         navigate("/");
         return;
       }
 
-      const videosSnapshot = await get(ref(database, "videos"));
+      try {
+        const isAdmin = user.email === ADMIN_EMAIL;
+        let department = "";
 
-      if (videosSnapshot.exists()) {
-        const data = videosSnapshot.val();
+        if (isAdmin) {
+          department = "Admin";
+          setUserDepartment("Admin");
+        } else {
+          const userSnapshot = await get(ref(database, `users/${user.uid}`));
 
-        const videoArray = Object.keys(data).map((key) => ({
-          id: key,
-          ...data[key],
-        }));
+          if (!userSnapshot.exists()) {
+            alert("User data not found");
+            navigate("/");
+            return;
+          }
 
-        setVideos(videoArray);
+          const userData = userSnapshot.val();
+          department = userData.department || "";
+
+          if (!department) {
+            alert("Department not assigned. Please contact admin.");
+            navigate("/");
+            return;
+          }
+
+          setUserDepartment(department);
+        }
+
+        const coursesSnapshot = await get(ref(database, "courses"));
+
+        if (coursesSnapshot.exists()) {
+          const data = coursesSnapshot.val();
+
+          let courseArray = Object.keys(data).map((key) => ({
+            id: key,
+            ...data[key],
+          }));
+
+          if (!isAdmin) {
+            courseArray = courseArray.filter(
+              (course) => course.department === department
+            );
+          }
+
+          setCourses(courseArray);
+        } else {
+          setCourses([]);
+        }
+
+        setLoading(false);
+      } catch (error) {
+        console.error(error);
+        alert("Failed to load dashboard");
+        setLoading(false);
       }
+    });
 
-      const progressSnapshot = await get(ref(database, `progress/${user.uid}`));
-
-      if (progressSnapshot.exists()) {
-        setProgress(progressSnapshot.val());
-      }
-
-      const completedSnapshot = await get(
-        ref(database, `completedCourses/${user.uid}`)
-      );
-
-      if (completedSnapshot.exists()) {
-        setCompletedCourses(completedSnapshot.val());
-      }
-
-      setLoading(false);
-    };
-
-    fetchData();
+    return () => unsubscribe();
   }, [navigate]);
 
   const handleLogout = async () => {
@@ -61,167 +86,38 @@ function Dashboard() {
     navigate("/");
   };
 
-  const getCourseData = (video) => {
-    const videoProgress = progress?.[video.id] || {};
-    const courseData = completedCourses?.[video.id] || {};
+  const emptyMessage =
+    userDepartment === "Admin"
+      ? "No courses found."
+      : `No courses found for ${userDepartment}.`;
 
-    const watchedPercent = videoProgress?.watchedPercent || 0;
-    const videoCompleted = videoProgress?.completed || false;
-    const hasPassed = courseData?.passed || false;
-    const attemptId = courseData?.attemptId;
-
-    return {
-      watchedPercent,
-      videoCompleted,
-      hasPassed,
-      attemptId,
-    };
-  };
-
-  const getCourseStatus = (video) => {
-    const { watchedPercent, videoCompleted, hasPassed } = getCourseData(video);
-
-    if (hasPassed) return "completed";
-    if (videoCompleted || watchedPercent > 0) return "inProgress";
-    return "incomplete";
-  };
-
-  const completedCoursesList = videos.filter(
-    (video) => getCourseStatus(video) === "completed"
-  );
-
-  const incompleteCoursesList = videos.filter(
-    (video) => getCourseStatus(video) === "incomplete"
-  );
-
-  const inProgressCoursesList = videos.filter(
-    (video) => getCourseStatus(video) === "inProgress"
-  );
-
-  const continueLearningCourses = videos.filter((video) => {
-    const { watchedPercent, videoCompleted, hasPassed } = getCourseData(video);
-    return !hasPassed && (watchedPercent > 0 || videoCompleted);
-  });
-
-  const filteredCourses =
-    activeFilter === "completed"
-      ? completedCoursesList
-      : activeFilter === "incomplete"
-      ? incompleteCoursesList
-      : activeFilter === "inProgress"
-      ? inProgressCoursesList
-      : videos;
-
-  const filterTitle =
-    activeFilter === "completed"
-      ? "Completed Courses"
-      : activeFilter === "incomplete"
-      ? "Incomplete Courses"
-      : activeFilter === "inProgress"
-      ? "In Progress Courses"
-      : "New Courses";
-
-  const renderCourseCard = (video) => {
-    const { watchedPercent, videoCompleted, hasPassed, attemptId } =
-      getCourseData(video);
-
+  const renderCourseCard = (course) => {
     return (
-      <div key={video.id} className="course-card">
-        <div className="course-thumbnail">
-          <video src={video.videoUrl} preload="metadata" muted />
-        </div>
-
+      <div key={course.id} className="course-card">
         <div className="course-content">
           <div className="course-top">
-            <span className="course-tag">Training Module</span>
+            <span className="course-tag">
+              {course.department || "Department Not Set"}
+            </span>
 
-            {hasPassed ? (
-              <span className="course-status passed">Completed</span>
-            ) : videoCompleted ? (
-              <span className="course-status unlocked">Quiz Unlocked</span>
-            ) : watchedPercent > 0 ? (
-              <span className="course-status pending">In Progress</span>
-            ) : (
-              <span className="course-status pending">New Course</span>
-            )}
+            <span className="course-status pending">Course</span>
           </div>
 
-          <h2>{video.title}</h2>
+          <h2>{course.title}</h2>
 
           <p className="course-desc">
-            {video.description ||
-              "Complete this training module to unlock the assessment."}
+            {course.description || "Open this course to view training videos."}
           </p>
 
-          <div className="course-progress">
-            <div className="progress-info">
-              <span>Video Progress</span>
-              <strong>
-                {hasPassed || videoCompleted ? "100%" : `${watchedPercent}%`}
-              </strong>
-            </div>
-
-            <div className="course-progress-bar">
-              <div
-                className="course-progress-fill"
-                style={{
-                  width: `${
-                    hasPassed || videoCompleted ? 100 : watchedPercent
-                  }%`,
-                }}
-              ></div>
-            </div>
-          </div>
-
           <div className="course-actions">
-            <Link to={`/video/${video.id}`}>
-              <button className="btn-action">
-                {hasPassed || videoCompleted
-                  ? "Watch Again"
-                  : watchedPercent > 0
-                  ? "Continue Training"
-                  : "Start Training"}
-              </button>
+            <Link to={`/course/${course.id}`}>
+              <button className="btn-action">View Course</button>
             </Link>
-
-            {hasPassed ? (
-              <button
-                onClick={() => navigate(`/certificate/${attemptId}`)}
-                className="btn-outline"
-              >
-                Certificate
-              </button>
-            ) : videoCompleted ? (
-              <Link to={`/quiz/${video.id}`}>
-                <button className="btn-outline">Start Quiz</button>
-              </Link>
-            ) : null}
           </div>
-
-          {hasPassed && (
-            <p className="course-note">
-              Quiz already completed. You can watch the video again, but the
-              quiz cannot be attempted again.
-            </p>
-          )}
         </div>
       </div>
     );
   };
-
-  const CourseSection = ({ title, courses }) => (
-    <div className="course-section">
-      <h2 className="section-title">{title}</h2>
-
-      {courses.length === 0 ? (
-        <p className="no-data-msg">No courses found.</p>
-      ) : (
-        <div className="horizontal-course-row">
-          {courses.map((video) => renderCourseCard(video))}
-        </div>
-      )}
-    </div>
-  );
 
   if (loading) {
     return <h2 className="dashboard-loading">Loading Dashboard...</h2>;
@@ -233,6 +129,12 @@ function Dashboard() {
         <div className="dashboard-welcome">
           <h1>Training Dashboard</h1>
           <h3>Welcome, {auth.currentUser?.displayName || "User"}</h3>
+
+          <p className="user-department">
+            {userDepartment === "Admin"
+              ? "Admin View: All Departments"
+              : `Department: ${userDepartment}`}
+          </p>
         </div>
 
         <div className="dashboard-actions">
@@ -249,47 +151,16 @@ function Dashboard() {
         </div>
       </div>
 
-      {videos.length === 0 ? (
-        <p className="no-data-msg">No training videos available.</p>
+      {courses.length === 0 ? (
+        <p className="no-data-msg">{emptyMessage}</p>
       ) : (
-        <>
-          <div className="floating-filter-wrapper">
-            <button
-              className={activeFilter === "new" ? "active-filter" : ""}
-              onClick={() => setActiveFilter("new")}
-            >
-              New Courses
-            </button>
+        <div className="course-section">
+          <h2 className="section-title">Available Courses</h2>
 
-            <button
-              className={activeFilter === "completed" ? "active-filter" : ""}
-              onClick={() => setActiveFilter("completed")}
-            >
-              Completed
-            </button>
-
-            <button
-              className={activeFilter === "incomplete" ? "active-filter" : ""}
-              onClick={() => setActiveFilter("incomplete")}
-            >
-              Incomplete
-            </button>
-
-            <button
-              className={activeFilter === "inProgress" ? "active-filter" : ""}
-              onClick={() => setActiveFilter("inProgress")}
-            >
-              In Progress
-            </button>
+          <div className="horizontal-course-row">
+            {courses.map((course) => renderCourseCard(course))}
           </div>
-
-          <CourseSection title={filterTitle} courses={filteredCourses} />
-
-          <CourseSection
-            title="Continue Learning"
-            courses={continueLearningCourses}
-          />
-        </>
+        </div>
       )}
     </div>
   );

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ref, get, remove } from "firebase/database";
 import { database } from "../firebase";
 import { useNavigate, Link } from "react-router-dom";
-import "../styles/managevideos.css"; // Imported professional data grid stylesheet
+import "../styles/managevideos.css";
 
 function ManageVideos() {
   const navigate = useNavigate();
@@ -30,7 +30,10 @@ function ManageVideos() {
   }, []);
 
   const handleDelete = async (id) => {
-    const confirmDelete = window.confirm("Are you absolute sure you want to delete this course module? This will wipe associated data mapping parameters.");
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this course?"
+    );
+
     if (!confirmDelete) return;
 
     await remove(ref(database, `videos/${id}`));
@@ -39,62 +42,95 @@ function ManageVideos() {
 
   return (
     <div className="manage-catalog-container">
-      {/* Upper Navigation Action Bar */}
       <div className="catalog-header-row">
         <div>
           <div className="back-link-wrapper">
-            <Link to="/admin" className="btn-catalog-back">← Admin Dashboard</Link>
+            <Link to="/admin" className="btn-catalog-back">
+              ← Admin Dashboard
+            </Link>
           </div>
+
           <h1 className="catalog-main-title">Manage Video Catalog</h1>
-          <p className="catalog-subtitle">Inspect active course media paths, configure passing baselines, or update assessment states.</p>
+          <p className="catalog-subtitle">
+            Inspect active courses, departments, media paths and quiz settings.
+          </p>
         </div>
+
         <Link to="/admin/add-video" className="btn-catalog-create-new">
           + Add New Video Course
         </Link>
       </div>
 
-      {/* Grid Table Container */}
       <div className="table-card-wrapper">
         {videos.length === 0 ? (
           <div className="empty-catalog-fallback">
-            <p>No video modules found. Click the button above to seed your database.</p>
+            <p>No video modules found.</p>
           </div>
         ) : (
           <table className="admin-data-table">
             <thead>
               <tr>
-                <th style={{ width: "30%" }}>Course Title & Description</th>
-                <th style={{ width: "30%" }}>Content Resource Location</th>
-                <th style={{ width: "12%", textAlign: "center" }}>Pass Benchmark</th>
-                <th style={{ width: "12%", textAlign: "center" }}>Quiz Duration</th>
-                <th style={{ width: "16%", textAlign: "right" }}>Operations</th>
+                <th style={{ width: "25%" }}>Course Title</th>
+                <th style={{ width: "15%" }}>Department</th>
+                <th style={{ width: "25%" }}>Video Path</th>
+                <th style={{ width: "12%", textAlign: "center" }}>
+                  Pass %
+                </th>
+                <th style={{ width: "12%", textAlign: "center" }}>
+                  Duration
+                </th>
+                <th style={{ width: "11%", textAlign: "right" }}>
+                  Operations
+                </th>
               </tr>
             </thead>
+
             <tbody>
               {videos.map((video) => (
                 <tr key={video.id}>
                   <td>
                     <div className="table-cell-title">{video.title}</div>
-                    <div className="table-cell-desc-truncate">{video.description}</div>
+                    <div className="table-cell-desc-truncate">
+                      {video.description}
+                    </div>
                   </td>
+
                   <td>
-                    <code className="table-cell-code-route">{video.videoUrl}</code>
+                    <span className="badge-metric accent-blue">
+                      {video.department || "Not Set"}
+                    </span>
                   </td>
+
+                  <td>
+                    <code className="table-cell-code-route">
+                      {video.videoUrl}
+                    </code>
+                  </td>
+
                   <td style={{ textAlign: "center" }}>
-                    <span className="badge-metric accent-blue">{video.passingScore}%</span>
+                    <span className="badge-metric accent-blue">
+                      {video.passingScore}%
+                    </span>
                   </td>
+
                   <td style={{ textAlign: "center" }}>
-                    <span className="badge-metric accent-grey">{video.testDuration}s</span>
+                    <span className="badge-metric accent-grey">
+                      {video.testDuration}s
+                    </span>
                   </td>
+
                   <td>
                     <div className="table-actions-cell-group">
-                      <button 
-                        onClick={() => navigate(`/admin/edit-video/${video.id}`)}
+                      <button
+                        onClick={() =>
+                          navigate(`/admin/edit-video/${video.id}`)
+                        }
                         className="btn-action-table-edit"
                       >
                         Edit
                       </button>
-                      <button 
+
+                      <button
                         onClick={() => handleDelete(video.id)}
                         className="btn-action-table-delete"
                       >

@@ -2,24 +2,47 @@ import { useEffect, useState } from "react";
 import { ref, get, remove } from "firebase/database";
 import { database } from "../firebase";
 import { useNavigate, Link } from "react-router-dom";
-import "../styles/managequestions.css"; // Imported professional dynamic workspace stylesheet
+import "../styles/managequestions.css";
 
 function ManageQuestions() {
   const navigate = useNavigate();
 
+  const departments = ["Sales", "Marketing", "HR", "Production", "Accounts"];
+
+  const [courses, setCourses] = useState([]);
   const [videos, setVideos] = useState([]);
+
+  const [filteredCourses, setFilteredCourses] = useState([]);
+  const [filteredVideos, setFilteredVideos] = useState([]);
+
+  const [department, setDepartment] = useState("");
+  const [selectedCourse, setSelectedCourse] = useState("");
   const [selectedVideo, setSelectedVideo] = useState("");
+
   const [questions, setQuestions] = useState([]);
 
   useEffect(() => {
-    fetchVideos();
+    fetchData();
   }, []);
 
-  const fetchVideos = async () => {
-    const snapshot = await get(ref(database, "videos"));
+  const fetchData = async () => {
+    const coursesSnap = await get(ref(database, "courses"));
 
-    if (snapshot.exists()) {
-      const data = snapshot.val();
+    if (coursesSnap.exists()) {
+      const data = coursesSnap.val();
+
+      const courseArray = Object.keys(data).map((key) => ({
+        id: key,
+        ...data[key],
+      }));
+
+      setCourses(courseArray);
+    }
+
+    const videosSnap = await get(ref(database, "videos"));
+
+    if (videosSnap.exists()) {
+      const data = videosSnap.val();
 
       const videoArray = Object.keys(data).map((key) => ({
         id: key,
@@ -28,6 +51,34 @@ function ManageQuestions() {
 
       setVideos(videoArray);
     }
+  };
+
+  const handleDepartmentChange = (e) => {
+    const selectedDepartment = e.target.value;
+
+    setDepartment(selectedDepartment);
+    setSelectedCourse("");
+    setSelectedVideo("");
+    setQuestions([]);
+    setFilteredVideos([]);
+
+    const matchedCourses = courses.filter(
+      (course) => course.department === selectedDepartment
+    );
+
+    setFilteredCourses(matchedCourses);
+  };
+
+  const handleCourseChange = (e) => {
+    const courseId = e.target.value;
+
+    setSelectedCourse(courseId);
+    setSelectedVideo("");
+    setQuestions([]);
+
+    const matchedVideos = videos.filter((video) => video.courseId === courseId);
+
+    setFilteredVideos(matchedVideos);
   };
 
   const fetchQuestions = async (videoId) => {
@@ -52,8 +103,18 @@ function ManageQuestions() {
     }
   };
 
+  const handleVideoChange = (e) => {
+    const videoId = e.target.value;
+
+    setSelectedVideo(videoId);
+    fetchQuestions(videoId);
+  };
+
   const handleDelete = async (questionId) => {
-    const confirmDelete = window.confirm("Are you absolute certain you want to delete this evaluation item? This choice can't be undone.");
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this question?"
+    );
+
     if (!confirmDelete) return;
 
     await remove(ref(database, `questions/${selectedVideo}/${questionId}`));
@@ -63,34 +124,80 @@ function ManageQuestions() {
 
   return (
     <div className="manage-questions-container">
-      {/* Top Controls Header Workspace Layout */}
       <div className="q-header-row">
         <div>
           <div className="back-link-wrapper">
-            <Link to="/admin" className="btn-q-back">← Admin Dashboard</Link>
+            <Link to="/admin" className="btn-q-back">
+              ← Admin Dashboard
+            </Link>
           </div>
+
           <h1 className="q-main-title">Manage Question Pools</h1>
-          <p className="q-subtitle">Filter assessment databases by active modules, alter option arrays, or edit answers.</p>
+
+          <p className="q-subtitle">
+            Filter questions by department, course, and video module.
+          </p>
         </div>
+
         <Link to="/admin/add-question" className="btn-q-create-new">
           + Add New Question
         </Link>
       </div>
 
-      {/* Target Module Filtering Controls Bar Container */}
       <div className="filter-selection-card">
-        <label className="filter-select-label">Select Course Filter:</label>
+        <label className="filter-select-label">Department:</label>
+
+        <div className="select-dropdown-wrapper">
+          <select
+            value={department}
+            onChange={handleDepartmentChange}
+            className="admin-filter-select"
+          >
+            <option value="">-- Select Department --</option>
+
+            {departments.map((dept) => (
+              <option key={dept} value={dept}>
+                {dept}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <label className="filter-select-label">Course:</label>
+
+        <div className="select-dropdown-wrapper">
+          <select
+            value={selectedCourse}
+            onChange={handleCourseChange}
+            className="admin-filter-select"
+            disabled={!department}
+          >
+            <option value="">
+              {department ? "-- Select Course --" : "Select Department First"}
+            </option>
+
+            {filteredCourses.map((course) => (
+              <option key={course.id} value={course.id}>
+                {course.title}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <label className="filter-select-label">Video:</label>
+
         <div className="select-dropdown-wrapper">
           <select
             value={selectedVideo}
-            onChange={(e) => {
-              setSelectedVideo(e.target.value);
-              fetchQuestions(e.target.value);
-            }}
+            onChange={handleVideoChange}
             className="admin-filter-select"
+            disabled={!selectedCourse}
           >
-            <option value="">-- Choose Training Module Catalog --</option>
-            {videos.map((video) => (
+            <option value="">
+              {selectedCourse ? "-- Select Video --" : "Select Course First"}
+            </option>
+
+            {filteredVideos.map((video) => (
               <option key={video.id} value={video.id}>
                 {video.title}
               </option>
@@ -99,39 +206,53 @@ function ManageQuestions() {
         </div>
       </div>
 
-      {/* Primary Pool Evaluation Listing Workspace Layout */}
       <div className="questions-render-workspace">
-        {!selectedVideo ? (
+        {!department ? (
+          <div className="workspace-status-card info-prompt">
+            <h3>No Department Selected</h3>
+            <p>Please select department first.</p>
+          </div>
+        ) : !selectedCourse ? (
           <div className="workspace-status-card info-prompt">
             <h3>No Course Selected</h3>
-            <p>Please select an active training module from the filter dropdown menu above to view its evaluation question pool.</p>
+            <p>Please select a course to view its videos.</p>
+          </div>
+        ) : !selectedVideo ? (
+          <div className="workspace-status-card info-prompt">
+            <h3>No Video Selected</h3>
+            <p>Please select a video to view its question pool.</p>
           </div>
         ) : questions.length === 0 ? (
           <div className="workspace-status-card zero-data-prompt">
             <h3>Empty Question Pool</h3>
-            <p>No questions have been attached to this course yet. Click "+ Add New Question" above to seed your database.</p>
+            <p>No questions have been attached to this video yet.</p>
           </div>
         ) : (
           <div className="questions-data-list">
             <div className="pool-count-indicator">
-              Showing <strong>{questions.length}</strong> evaluation questions assigned to this course.
+              Showing <strong>{questions.length}</strong> questions assigned to
+              this video.
             </div>
 
             {questions.map((question, index) => (
               <div key={question.id} className="question-item-card">
                 <div className="q-card-upper-row">
                   <span className="q-index-badge">Item #{index + 1}</span>
+
                   <div className="q-card-actions-row">
                     <button
                       onClick={() =>
-                        navigate(`/admin/edit-question/${selectedVideo}/${question.id}`)
+                        navigate(
+                          `/admin/edit-question/${selectedVideo}/${question.id}`
+                        )
                       }
                       className="btn-item-action-edit"
                     >
                       Edit Question
                     </button>
-                    <button 
-                      onClick={() => handleDelete(question.id)} 
+
+                    <button
+                      onClick={() => handleDelete(question.id)}
                       className="btn-item-action-delete"
                     >
                       Delete
@@ -141,18 +262,28 @@ function ManageQuestions() {
 
                 <h3 className="q-card-body-text">{question.question}</h3>
 
-                {/* Styled Grid Selection Parameters Options Mapping Layout */}
                 <div className="q-card-options-matrix">
                   {question.options?.map((option, idx) => {
                     const isCorrect = option === question.correctAnswer;
+
                     return (
-                      <div 
-                        key={option} 
-                        className={`q-option-pill-display ${isCorrect ? "valid-target-key" : ""}`}
+                      <div
+                        key={`${option}-${idx}`}
+                        className={`q-option-pill-display ${
+                          isCorrect ? "valid-target-key" : ""
+                        }`}
                       >
-                        <span className="option-letter">{String.fromCharCode(65 + idx)}</span>
+                        <span className="option-letter">
+                          {String.fromCharCode(65 + idx)}
+                        </span>
+
                         <span className="option-string">{option}</span>
-                        {isCorrect && <span className="key-checkmark-tag">✓ Correct Key</span>}
+
+                        {isCorrect && (
+                          <span className="key-checkmark-tag">
+                            ✓ Correct Key
+                          </span>
+                        )}
                       </div>
                     );
                   })}
