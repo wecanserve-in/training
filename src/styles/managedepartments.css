@@ -1,0 +1,88 @@
+.manage-dept-page {
+  min-height: 100vh;
+  padding: 28px;
+  background: linear-gradient(
+    135deg,
+    #eef6ff 0%,
+    #f8fbff 50%,
+    #ffffff 100%
+  );
+}
+
+.dept-header,
+.dept-card {
+  background: #fff;
+  border-radius: 22px;
+  padding: 24px;
+  margin-bottom: 22px;
+  box-shadow: 0 14px 35px rgba(7,29,73,.08);
+}
+
+.dept-header h1 {
+  margin: 0;
+  color: #071d49;
+}
+
+.dept-header p {
+  color: #60708a;
+}
+
+.dept-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr 220px;
+  gap: 16px;
+}
+
+.dept-form input,
+.dept-form select {
+  height: 52px;
+  border: 1px solid #d9e6f5;
+  border-radius: 14px;
+  padding: 0 14px;
+  background: #f8fbff;
+}
+
+.dept-form button {
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(
+    135deg,
+    #071d49,
+    #006ee6
+  );
+  color: white;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.dept-card table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dept-card th {
+  text-align: left;
+  padding: 14px;
+  background: #f6f9ff;
+  color: #60708a;
+}
+
+.dept-card td {
+  padding: 14px;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.dept-card td button {
+  border: none;
+  background: #fff1f1;
+  color: #e11f1f;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+@media(max-width:900px){
+  .dept-form{
+    grid-template-columns:1fr;
+  }
+}

@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { push, ref, set } from "firebase/database";
 import * as XLSX from "xlsx";
 import { database } from "../firebase";
-import { departmentVideos } from "../data/videos";
 import "../styles/addvideo.css";
 
 function AddCourse() {
@@ -20,7 +19,12 @@ function AddCourse() {
 
   const [videoTitle, setVideoTitle] = useState("");
   const [videoDescription, setVideoDescription] = useState("");
-  const [videoFile, setVideoFile] = useState("");
+
+const [videoFile, setVideoFile] = useState(null);
+const [videoUrl, setVideoUrl] = useState("");
+const [videoUploading, setVideoUploading] = useState(false);
+
+
   const [passingScore, setPassingScore] = useState(70);
   const [testDuration, setTestDuration] = useState(60);
   const [videos, setVideos] = useState([]);
@@ -36,14 +40,74 @@ function AddCourse() {
   const [excelFile, setExcelFile] = useState(null);
   const [uploading, setUploading] = useState(false);
 
-  const availableVideos = department ? departmentVideos[department] || [] : [];
-
+ 
   const steps = [
     { id: 1, label: "Course" },
     { id: 2, label: "Videos" },
     { id: 3, label: "Questions" },
     { id: 4, label: "Review" },
   ];
+
+const uploadVideoToCloudinary = async (file) => {
+  if (!file) return;
+
+  const cloudName =
+    import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+
+  const uploadPreset =
+    import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+  if (!cloudName || !uploadPreset) {
+    alert(
+      "Cloudinary env variables missing. Restart npm run dev."
+    );
+    return;
+  }
+
+  const formData = new FormData();
+
+  formData.append("file", file);
+  formData.append("upload_preset", uploadPreset);
+  formData.append("folder", "training-videos");
+
+  try {
+    setVideoUploading(true);
+
+    setVideoFile(file);
+    setVideoUrl("");
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`,
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+
+    const data = await response.json();
+
+    console.log("Cloudinary Response:", data);
+
+    if (!response.ok || !data.secure_url) {
+      alert(
+        data?.error?.message ||
+          "Cloudinary upload failed"
+      );
+      return;
+    }
+
+    setVideoUrl(data.secure_url);
+
+    alert(
+      "Video uploaded successfully. Now click Add Video to Course."
+    );
+  } catch (err) {
+    console.error(err);
+    alert("Upload failed");
+  } finally {
+    setVideoUploading(false);
+  }
+};
 
   const getInputClass = (value) =>
     submittedStep && !String(value).trim()
@@ -89,23 +153,27 @@ function AddCourse() {
       return;
     }
 
-    if (!videoTitle.trim() || !videoDescription.trim() || !videoFile) {
+   if (!videoTitle.trim() || !videoDescription.trim() || !videoUrl) {
       alert("Please fill all video details");
       return;
     }
 
-    const alreadyAdded = videos.some((video) => video.videoFileName === videoFile);
+const alreadyAdded = videos.some(
+  (video) => video.videoUrl === videoUrl
+);
+
 
     if (alreadyAdded) {
       alert("This video is already added in this course");
       return;
     }
 
-    const newVideo = {
-      title: videoTitle.trim(),
-      description: videoDescription.trim(),
-      videoFileName: videoFile,
-      videoUrl: `/videos/${department}/${videoFile}`,
+  const newVideo = {
+  title: videoTitle.trim(),
+  description: videoDescription.trim(),
+  videoFileName: videoFile?.name,
+  videoUrl,
+
       passingScore: Number(passingScore),
       testDuration: Number(testDuration),
       questions: [],
@@ -115,7 +183,8 @@ function AddCourse() {
 
     setVideoTitle("");
     setVideoDescription("");
-    setVideoFile("");
+setVideoFile(null);
+setVideoUrl("");
     setPassingScore(70);
     setTestDuration(60);
     setSubmittedStep(false);
@@ -466,20 +535,34 @@ function AddCourse() {
             </div>
 
             <div className="admin-input-group">
-              <label className="admin-field-label">Select Video File *</label>
-              <select
-                value={videoFile}
-                onChange={(e) => setVideoFile(e.target.value)}
-                className={getInputClass(videoFile)}
-                disabled={!department}
-              >
-                <option value="">{department ? "Select Video" : "Select Department First"}</option>
-                {availableVideos.map((video) => (
-                  <option key={video} value={video}>
-                    {video}
-                  </option>
-                ))}
-              </select>
+             <div className="admin-input-group">
+  <label className="admin-field-label">
+    Upload Video *
+  </label>
+
+  <input
+    type="file"
+    accept="video/*"
+    onChange={(e) =>
+      uploadVideoToCloudinary(
+        e.target.files?.[0]
+      )
+    }
+    className="admin-form-input"
+  />
+
+  {videoUploading && (
+    <p>Uploading Video...</p>
+  )}
+
+  {videoUrl && (
+    <p>
+      Uploaded:
+      {" "}
+      {videoFile?.name}
+    </p>
+  )}
+</div>
             </div>
 
             <div className="admin-form-row-split">
@@ -507,9 +590,16 @@ function AddCourse() {
               </div>
             </div>
 
-            <button type="button" className="btn-add-inline" onClick={addVideoToCourse}>
-              + Add Video to Course
-            </button>
+       <button
+  type="button"
+  className="btn-add-inline"
+  onClick={addVideoToCourse}
+  disabled={videoUploading || !videoUrl}
+>
+  {videoUploading
+    ? "Uploading Video..."
+    : "+ Add Video to Course"}
+</button>
 
             {videos.length > 0 && (
               <div className="added-list-box">

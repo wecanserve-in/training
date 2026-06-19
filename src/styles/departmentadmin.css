@@ -1,0 +1,217 @@
+.dept-admin-hero,
+.dept-admin-card,
+.dept-admin-kpis > div {
+  background: #ffffff;
+  border-radius: 22px;
+  box-shadow: 0 14px 35px rgba(7, 29, 73, 0.08);
+}
+
+.dept-admin-hero {
+  padding: 22px 24px;
+  margin-bottom: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dept-admin-hero span,
+.dept-card-head span {
+  color: #006ee6;
+  font-weight: 900;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.dept-admin-hero h1 {
+  margin: 6px 0;
+  color: #071d49;
+  font-size: 1.9rem;
+  font-weight: 900;
+}
+
+.dept-admin-hero p {
+  margin: 0;
+  color: #60708a;
+}
+
+.dept-admin-hero img {
+  width: 92px;
+  object-fit: contain;
+}
+
+.dept-admin-kpis {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.dept-admin-kpis > div {
+  padding: 18px;
+  min-height: 104px;
+}
+
+.dept-admin-kpis span {
+  color: #60708a;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.dept-admin-kpis h2 {
+  margin: 10px 0 0;
+  color: #071d49;
+  font-size: 2rem;
+}
+
+.dept-admin-kpis .primary {
+  background: linear-gradient(135deg, #eef6ff, #ffffff);
+  border: 1px solid #d9e6f5;
+}
+
+.dept-admin-main-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 0.8fr;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.dept-admin-card {
+  padding: 22px;
+}
+
+.dept-card-head h2,
+.dept-admin-card h2 {
+  margin: 6px 0 18px;
+  color: #071d49;
+  font-size: 1.35rem;
+}
+
+.dept-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.dept-action-grid a {
+  text-decoration: none;
+  background: #f8fbff;
+  border: 1px solid #e1ecfb;
+  border-radius: 18px;
+  padding: 18px;
+  transition: 0.25s ease;
+}
+
+.dept-action-grid a:hover {
+  transform: translateY(-3px);
+  border-color: #006ee6;
+  background: #f1f7ff;
+}
+
+.dept-action-grid h3 {
+  margin: 0;
+  color: #071d49;
+}
+
+.dept-action-grid p {
+  color: #60708a;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.dept-action-grid strong {
+  color: #006ee6;
+}
+
+.progress-card {
+  text-align: center;
+}
+
+.dept-progress-ring {
+  width: 160px;
+  height: 160px;
+  margin: 12px auto 16px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+
+.dept-progress-ring div {
+  width: 112px;
+  height: 112px;
+  background: #ffffff;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #071d49;
+  font-size: 1.7rem;
+  font-weight: 900;
+}
+
+.progress-card p {
+  color: #60708a;
+}
+
+.dept-admin-bottom-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 0.7fr;
+  gap: 18px;
+}
+
+.dept-workflow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.dept-workflow div,
+.scope-box {
+  background: #f8fbff;
+  border: 1px solid #e1ecfb;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.dept-workflow strong {
+  color: #006ee6;
+  font-size: 1.2rem;
+}
+
+.dept-workflow p,
+.scope-box p {
+  margin: 8px 0 0;
+  color: #60708a;
+  font-weight: 700;
+}
+
+.scope-box strong {
+  display: block;
+  margin-top: 12px;
+  color: #071d49;
+  font-size: 1.3rem;
+}
+
+@media (max-width: 1200px) {
+  .dept-admin-kpis {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .dept-admin-main-grid,
+  .dept-admin-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .dept-admin-kpis,
+  .dept-action-grid,
+  .dept-workflow {
+    grid-template-columns: 1fr;
+  }
+
+  .dept-admin-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}

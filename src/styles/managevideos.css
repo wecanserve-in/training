@@ -223,3 +223,139 @@
     overflow-x: auto; /* Adds responsive scroll mechanics if table overflows viewport width */
   }
 }
+
+.course-manage-panel {
+  margin-top: 24px;
+  background: #ffffff;
+  border: 1px solid #d6e2ea;
+  border-radius: 18px;
+  padding: 24px;
+}
+
+.course-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.selected-course-workspace {
+  animation: fadeUp 0.25s ease;
+}
+
+.selected-course-header {
+  background: #f8fbfd;
+  border: 1px solid #d6e2ea;
+  border-radius: 16px;
+  padding: 22px;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.selected-course-header span {
+  color: #008a9a;
+  font-weight: 900;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.selected-course-header h2 {
+  margin: 6px 0;
+  color: #061943;
+  font-size: 26px;
+}
+
+.selected-course-header p {
+  margin: 0;
+  color: #60798c;
+}
+
+.course-summary-grid {
+  margin: 18px 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.course-summary-grid div {
+  background: #ffffff;
+  border: 1px solid #d6e2ea;
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.course-summary-grid span {
+  color: #60798c;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.course-summary-grid strong {
+  display: block;
+  margin-top: 8px;
+  color: #061943;
+  font-size: 24px;
+}
+
+.course-management-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.course-manage-action {
+  text-align: left;
+  border: 1px solid #d6e2ea;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.course-manage-action:hover {
+  border-color: #008a9a;
+  background: #f0f9fb;
+  transform: translateY(-2px);
+}
+
+.course-manage-action h3 {
+  margin: 0;
+  color: #061943;
+  font-size: 19px;
+}
+
+.course-manage-action p {
+  margin: 8px 0 0;
+  color: #60798c;
+}
+
+.compact-course-table {
+  margin-top: 0;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 800px) {
+  .course-filter-grid,
+  .course-summary-grid,
+  .course-management-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .selected-course-header {
+    flex-direction: column;
+  }
+}

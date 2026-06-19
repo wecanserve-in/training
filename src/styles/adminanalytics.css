@@ -1,0 +1,215 @@
+.admin-analytics-page {
+  min-height: 100vh;
+  color: #071d49;
+}
+
+.admin-analytics-header,
+.admin-analytics-card,
+.admin-analytics-kpis > div {
+  background: #ffffff;
+  border-radius: 22px;
+  box-shadow: 0 14px 35px rgba(7, 29, 73, 0.08);
+}
+
+.admin-analytics-header {
+  padding: 24px;
+  margin-bottom: 18px;
+}
+
+.admin-analytics-header h1 {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 900;
+}
+
+.admin-analytics-header p {
+  margin: 6px 0 0;
+  color: #60708a;
+}
+
+.admin-analytics-kpis {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.admin-analytics-kpis > div {
+  padding: 18px;
+  min-height: 104px;
+}
+
+.admin-analytics-kpis span {
+  color: #60708a;
+  font-weight: 800;
+  font-size: 0.8rem;
+}
+
+.admin-analytics-kpis h2 {
+  margin: 10px 0 0;
+  font-size: 2rem;
+}
+
+.admin-analytics-kpis .primary {
+  background: linear-gradient(135deg, #eef6ff, #ffffff);
+  border: 1px solid #d9e6f5;
+}
+
+.admin-analytics-card {
+  padding: 22px;
+  margin-bottom: 18px;
+}
+
+.admin-analytics-card h2 {
+  margin: 0 0 18px;
+  font-size: 1.35rem;
+}
+
+.admin-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.admin-card-head h2 {
+  margin: 0;
+}
+
+.admin-card-head p {
+  margin: 5px 0 0;
+  color: #60708a;
+}
+
+.admin-card-head button {
+  border: none;
+  background: #f1f7ff;
+  color: #006ee6;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.admin-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.admin-filter-grid select {
+  height: 50px;
+  border: 1px solid #d9e6f5;
+  border-radius: 14px;
+  padding: 0 14px;
+  outline: none;
+  background: #f8fbff;
+}
+
+.admin-analytics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.admin-rank-list {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-rank-row > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.admin-rank-row span {
+  color: #60708a;
+  font-weight: 800;
+}
+
+.admin-rank-bar {
+  height: 10px;
+  background: #e5eefc;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.admin-rank-bar i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #071d49, #006ee6);
+  border-radius: 999px;
+}
+
+.mini-user-list {
+  display: grid;
+  gap: 12px;
+}
+
+.mini-user-list div {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  background: #f8fbff;
+  border: 1px solid #e1ecfb;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.mini-user-list span {
+  color: #60708a;
+}
+
+.mini-user-list b {
+  color: #006ee6;
+}
+
+.admin-analytics-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-analytics-table-wrap table {
+  width: 100%;
+  min-width: 1050px;
+  border-collapse: collapse;
+}
+
+.admin-analytics-table-wrap th {
+  text-align: left;
+  padding: 14px;
+  background: #f6f9ff;
+  color: #60708a;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+}
+
+.admin-analytics-table-wrap td {
+  padding: 14px;
+  border-bottom: 1px solid #edf2f7;
+}
+
+@media (max-width: 1200px) {
+  .admin-analytics-kpis {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .admin-analytics-grid,
+  .admin-filter-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 650px) {
+  .admin-analytics-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-card-head {
+    flex-direction: column;
+  }
+
+  .mini-user-list div {
+    grid-template-columns: 1fr;
+  }
+}
