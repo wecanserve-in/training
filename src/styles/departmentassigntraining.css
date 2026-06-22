@@ -231,4 +231,18 @@
   .assign-filter-grid {
     grid-template-columns: 1fr;
   }
+
+  
+}
+
+.active-filter-btn {
+  background: #061943 !important;
+  color: #ffffff !important;
+  border-color: #061943 !important;
+}
+
+.active-filter-btn {
+  background: #061943 !important;
+  color: #ffffff !important;
+  border-color: #061943 !important;
 }

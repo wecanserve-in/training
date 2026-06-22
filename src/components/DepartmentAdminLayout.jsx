@@ -26,7 +26,7 @@ function DepartmentAdminLayout() {
         <nav className="sidebar-menu">
           <Link to="/department-admin">Dashboard</Link>
           <Link to="/department-admin/members">Members</Link>
-          <Link to="/department-admin/courses">Courses</Link>
+         <Link to="/department-admin/courses">Courses</Link>
           <Link to="/department-admin/assignments">Assign Training</Link>
           <Link to="/department-admin/analytics">Analytics</Link>
           <Link to="/department-admin/reports">Reports</Link>

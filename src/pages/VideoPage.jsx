@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { ref, get, set } from "firebase/database";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { ref, get, update } from "firebase/database";
 import { auth, database } from "../firebase";
 import "../styles/videopage.css";
 
@@ -15,76 +15,132 @@ function VideoPage() {
   const hasResumedRef = useRef(false);
 
   const [video, setVideo] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [videoCompleted, setVideoCompleted] = useState(false);
-  const [passedCourse, setPassedCourse] = useState(null);
+  const [course, setCourse] = useState(null);
+  const [lessons, setLessons] = useState([]);
+  const [progressMap, setProgressMap] = useState({});
   const [watchPercent, setWatchPercent] = useState(0);
   const [videoDuration, setVideoDuration] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
-      const user = auth.currentUser;
+    watchedSecondsRef.current = new Set();
+    lastSavedRef.current = 0;
+    resumeTimeRef.current = 0;
+    hasResumedRef.current = false;
 
-      if (!user) {
-        navigate("/");
+    setVideo(null);
+    setCourse(null);
+    setLessons([]);
+    setWatchPercent(0);
+    setVideoDuration(0);
+    setLoading(true);
+
+    fetchData();
+  }, [id]);
+
+  const fetchData = async () => {
+    const user = auth.currentUser;
+
+    if (!user) {
+      navigate("/");
+      return;
+    }
+
+    try {
+      const videoSnapshot = await get(ref(database, `videos/${id}`));
+
+      if (!videoSnapshot.exists()) {
+        setVideo(null);
+        setLoading(false);
         return;
       }
 
-      const videoSnapshot = await get(ref(database, `videos/${id}`));
+      const videoData = {
+        id,
+        ...videoSnapshot.val(),
+      };
 
-      if (videoSnapshot.exists()) {
-        setVideo({
-          id,
-          ...videoSnapshot.val(),
+      setVideo(videoData);
+
+      const courseSnapshot = await get(
+        ref(database, `courses/${videoData.courseId}`)
+      );
+
+      if (courseSnapshot.exists()) {
+        setCourse({
+          id: videoData.courseId,
+          ...courseSnapshot.val(),
         });
       }
 
-      const progressSnapshot = await get(
-        ref(database, `progress/${user.uid}/${id}`)
-      );
+      const allVideosSnap = await get(ref(database, "videos"));
 
-      if (progressSnapshot.exists()) {
-        const progressData = progressSnapshot.val();
+      let courseLessons = [];
 
-        if (progressData.watchedSeconds) {
+      if (allVideosSnap.exists()) {
+        courseLessons = Object.entries(allVideosSnap.val())
+          .map(([videoId, item]) => ({
+            id: videoId,
+            ...item,
+          }))
+          .filter((item) => item.courseId === videoData.courseId)
+          .sort(
+            (a, b) =>
+              new Date(a.createdAt || 0).getTime() -
+              new Date(b.createdAt || 0).getTime()
+          );
+
+        setLessons(courseLessons);
+      }
+
+      const allProgressSnap = await get(ref(database, `progress/${user.uid}`));
+      const allProgressData = allProgressSnap.exists()
+        ? allProgressSnap.val()
+        : {};
+
+      setProgressMap(allProgressData);
+
+      const currentProgress = allProgressData?.[id];
+
+      if (currentProgress) {
+        if (currentProgress.watchedSeconds) {
           watchedSecondsRef.current = new Set(
-            Object.keys(progressData.watchedSeconds).map(Number)
+            Object.keys(currentProgress.watchedSeconds).map(Number)
           );
         }
 
-        if (progressData.watchedPercent) {
-          setWatchPercent(progressData.watchedPercent);
-        }
-
-        if (progressData.lastPosition) {
-          resumeTimeRef.current = progressData.lastPosition;
-        }
-
-        if (progressData.completed) {
-          setVideoCompleted(true);
+        if (currentProgress.completed) {
           setWatchPercent(100);
+        } else {
+          setWatchPercent(Number(currentProgress.watchedPercent || 0));
         }
-      }
 
-      const completedSnapshot = await get(
-        ref(database, `completedCourses/${user.uid}/${id}`)
-      );
-
-      if (completedSnapshot.exists()) {
-        const data = completedSnapshot.val();
-
-        if (data.passed) {
-          setPassedCourse(data);
+        if (currentProgress.lastPosition) {
+          resumeTimeRef.current = Number(currentProgress.lastPosition || 0);
         }
       }
 
       setLoading(false);
-    };
+    } catch (error) {
+      console.error(error);
+      alert("Failed to load video");
+      setLoading(false);
+    }
+  };
 
-    fetchData();
-  }, [id, navigate]);
+  const refreshProgressMap = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
 
-  const saveProgress = async (percentValue, completed = false, currentTime = 0) => {
+    const snap = await get(ref(database, `progress/${user.uid}`));
+    setProgressMap(snap.exists() ? snap.val() : {});
+  };
+
+  const saveProgress = async (
+    percentValue,
+    completed = false,
+    currentTime = 0
+  ) => {
     const user = auth.currentUser;
 
     if (!user || !video) return;
@@ -95,9 +151,10 @@ function VideoPage() {
       watchedSecondsObject[second] = true;
     });
 
-    await set(ref(database, `progress/${user.uid}/${video.id}`), {
+    const progressData = {
       videoId: video.id,
-      videoTitle: video.title,
+      courseId: video.courseId,
+      videoTitle: video.title || "",
       completed,
       watchedPercent: completed ? 100 : percentValue,
       watchedSeconds: watchedSecondsObject,
@@ -107,14 +164,23 @@ function VideoPage() {
       ...(completed && {
         completedAt: new Date().toISOString(),
       }),
+    };
+
+    await update(ref(database), {
+      [`progress/${user.uid}/${video.id}`]: progressData,
     });
+
+    setProgressMap((prev) => ({
+      ...prev,
+      [video.id]: progressData,
+    }));
   };
 
   const handleLoadedMetadata = (e) => {
-    const duration = Math.floor(e.target.duration);
+    const duration = Math.floor(e.target.duration || 0);
     setVideoDuration(duration);
 
-    if (!hasResumedRef.current && resumeTimeRef.current > 0) {
+    if (!hasResumedRef.current && resumeTimeRef.current > 0 && duration > 0) {
       const safeResumeTime = Math.min(resumeTimeRef.current, duration - 2);
 
       if (safeResumeTime > 0) {
@@ -123,22 +189,11 @@ function VideoPage() {
 
       hasResumedRef.current = true;
     }
-
-    if (watchedSecondsRef.current.size > 0 && duration > 0) {
-      const savedPercent = Math.min(
-        100,
-        Math.floor((watchedSecondsRef.current.size / duration) * 100)
-      );
-
-      setWatchPercent(savedPercent);
-    }
   };
 
   const handleVideoProgress = async (e) => {
-    if (videoCompleted) return;
-
-    const currentSecond = Math.floor(e.target.currentTime);
-    const duration = Math.floor(e.target.duration);
+    const currentSecond = Math.floor(e.target.currentTime || 0);
+    const duration = Math.floor(e.target.duration || 0);
 
     if (!duration) return;
 
@@ -153,25 +208,28 @@ function VideoPage() {
 
     const now = Date.now();
 
-    if (now - lastSavedRef.current > 5000) {
+    if (now - lastSavedRef.current > 4000) {
       lastSavedRef.current = now;
       await saveProgress(percent, false, e.target.currentTime);
     }
   };
 
   const handleVideoPause = async (e) => {
-    if (!videoCompleted) {
+    if (watchPercent < 100) {
       await saveProgress(watchPercent, false, e.target.currentTime);
     }
   };
 
-  const markVideoCompleted = async () => {
-    if (!video || videoCompleted) return;
+  const getCurrentIndex = () => {
+    return lessons.findIndex((lesson) => lesson.id === id);
+  };
 
-    setVideoCompleted(true);
-    setWatchPercent(100);
+  const getNextLesson = () => {
+    const currentIndex = getCurrentIndex();
 
-    await saveProgress(100, true, 0);
+    if (currentIndex === -1) return null;
+
+    return lessons[currentIndex + 1] || null;
   };
 
   const handleVideoEnd = async () => {
@@ -181,13 +239,40 @@ function VideoPage() {
       (watchedSecondsRef.current.size / videoDuration) * 100
     );
 
-    if (actualWatchedPercent >= 95) {
-      await markVideoCompleted();
+    if (actualWatchedPercent >= 90) {
+      setWatchPercent(100);
+      await saveProgress(100, true, 0);
+      await refreshProgressMap();
+
+      const nextLesson = getNextLesson();
+
+      if (nextLesson) {
+        setTimeout(() => {
+          navigate(`/video/${nextLesson.id}`);
+        }, 800);
+      }
     } else {
       await saveProgress(actualWatchedPercent, false, videoDuration);
-      alert("Please watch the complete video to unlock the quiz.");
+      alert("Please watch the complete video.");
     }
   };
+
+  const isLessonCompleted = (lessonId) => {
+    if (lessonId === id && watchPercent >= 90) return true;
+    return !!progressMap?.[lessonId]?.completed;
+  };
+
+  const completedLessons = lessons.filter((lesson) =>
+    isLessonCompleted(lesson.id)
+  ).length;
+
+  const overallProgress =
+    lessons.length > 0
+      ? Math.round((completedLessons / lessons.length) * 100)
+      : 0;
+
+  const allVideosCompleted =
+    lessons.length > 0 && completedLessons === lessons.length;
 
   if (loading) {
     return <h2 className="video-status-msg">Loading Video...</h2>;
@@ -198,99 +283,108 @@ function VideoPage() {
   }
 
   return (
-    <div className="video-page-container">
-      <button className="back-btn" onClick={() => navigate(-1)}>
-        ← Back
-      </button>
+    <div className="lesson-player-page">
+      <div className="lesson-player-top">
+        <button className="lesson-back-btn" onClick={() => navigate(-1)}>
+          Back
+        </button>
 
-      <div className="lesson-header">
-        <p className="lesson-label">Training Module</p>
-
-        <h1>{video.title}</h1>
-
-        <p className="lesson-description">
-          Watch the full training video to unlock the quiz assessment.
-        </p>
+        <h1>{course?.title || video.courseTitle || "Course"}</h1>
       </div>
 
-      {passedCourse && (
-        <div className="status-banner banner-passed">
-          <div>
-            <h3>Course Already Passed</h3>
-            <p>Score: {passedCourse.score}%</p>
+      <div className="lesson-player-layout">
+        <div className="lesson-player-main">
+          <div className="video-player-box">
+            <video
+              key={video.id}
+              ref={videoRef}
+              controls
+              onLoadedMetadata={handleLoadedMetadata}
+              onTimeUpdate={handleVideoProgress}
+              onPause={handleVideoPause}
+              onEnded={handleVideoEnd}
+              className="video-player-frame"
+            >
+              <source src={video.videoUrl} type="video/mp4" />
+            </video>
           </div>
 
-          <button
-            onClick={() => navigate(`/certificate/${passedCourse.attemptId}`)}
-            className="btn-certificate"
-          >
-            Download Certificate
-          </button>
-        </div>
-      )}
+          <div className="lesson-info-box">
+            <h2>{video.title}</h2>
+            <p>{video.description || "Training video lesson."}</p>
 
-      <div className="lesson-content">
-        <div className="video-wrapper">
-          <video
-            ref={videoRef}
-            controls
-            onLoadedMetadata={handleLoadedMetadata}
-            onTimeUpdate={handleVideoProgress}
-            onPause={handleVideoPause}
-            onEnded={handleVideoEnd}
-            className="video-player-frame"
-          >
-            <source src={video.videoUrl} type="video/mp4" />
-          </video>
-        </div>
-
-        {!passedCourse && (
-          <div className="course-sidebar">
-            <div className="info-card">
-              <h3>Course Progress</h3>
-
-              <div className="progress-bar">
-                <div
-                  className="progress-fill"
-                  style={{
-                    width: `${videoCompleted ? 100 : watchPercent}%`,
-                  }}
-                ></div>
+            <div className="current-video-progress">
+              <div>
+                <span>Current Video Progress</span>
+                <strong>{watchPercent}%</strong>
               </div>
 
-              <p className="progress-text">
-                {videoCompleted
-                  ? "100% Completed"
-                  : `${watchPercent}% Watched`}
-              </p>
+              <div className="lesson-progress-track">
+                <span style={{ width: `${watchPercent}%` }}></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside className="lesson-right-panel">
+          <div className="lesson-progress-box">
+            <div className="lesson-progress-head">
+              <span>Course Progress</span>
+              <strong>{overallProgress}%</strong>
             </div>
 
-            {videoCompleted ? (
-              <div className="quiz-card success-card">
-                <h3>Quiz Unlocked</h3>
+            <div className="lesson-progress-track">
+              <span style={{ width: `${overallProgress}%` }}></span>
+            </div>
+          </div>
 
-                <p>
-                  You have completed the video. You can now start the quiz.
-                </p>
+          <div className="lesson-list-box">
+            <h2>Lessons</h2>
+
+            <div className="lesson-list">
+              {lessons.map((lesson, index) => {
+                const completed = isLessonCompleted(lesson.id);
+                const active = lesson.id === id;
+
+                return (
+                  <Link
+                    to={`/video/${lesson.id}`}
+                    className={`lesson-list-item ${active ? "active" : ""}`}
+                    key={lesson.id}
+                  >
+                    <div>
+                      <span>
+                        {index + 1}. {lesson.title}
+                      </span>
+                    </div>
+
+                    <strong>{completed ? "Completed" : ""}</strong>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="course-quiz-note">
+            <h3>Course Quiz</h3>
+
+            {allVideosCompleted ? (
+              <>
+                <p>All videos are completed. You can now start the course quiz.</p>
 
                 <button
-                  onClick={() => navigate(`/quiz/${video.id}`)}
-                  className="btn-quiz-action"
+                  type="button"
+                  className="start-course-quiz-btn"
+                  onClick={() => navigate(`/quiz/${video.courseId}`)}
                 >
                   Start Quiz
                 </button>
-              </div>
+              </>
             ) : (
-              <div className="quiz-card locked-card">
-                <h3>Quiz Locked</h3>
-
-                <p>
-                  Watch the complete video to unlock the quiz assessment.
-                </p>
-              </div>
+              <p>Quiz will unlock after completing all course videos.</p>
             )}
           </div>
-        )}
+        </aside>
       </div>
     </div>
   );

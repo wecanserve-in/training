@@ -1,217 +1,256 @@
-.dept-admin-hero,
-.dept-admin-card,
-.dept-admin-kpis > div {
-  background: #ffffff;
-  border-radius: 22px;
-  box-shadow: 0 14px 35px rgba(7, 29, 73, 0.08);
+.dept-dashboard-page {
+  width: 100%;
+  padding: 28px;
+  background: #f7f9fb;
+  min-height: 100vh;
+  color: #101828;
 }
 
-.dept-admin-hero {
-  padding: 22px 24px;
-  margin-bottom: 18px;
+.dept-dashboard-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  margin-bottom: 24px;
 }
 
-.dept-admin-hero span,
-.dept-card-head span {
-  color: #006ee6;
-  font-weight: 900;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.dept-admin-hero h1 {
-  margin: 6px 0;
-  color: #071d49;
-  font-size: 1.9rem;
+.dept-dashboard-header h1 {
+  margin: 0 0 20px;
+  font-size: 26px;
   font-weight: 900;
 }
 
-.dept-admin-hero p {
+.dept-dashboard-header h2 {
   margin: 0;
-  color: #60708a;
+  font-size: 22px;
+  font-weight: 900;
 }
 
-.dept-admin-hero img {
-  width: 92px;
-  object-fit: contain;
+.dept-dashboard-header p {
+  margin: 6px 0 0;
+  color: #667085;
+  font-size: 14px;
 }
 
-.dept-admin-kpis {
+.dept-header-actions button {
+  border: 1px solid #cfe8db;
+  background: #ffffff;
+  color: #06964f;
+  padding: 11px 18px;
+  border-radius: 6px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.dept-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 14px;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
 }
 
-.dept-admin-kpis > div {
+.dept-kpi-card {
+  background: #ffffff;
+  border: 1px solid #e6ebf0;
+  border-radius: 8px;
   padding: 18px;
-  min-height: 104px;
+  min-height: 118px;
 }
 
-.dept-admin-kpis span {
-  color: #60708a;
-  font-size: 0.8rem;
+.dept-kpi-card span {
+  color: #344054;
+  font-size: 13px;
   font-weight: 800;
 }
 
-.dept-admin-kpis h2 {
-  margin: 10px 0 0;
-  color: #071d49;
-  font-size: 2rem;
+.dept-kpi-card h3 {
+  margin: 10px 0 6px;
+  font-size: 28px;
+  font-weight: 900;
+  color: #101828;
 }
 
-.dept-admin-kpis .primary {
-  background: linear-gradient(135deg, #eef6ff, #ffffff);
-  border: 1px solid #d9e6f5;
+.dept-kpi-card p {
+  margin: 0;
+  color: #667085;
+  font-size: 12px;
 }
 
-.dept-admin-main-grid {
+.dept-main-layout {
   display: grid;
-  grid-template-columns: 1.4fr 0.8fr;
+  grid-template-columns: 1.8fr 0.9fr;
   gap: 18px;
+}
+
+.dept-large-card,
+.dept-small-card {
+  background: #ffffff;
+  border: 1px solid #e6ebf0;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.dept-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 18px;
 }
 
-.dept-admin-card {
-  padding: 22px;
-}
-
-.dept-card-head h2,
-.dept-admin-card h2 {
-  margin: 6px 0 18px;
-  color: #071d49;
-  font-size: 1.35rem;
-}
-
-.dept-action-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
-}
-
-.dept-action-grid a {
-  text-decoration: none;
-  background: #f8fbff;
-  border: 1px solid #e1ecfb;
-  border-radius: 18px;
-  padding: 18px;
-  transition: 0.25s ease;
-}
-
-.dept-action-grid a:hover {
-  transform: translateY(-3px);
-  border-color: #006ee6;
-  background: #f1f7ff;
-}
-
-.dept-action-grid h3 {
+.dept-section-head h2,
+.dept-small-card h2 {
   margin: 0;
-  color: #071d49;
-}
-
-.dept-action-grid p {
-  color: #60708a;
-  font-size: 0.86rem;
-  line-height: 1.5;
-}
-
-.dept-action-grid strong {
-  color: #006ee6;
-}
-
-.progress-card {
-  text-align: center;
-}
-
-.dept-progress-ring {
-  width: 160px;
-  height: 160px;
-  margin: 12px auto 16px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-}
-
-.dept-progress-ring div {
-  width: 112px;
-  height: 112px;
-  background: #ffffff;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  color: #071d49;
-  font-size: 1.7rem;
+  font-size: 18px;
   font-weight: 900;
+  color: #101828;
 }
 
-.progress-card p {
-  color: #60708a;
+.dept-section-head a {
+  color: #06964f;
+  font-weight: 800;
+  text-decoration: none;
+  font-size: 13px;
 }
 
-.dept-admin-bottom-grid {
+.dept-table {
+  width: 100%;
+}
+
+.dept-table-head,
+.dept-table-row {
   display: grid;
-  grid-template-columns: 1.3fr 0.7fr;
-  gap: 18px;
-}
-
-.dept-workflow {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: 1.5fr 0.7fr 0.8fr 0.7fr 1fr;
+  align-items: center;
   gap: 14px;
 }
 
-.dept-workflow div,
-.scope-box {
-  background: #f8fbff;
-  border: 1px solid #e1ecfb;
-  border-radius: 16px;
-  padding: 16px;
+.dept-table-head {
+  color: #667085;
+  font-size: 13px;
+  font-weight: 900;
+  padding: 12px 0;
+  border-bottom: 1px solid #e6ebf0;
 }
 
-.dept-workflow strong {
-  color: #006ee6;
-  font-size: 1.2rem;
+.dept-table-row {
+  padding: 18px 0;
+  border-bottom: 1px solid #edf1f3;
+  font-size: 14px;
 }
 
-.dept-workflow p,
-.scope-box p {
-  margin: 8px 0 0;
-  color: #60708a;
+.dept-table-row strong {
+  color: #101828;
+}
+
+.dept-table-row span {
+  color: #344054;
   font-weight: 700;
 }
 
-.scope-box strong {
-  display: block;
-  margin-top: 12px;
-  color: #071d49;
-  font-size: 1.3rem;
+.dept-progress-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-@media (max-width: 1200px) {
-  .dept-admin-kpis {
-    grid-template-columns: repeat(3, 1fr);
+.dept-progress-line b {
+  font-size: 13px;
+}
+
+.dept-progress-line div {
+  flex: 1;
+  height: 7px;
+  background: #e8edf2;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.dept-progress-line div span {
+  display: block;
+  height: 100%;
+  background: #06964f;
+  border-radius: 20px;
+}
+
+.dept-outline-btn {
+  display: inline-block;
+  margin-top: 20px;
+  border: 1px solid #cfe8db;
+  color: #101828;
+  background: #ffffff;
+  padding: 10px 18px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 800;
+}
+
+.dept-side-column {
+  display: grid;
+  gap: 18px;
+}
+
+.dept-quick-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.dept-quick-actions a {
+  border: 1px solid #dceee4;
+  background: #f8fffb;
+  color: #06964f;
+  border-radius: 6px;
+  padding: 12px;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.dept-small-card p {
+  margin: 10px 0;
+  color: #667085;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.dept-small-card strong {
+  color: #06964f;
+  font-size: 16px;
+}
+
+@media (max-width: 1100px) {
+  .dept-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 
-  .dept-admin-main-grid,
-  .dept-admin-bottom-grid {
+  .dept-main-layout {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 700px) {
-  .dept-admin-kpis,
-  .dept-action-grid,
-  .dept-workflow {
+  .dept-dashboard-page {
+    padding: 18px;
+  }
+
+  .dept-dashboard-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .dept-kpi-grid {
     grid-template-columns: 1fr;
   }
 
-  .dept-admin-hero {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+  .dept-table-head {
+    display: none;
+  }
+
+  .dept-table-row {
+    grid-template-columns: 1fr;
+  }
+
+  .dept-quick-actions {
+    grid-template-columns: 1fr;
   }
 }

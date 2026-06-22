@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
 import { ref, get } from "firebase/database";
 import { auth, database } from "../firebase";
-import { useNavigate } from "react-router-dom";
 import "../styles/myresults.css";
 
 function MyResults() {
-  const navigate = useNavigate();
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -25,11 +23,11 @@ function MyResults() {
             ...data[key],
           }))
           .filter((attempt) => attempt.userId === user.uid)
-          .sort(
-            (a, b) => new Date(b.submittedAt) - new Date(a.submittedAt)
-          );
+          .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
 
         setResults(userResults);
+      } else {
+        setResults([]);
       }
 
       setLoading(false);
@@ -38,60 +36,70 @@ function MyResults() {
     fetchResults();
   }, []);
 
-  if (loading) return <h2>Loading My Results...</h2>;
+  const formatDate = (date) => {
+    if (!date) return "-";
+
+    return new Date(date).toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  if (loading) return <h2 className="results-loading">Loading My Results...</h2>;
 
   return (
-   <div className="results-page">
-      <h1>My Results</h1>
+    <div className="my-results-page">
+      <div className="my-results-header">
+        <h1>My Results</h1>
+        <p>Track your quiz performance.</p>
+      </div>
 
-      {results.length === 0 ? (
-        <p>No quiz attempts yet.</p>
-      ) : (
-       <table className="results-table">
-          <thead>
-            <tr>
-              <th>Course</th>
-              <th>Score</th>
-              <th>Correct</th>
-              <th>Status</th>
-              <th>Date</th>
-              <th>Certificate</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {results.map((result) => (
-              <tr key={result.id}>
-                <td>{result.videoTitle}</td>
-                <td>{result.score}%</td>
-                <td>
-                  {result.correct} / {result.total}
-                </td>
-                <td>{result.passed ? "PASS" : "FAIL"}</td>
-                <td>
-                  {new Date(result.submittedAt).toLocaleString("en-IN")}
-                </td>
-                <td>
-                  {result.passed ? (
-                    <button
-  className="download-btn"
-  onClick={() => navigate(`/certificate/${result.id}`)}
->
-                      Download
-                    </button>
-                  ) : (
-                    "-"
-                  )}
-                </td>
+      <div className="results-table-card">
+        {results.length === 0 ? (
+          <p className="results-empty">No quiz attempts yet.</p>
+        ) : (
+          <table className="clean-results-table">
+            <thead>
+              <tr>
+                <th>Course Name</th>
+                <th>Score</th>
+                <th>Status</th>
+                <th>Attempt</th>
+                <th>Date</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            </thead>
 
-      <br />
+            <tbody>
+              {results.map((result, index) => (
+                <tr key={result.id}>
+                  <td>
+                    {result.courseTitle ||
+                      result.videoTitle ||
+                      "Training Course"}
+                  </td>
 
-      <button className="download-btn" onClick={() => navigate("/dashboard")}>Back to Dashboard</button>
+                  <td>{result.score}%</td>
+
+                  <td>
+                    <span
+                      className={`result-status ${
+                        result.passed ? "passed" : "failed"
+                      }`}
+                    >
+                      {result.passed ? "Passed" : "Failed"}
+                    </span>
+                  </td>
+
+                  <td>{index + 1}</td>
+
+                  <td>{formatDate(result.submittedAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }

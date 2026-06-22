@@ -1,0 +1,152 @@
+.my-learning-page {
+  width: 100%;
+}
+
+.learning-header {
+  margin-bottom: 26px;
+}
+
+.learning-header h1 {
+  margin: 0;
+  color: #111827;
+  font-size: 32px;
+  font-weight: 900;
+}
+
+.learning-header p {
+  margin: 8px 0 0;
+  color: #667085;
+}
+
+.learning-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin-bottom: 30px;
+}
+
+.learning-kpi-card {
+  background: #ffffff;
+  border: 1px solid #edf1f3;
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+}
+
+.learning-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  margin-bottom: 14px;
+}
+
+.learning-icon.green {
+  background: #e9f8ef;
+}
+
+.learning-icon.blue {
+  background: #eef4ff;
+}
+
+.learning-icon.purple {
+  background: #f3efff;
+}
+
+.learning-kpi-card span {
+  color: #667085;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.learning-kpi-card h2 {
+  margin: 8px 0 0;
+  color: #111827;
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.learning-chart-card {
+  background: #ffffff;
+  border: 1px solid #edf1f3;
+  border-radius: 18px;
+  padding: 28px;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+}
+
+.learning-chart-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.learning-chart-head h2 {
+  margin: 0;
+  color: #111827;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.learning-chart-head select {
+  height: 38px;
+  border: 1px solid #e3e8ef;
+  border-radius: 8px;
+  padding: 0 12px;
+  color: #344054;
+  font-weight: 800;
+}
+
+.activity-chart {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 16px;
+}
+
+.chart-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 240px;
+  color: #667085;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.chart-area svg {
+  width: 100%;
+  height: 240px;
+  border-bottom: 1px solid #edf1f3;
+}
+
+.chart-x-axis {
+  display: flex;
+  justify-content: space-between;
+  color: #667085;
+  font-size: 13px;
+  font-weight: 800;
+  margin-top: 12px;
+}
+
+.learning-loading {
+  padding: 40px;
+  color: #344054;
+  font-weight: 900;
+}
+
+@media (max-width: 1000px) {
+  .learning-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 650px) {
+  .learning-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .learning-chart-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+}

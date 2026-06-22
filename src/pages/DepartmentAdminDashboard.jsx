@@ -95,148 +95,108 @@ function DepartmentAdminDashboard() {
     return () => unsubscribe();
   }, []);
 
-  return (
-    <>
-      <div className="dept-admin-hero">
-        <div>
-          <span>Department Control Center</span>
-          <h1>{stats.department} Dashboard</h1>
-          <p>
-            Manage department members, courses, assignments and training
-            performance.
-          </p>
-        </div>
-
-        <img src="/Logo.webp" alt="Logo" />
+ return (
+  <div className="dept-dashboard-page">
+    <div className="dept-dashboard-header">
+      <div>
+        <h1>Dashboard</h1>
+        <h2>Welcome back, {currentUser?.name || "Department Admin"}</h2>
+        <p>Here is what is happening with your training programs.</p>
       </div>
 
-      <div className="dept-admin-kpis">
-        <div>
-          <span>Members</span>
-          <h2>{stats.members}</h2>
-        </div>
+      <div className="dept-header-actions">
+        <button>Export Report</button>
+      </div>
+    </div>
 
-        <div>
-          <span>Courses</span>
-          <h2>{stats.courses}</h2>
-        </div>
-
-        <div>
-          <span>Completed</span>
-          <h2>{stats.completed}</h2>
-        </div>
-
-        <div>
-          <span>Pending</span>
-          <h2>{stats.pending}</h2>
-        </div>
-
-        <div>
-          <span>Certificates</span>
-          <h2>{stats.certificates}</h2>
-        </div>
-
-        <div className="primary">
-          <span>Completion</span>
-          <h2>{stats.completionRate}%</h2>
-        </div>
+    <div className="dept-kpi-grid">
+      <div className="dept-kpi-card">
+        <span>Total Courses</span>
+        <h3>{stats.courses}</h3>
+        <p>Department courses</p>
       </div>
 
-      <div className="dept-admin-main-grid">
-        <div className="dept-admin-card">
-          <div className="dept-card-head">
-            <span>Quick Actions</span>
-            <h2>Department Operations</h2>
-          </div>
-
-          <div className="dept-action-grid">
-            <Link to="/department-admin/members">
-              <h3>Manage Members</h3>
-              <p>Add, edit and manage users only from your department.</p>
-              <strong>Open →</strong>
-            </Link>
-
-            <Link to="/department-admin/courses">
-              <h3>Create Course</h3>
-              <p>Create training modules only for your department.</p>
-              <strong>Create →</strong>
-            </Link>
-
-            <Link to="/department-admin/assignments">
-              <h3>Assign Training</h3>
-              <p>Filter by role, zone, state, city and select users.</p>
-              <strong>Assign →</strong>
-            </Link>
-
-            <Link to="/department-admin/analytics">
-              <h3>Department Analytics</h3>
-              <p>Track completion, pending trainings and certificates.</p>
-              <strong>View →</strong>
-            </Link>
-          </div>
-        </div>
-
-        <div className="dept-admin-card progress-card">
-          <div className="dept-card-head">
-            <span>Progress</span>
-            <h2>Training Completion</h2>
-          </div>
-
-          <div
-            className="dept-progress-ring"
-            style={{
-              background: `conic-gradient(#006ee6 ${stats.completionRate}%, #e5eefc 0)`,
-            }}
-          >
-            <div>{stats.completionRate}%</div>
-          </div>
-
-          <p>Overall training progress for {stats.department}.</p>
-        </div>
+      <div className="dept-kpi-card">
+        <span>Assigned Learners</span>
+        <h3>{stats.members}</h3>
+        <p>Active department users</p>
       </div>
 
-      <div className="dept-admin-bottom-grid">
-        <div className="dept-admin-card">
-          <h2>Recommended Workflow</h2>
+      <div className="dept-kpi-card">
+        <span>Completed</span>
+        <h3>{stats.completed}</h3>
+        <p>Total completed trainings</p>
+      </div>
 
-          <div className="dept-workflow">
-            <div>
-              <strong>01</strong>
-              <p>Manage Members</p>
-            </div>
+      <div className="dept-kpi-card">
+        <span>Pending</span>
+        <h3>{stats.pending}</h3>
+        <p>Pending completions</p>
+      </div>
 
-            <div>
-              <strong>02</strong>
-              <p>Create Course</p>
-            </div>
+      <div className="dept-kpi-card">
+        <span>Completion Rate</span>
+        <h3>{stats.completionRate}%</h3>
+        <p>Overall progress</p>
+      </div>
+    </div>
 
-            <div>
-              <strong>03</strong>
-              <p>Assign Training</p>
-            </div>
+    <div className="dept-main-layout">
+      <div className="dept-large-card">
+        <div className="dept-section-head">
+          <h2>Course Progress Overview</h2>
+          <Link to="/department-admin/analytics">View All</Link>
+        </div>
 
-            <div>
-              <strong>04</strong>
-              <p>Track Reports</p>
+        <div className="dept-table">
+          <div className="dept-table-head">
+            <span>Course Name</span>
+            <span>Assigned</span>
+            <span>Completed</span>
+            <span>Pending</span>
+            <span>Completion</span>
+          </div>
+
+          <div className="dept-table-row">
+            <strong>Product Knowledge</strong>
+            <span>{stats.members}</span>
+            <span>{stats.completed}</span>
+            <span>{stats.pending}</span>
+            <div className="dept-progress-line">
+              <b>{stats.completionRate}%</b>
+              <div><span style={{ width: `${stats.completionRate}%` }}></span></div>
             </div>
           </div>
         </div>
 
-        <div className="dept-admin-card">
+        <Link to="/department-admin/courses" className="dept-outline-btn">
+          View All Courses
+        </Link>
+      </div>
+
+      <div className="dept-side-column">
+        <div className="dept-small-card">
+          <div className="dept-section-head">
+            <h2>Quick Actions</h2>
+          </div>
+
+          <div className="dept-quick-actions">
+            <Link to="/department-admin/courses/create">Create Course</Link>
+            <Link to="/department-admin/assignments">Assign Course</Link>
+            <Link to="/department-admin/members">Manage Learners</Link>
+            <Link to="/department-admin/analytics">View Reports</Link>
+          </div>
+        </div>
+
+        <div className="dept-small-card">
           <h2>Access Scope</h2>
-
-          <div className="scope-box">
-            <p>
-              You can only view and manage users, courses, assignments and
-              reports linked to:
-            </p>
-
-            <strong>{stats.department}</strong>
-          </div>
+          <p>You can manage only users, courses and reports linked to:</p>
+          <strong>{stats.department}</strong>
         </div>
       </div>
-    </>
-  );
+    </div>
+  </div>
+);
 }
 
 export default DepartmentAdminDashboard;

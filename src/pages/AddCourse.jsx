@@ -1,29 +1,29 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { push, ref, set } from "firebase/database";
+import { onAuthStateChanged } from "firebase/auth";
+import { get, push, ref, set } from "firebase/database";
 import * as XLSX from "xlsx";
-import { database } from "../firebase";
+import { auth, database } from "../firebase";
 import "../styles/addvideo.css";
 
 function AddCourse() {
   const navigate = useNavigate();
 
-  const departments = ["Sales", "Marketing", "HR", "Production", "Accounts"];
-
   const [step, setStep] = useState(1);
   const [submittedStep, setSubmittedStep] = useState(false);
+  const [loadingUser, setLoadingUser] = useState(true);
 
+  const [currentUser, setCurrentUser] = useState(null);
   const [department, setDepartment] = useState("");
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
 
   const [videoTitle, setVideoTitle] = useState("");
   const [videoDescription, setVideoDescription] = useState("");
-
-const [videoFile, setVideoFile] = useState(null);
-const [videoUrl, setVideoUrl] = useState("");
-const [videoUploading, setVideoUploading] = useState(false);
-
+  const [videoFile, setVideoFile] = useState(null);
+  const [videoUrl, setVideoUrl] = useState("");
+  const [videoUploading, setVideoUploading] = useState(false);
 
   const [passingScore, setPassingScore] = useState(70);
   const [testDuration, setTestDuration] = useState(60);
@@ -40,7 +40,6 @@ const [videoUploading, setVideoUploading] = useState(false);
   const [excelFile, setExcelFile] = useState(null);
   const [uploading, setUploading] = useState(false);
 
- 
   const steps = [
     { id: 1, label: "Course" },
     { id: 2, label: "Videos" },
@@ -48,66 +47,85 @@ const [videoUploading, setVideoUploading] = useState(false);
     { id: 4, label: "Review" },
   ];
 
-const uploadVideoToCloudinary = async (file) => {
-  if (!file) return;
-
-  const cloudName =
-    import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-
-  const uploadPreset =
-    import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-
-  if (!cloudName || !uploadPreset) {
-    alert(
-      "Cloudinary env variables missing. Restart npm run dev."
-    );
-    return;
-  }
-
-  const formData = new FormData();
-
-  formData.append("file", file);
-  formData.append("upload_preset", uploadPreset);
-  formData.append("folder", "training-videos");
-
-  try {
-    setVideoUploading(true);
-
-    setVideoFile(file);
-    setVideoUrl("");
-
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`,
-      {
-        method: "POST",
-        body: formData,
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
+      if (!loggedUser) {
+        navigate("/");
+        return;
       }
-    );
 
-    const data = await response.json();
+      const userSnap = await get(ref(database, `users/${loggedUser.uid}`));
 
-    console.log("Cloudinary Response:", data);
+      if (!userSnap.exists()) {
+        alert("User profile not found");
+        navigate("/");
+        return;
+      }
 
-    if (!response.ok || !data.secure_url) {
-      alert(
-        data?.error?.message ||
-          "Cloudinary upload failed"
-      );
+      const userData = {
+        id: loggedUser.uid,
+        ...userSnap.val(),
+      };
+
+      if (userData.role !== "departmentAdmin") {
+        alert("Only Department Admin can create department courses");
+        navigate("/");
+        return;
+      }
+
+      setCurrentUser(userData);
+      setDepartment(userData.department || "");
+      setLoadingUser(false);
+    });
+
+    return () => unsubscribe();
+  }, [navigate]);
+
+  const uploadVideoToCloudinary = async (file) => {
+    if (!file) return;
+
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+    if (!cloudName || !uploadPreset) {
+      alert("Cloudinary env variables missing. Restart npm run dev.");
       return;
     }
 
-    setVideoUrl(data.secure_url);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", uploadPreset);
+    formData.append("folder", "training-videos");
 
-    alert(
-      "Video uploaded successfully. Now click Add Video to Course."
-    );
-  } catch (err) {
-    console.error(err);
-    alert("Upload failed");
-  } finally {
-    setVideoUploading(false);
-  }
-};
+    try {
+      setVideoUploading(true);
+      setVideoFile(file);
+      setVideoUrl("");
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data.secure_url) {
+        alert(data?.error?.message || "Cloudinary upload failed");
+        return;
+      }
+
+      setVideoUrl(data.secure_url);
+      alert("Video uploaded successfully. Now click Add Video to Course.");
+    } catch (error) {
+      console.error(error);
+      alert("Video upload failed");
+    } finally {
+      setVideoUploading(false);
+    }
+  };
 
   const getInputClass = (value) =>
     submittedStep && !String(value).trim()
@@ -119,19 +137,18 @@ const uploadVideoToCloudinary = async (file) => {
       ? "admin-form-textarea input-error"
       : "admin-form-textarea";
 
+  const validateCourseStep = () => {
+    return department && title.trim() && description.trim();
+  };
+
+  const validateVideoStep = () => videos.length > 0;
+
   const goToStep = (targetStep) => {
     if (targetStep < step) {
       setSubmittedStep(false);
       setStep(targetStep);
     }
   };
-
-  const validateCourseStep = () => {
-    if (!department || !title.trim() || !description.trim()) return false;
-    return true;
-  };
-
-  const validateVideoStep = () => videos.length > 0;
 
   const handleNextFromCourse = () => {
     setSubmittedStep(true);
@@ -148,32 +165,23 @@ const uploadVideoToCloudinary = async (file) => {
   const addVideoToCourse = () => {
     setSubmittedStep(true);
 
-    if (!validateCourseStep()) {
-      alert("Please complete course details first");
+    if (!videoTitle.trim() || !videoDescription.trim() || !videoUrl) {
+      alert("Please fill all video details and upload video");
       return;
     }
 
-   if (!videoTitle.trim() || !videoDescription.trim() || !videoUrl) {
-      alert("Please fill all video details");
-      return;
-    }
-
-const alreadyAdded = videos.some(
-  (video) => video.videoUrl === videoUrl
-);
-
+    const alreadyAdded = videos.some((video) => video.videoUrl === videoUrl);
 
     if (alreadyAdded) {
-      alert("This video is already added in this course");
+      alert("This video is already added");
       return;
     }
 
-  const newVideo = {
-  title: videoTitle.trim(),
-  description: videoDescription.trim(),
-  videoFileName: videoFile?.name,
-  videoUrl,
-
+    const newVideo = {
+      title: videoTitle.trim(),
+      description: videoDescription.trim(),
+      videoFileName: videoFile?.name || "Uploaded Video",
+      videoUrl,
       passingScore: Number(passingScore),
       testDuration: Number(testDuration),
       questions: [],
@@ -183,19 +191,17 @@ const alreadyAdded = videos.some(
 
     setVideoTitle("");
     setVideoDescription("");
-setVideoFile(null);
-setVideoUrl("");
+    setVideoFile(null);
+    setVideoUrl("");
     setPassingScore(70);
     setTestDuration(60);
     setSubmittedStep(false);
   };
 
   const removeVideo = (index) => {
-    const confirmDelete = window.confirm("Remove this video?");
-    if (!confirmDelete) return;
+    if (!window.confirm("Remove this video?")) return;
 
-    const updatedVideos = videos.filter((_, i) => i !== index);
-    setVideos(updatedVideos);
+    setVideos((prev) => prev.filter((_, i) => i !== index));
     setSelectedVideoIndex("");
   };
 
@@ -256,7 +262,14 @@ setVideoUrl("");
   const downloadTemplate = () => {
     const worksheetData = [
       ["Question", "OptionA", "OptionB", "OptionC", "OptionD", "CorrectAnswer"],
-      ["What is oncology?", "Study of cancer", "Study of heart", "Study of bones", "Study of skin", "A"],
+      [
+        "What is oncology?",
+        "Study of cancer",
+        "Study of heart",
+        "Study of bones",
+        "Study of skin",
+        "A",
+      ],
     ];
 
     const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
@@ -321,7 +334,12 @@ setVideoUrl("");
 
           uploadedQuestions.push({
             question: String(q).trim(),
-            options: [String(a).trim(), String(b).trim(), String(c).trim(), String(d).trim()],
+            options: [
+              String(a).trim(),
+              String(b).trim(),
+              String(c).trim(),
+              String(d).trim(),
+            ],
             correctAnswer: String(finalCorrectAnswer).trim(),
             createdAt: new Date().toISOString(),
             uploadedVia: "excel",
@@ -374,6 +392,9 @@ setVideoUrl("");
         title: title.trim(),
         description: description.trim(),
         department,
+        createdBy: currentUser?.id || "",
+        createdByName: currentUser?.name || "",
+        createdByRole: "departmentAdmin",
         createdAt: new Date().toISOString(),
       });
 
@@ -391,6 +412,7 @@ setVideoUrl("");
           videoUrl: video.videoUrl,
           passingScore: video.passingScore,
           testDuration: video.testDuration,
+          createdBy: currentUser?.id || "",
           createdAt: new Date().toISOString(),
         });
 
@@ -409,28 +431,32 @@ setVideoUrl("");
       }
 
       alert("Course saved successfully");
-      navigate("/admin/courses");
+      navigate("/department-admin/courses");
     } catch (error) {
       console.error(error);
       alert("Failed to save course");
     }
   };
 
+  if (loadingUser) {
+    return <div className="admin-form-container">Loading...</div>;
+  }
+
   return (
     <div className="admin-form-container course-wizard-page">
       <div className="wizard-topbar">
-        <Link to="/admin" className="btn-admin-back">
-          ← Back to Admin Dashboard
+        <Link to="/department-admin" className="btn-admin-back">
+          ← Back to Department Dashboard
         </Link>
 
-        <img src="/Logo.webp" alt="Zuvius Lifesciences" className="wizard-logo" />
+        <img src="/Logo.webp" alt="Logo" className="wizard-logo" />
       </div>
 
       <div className="admin-form-card wizard-card">
         <div className="wizard-header">
-          <h1 className="admin-form-title">Add New Course</h1>
+          <h1 className="admin-form-title">Create Department Course</h1>
           <p className="admin-form-subtitle">
-            Create course, add videos and attach questions in one smooth flow.
+            Create course, upload videos and add quiz questions in one flow.
           </p>
         </div>
 
@@ -458,29 +484,14 @@ setVideoUrl("");
             </div>
 
             <div className="admin-input-group">
-              <label className="admin-field-label">Department *</label>
-              <select
-                value={department}
-                onChange={(e) => {
-                  setDepartment(e.target.value);
-                  setVideos([]);
-                  setSelectedVideoIndex("");
-                }}
-                className={getInputClass(department)}
-              >
-                <option value="">Select Department</option>
-                {departments.map((dept) => (
-                  <option key={dept} value={dept}>
-                    {dept}
-                  </option>
-                ))}
-              </select>
+              <label className="admin-field-label">Department</label>
+              <input value={department} className="admin-form-input" disabled />
             </div>
 
             <div className="admin-input-group">
-              <label className="admin-field-label">Course / Product Name *</label>
+              <label className="admin-field-label">Course Name *</label>
               <input
-                placeholder="e.g., Breast Cancer Awareness"
+                placeholder="e.g., Product Training"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className={getInputClass(title)}
@@ -535,34 +546,18 @@ setVideoUrl("");
             </div>
 
             <div className="admin-input-group">
-             <div className="admin-input-group">
-  <label className="admin-field-label">
-    Upload Video *
-  </label>
+              <label className="admin-field-label">Upload Video *</label>
 
-  <input
-    type="file"
-    accept="video/*"
-    onChange={(e) =>
-      uploadVideoToCloudinary(
-        e.target.files?.[0]
-      )
-    }
-    className="admin-form-input"
-  />
+              <input
+                type="file"
+                accept="video/*"
+                onChange={(e) => uploadVideoToCloudinary(e.target.files?.[0])}
+                className="admin-form-input"
+              />
 
-  {videoUploading && (
-    <p>Uploading Video...</p>
-  )}
+              {videoUploading && <p>Uploading Video...</p>}
 
-  {videoUrl && (
-    <p>
-      Uploaded:
-      {" "}
-      {videoFile?.name}
-    </p>
-  )}
-</div>
+              {videoUrl && <p>Uploaded: {videoFile?.name}</p>}
             </div>
 
             <div className="admin-form-row-split">
@@ -590,20 +585,19 @@ setVideoUrl("");
               </div>
             </div>
 
-       <button
-  type="button"
-  className="btn-add-inline"
-  onClick={addVideoToCourse}
-  disabled={videoUploading || !videoUrl}
->
-  {videoUploading
-    ? "Uploading Video..."
-    : "+ Add Video to Course"}
-</button>
+            <button
+              type="button"
+              className="btn-add-inline"
+              onClick={addVideoToCourse}
+              disabled={videoUploading || !videoUrl}
+            >
+              {videoUploading ? "Uploading Video..." : "+ Add Video to Course"}
+            </button>
 
             {videos.length > 0 && (
               <div className="added-list-box">
                 <h3>Added Videos</h3>
+
                 {videos.map((video, index) => (
                   <div key={`${video.videoFileName}-${index}`} className="added-row">
                     <div>
@@ -613,7 +607,11 @@ setVideoUrl("");
                       <p>{video.videoFileName}</p>
                     </div>
 
-                    <button type="button" onClick={() => removeVideo(index)} className="btn-remove-small">
+                    <button
+                      type="button"
+                      onClick={() => removeVideo(index)}
+                      className="btn-remove-small"
+                    >
                       Remove
                     </button>
                   </div>
@@ -675,7 +673,12 @@ setVideoUrl("");
                   className="excel-file-input"
                 />
 
-                <button type="button" onClick={handleExcelUpload} className="btn-excel-upload" disabled={uploading}>
+                <button
+                  type="button"
+                  onClick={handleExcelUpload}
+                  className="btn-excel-upload"
+                  disabled={uploading}
+                >
                   {uploading ? "Uploading..." : "Upload Excel"}
                 </button>
               </div>
@@ -697,18 +700,45 @@ setVideoUrl("");
             </div>
 
             <div className="admin-form-row-split">
-              <input placeholder="Option A *" value={optionA} onChange={(e) => setOptionA(e.target.value)} className={getInputClass(optionA)} />
-              <input placeholder="Option B *" value={optionB} onChange={(e) => setOptionB(e.target.value)} className={getInputClass(optionB)} />
+              <input
+                placeholder="Option A *"
+                value={optionA}
+                onChange={(e) => setOptionA(e.target.value)}
+                className={getInputClass(optionA)}
+              />
+
+              <input
+                placeholder="Option B *"
+                value={optionB}
+                onChange={(e) => setOptionB(e.target.value)}
+                className={getInputClass(optionB)}
+              />
             </div>
 
             <div className="admin-form-row-split">
-              <input placeholder="Option C *" value={optionC} onChange={(e) => setOptionC(e.target.value)} className={getInputClass(optionC)} />
-              <input placeholder="Option D *" value={optionD} onChange={(e) => setOptionD(e.target.value)} className={getInputClass(optionD)} />
+              <input
+                placeholder="Option C *"
+                value={optionC}
+                onChange={(e) => setOptionC(e.target.value)}
+                className={getInputClass(optionC)}
+              />
+
+              <input
+                placeholder="Option D *"
+                value={optionD}
+                onChange={(e) => setOptionD(e.target.value)}
+                className={getInputClass(optionD)}
+              />
             </div>
 
             <div className="admin-input-group">
               <label className="admin-field-label">Correct Answer *</label>
-              <select value={correctAnswer} onChange={(e) => setCorrectAnswer(e.target.value)} className={getInputClass(correctAnswer)}>
+
+              <select
+                value={correctAnswer}
+                onChange={(e) => setCorrectAnswer(e.target.value)}
+                className={getInputClass(correctAnswer)}
+              >
                 <option value="">Select Correct Answer</option>
                 {optionA && <option value={optionA}>Option A: {optionA}</option>}
                 {optionB && <option value={optionB}>Option B: {optionB}</option>}
@@ -723,6 +753,7 @@ setVideoUrl("");
 
             <div className="added-list-box">
               <h3>Questions Summary</h3>
+
               {videos.map((video, index) => (
                 <div key={`${video.title}-${index}`} className="added-row">
                   <div>
@@ -761,9 +792,11 @@ setVideoUrl("");
 
             <div className="review-box">
               <h3>{title}</h3>
+
               <p>
                 <strong>Department:</strong> {department}
               </p>
+
               <p>{description}</p>
 
               <div className="review-video-list">

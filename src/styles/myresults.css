@@ -1,183 +1,95 @@
-/* ==========================================================================
-   My Results Page
-   ========================================================================== */
-
-* {
-  box-sizing: border-box;
+.my-results-page {
+  width: 100%;
 }
 
-body {
+.my-results-header {
+  margin-bottom: 26px;
+}
+
+.my-results-header h1 {
   margin: 0;
-  background: #f5f7f8;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif;
-}
-
-.results-page {
-  min-height: 100vh;
-  padding: 40px 48px;
-
-  background:
-    radial-gradient(
-      circle at top left,
-      rgba(237, 50, 0, 0.05),
-      transparent 30%
-    ),
-    linear-gradient(
-      180deg,
-      #f8fafc 0%,
-      #f1f5f9 100%
-    );
-}
-
-.results-page h1 {
-  font-size: 42px;
+  color: #111827;
+  font-size: 32px;
   font-weight: 900;
-  color: #0f172a;
-  margin-bottom: 28px;
-  letter-spacing: -0.03em;
 }
 
-.results-page p {
-  color: #64748b;
+.my-results-header p {
+  margin: 8px 0 0;
+  color: #667085;
   font-size: 15px;
 }
 
-/* TABLE */
-
-.results-table {
-  width: 100%;
+.results-table-card {
   background: #ffffff;
-  border-collapse: collapse;
-  border-radius: 20px;
+  border: 1px solid #edf1f3;
+  border-radius: 16px;
   overflow: hidden;
-
-  border: 1px solid #e2e8f0;
-
-  box-shadow:
-    0 14px 35px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
 }
 
-.results-table thead {
-  background: #31434d;
+.clean-results-table {
+  width: 100%;
+  border-collapse: collapse;
 }
 
-.results-table th {
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-
-  padding: 18px;
-  text-align: left;
-}
-
-.results-table td {
-  padding: 18px;
-  border-bottom: 1px solid #eef2f7;
-
-  color: #334155;
+.clean-results-table th {
+  background: #f8fafc;
+  color: #344054;
   font-size: 14px;
-  vertical-align: middle;
+  font-weight: 900;
+  text-align: left;
+  padding: 18px 22px;
+  border-bottom: 1px solid #edf1f3;
 }
 
-.results-table tr:last-child td {
+.clean-results-table td {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 750;
+  padding: 18px 22px;
+  border-bottom: 1px solid #edf1f3;
+}
+
+.clean-results-table tr:last-child td {
   border-bottom: none;
 }
 
-.results-table tbody tr:hover {
-  background: #f8fafc;
-}
-
-/* PASS / FAIL */
-
-.results-table td:nth-child(4) {
-  font-weight: 800;
-}
-
-.results-table td:nth-child(4):contains("PASS") {
-  color: #16a34a;
-}
-
-/* DOWNLOAD */
-
-.download-btn {
-  background: #31434d;
-  color: #ffffff;
-  border: none;
-
-  padding: 10px 16px;
-  border-radius: 10px;
-
+.result-status {
+  display: inline-flex;
+  padding: 6px 12px;
+  border-radius: 8px;
   font-size: 13px;
-  font-weight: 800;
-  cursor: pointer;
-
-  transition: 0.2s ease;
+  font-weight: 900;
 }
 
-.download-btn:hover {
-  background: #ed3200;
+.result-status.passed {
+  background: #e9f8ef;
+  color: #06964f;
 }
 
-/* BACK */
-
-.back-btn-results {
-  margin-top: 24px;
-
-  background: #ffffff;
-  color: #31434d;
-
-  border: 1px solid #dbe3e7;
-
-  padding: 12px 18px;
-  border-radius: 12px;
-
-  font-size: 14px;
-  font-weight: 800;
-
-  cursor: pointer;
-  transition: 0.2s ease;
+.result-status.failed {
+  background: #fff0f0;
+  color: #e03131;
 }
 
-.back-btn-results:hover {
-  background: #31434d;
-  color: #ffffff;
-  border-color: #31434d;
+.results-empty {
+  padding: 26px;
+  color: #667085;
+  font-weight: 750;
 }
 
-/* RESPONSIVE */
+.results-loading {
+  padding: 40px;
+  color: #344054;
+  font-weight: 900;
+}
 
-@media (max-width: 900px) {
-  .results-page {
-    padding: 24px 16px;
-  }
-
-  .results-page h1 {
-    font-size: 32px;
-  }
-
-  .results-table {
-    display: block;
+@media (max-width: 800px) {
+  .results-table-card {
     overflow-x: auto;
-    white-space: nowrap;
-  }
-}
-
-@media (max-width: 600px) {
-  .results-page h1 {
-    font-size: 28px;
   }
 
-  .results-table th,
-  .results-table td {
-    padding: 14px;
-    font-size: 13px;
-  }
-
-  .download-btn,
-  .back-btn-results {
-    width: 100%;
+  .clean-results-table {
+    min-width: 680px;
   }
 }

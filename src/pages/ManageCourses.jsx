@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ref, get, remove } from "firebase/database";
-import { database } from "../firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { database, auth } from "../firebase";
 import { Link, useNavigate } from "react-router-dom";
 import "../styles/managevideos.css";
 
@@ -9,6 +10,9 @@ function ManageCourses() {
 
   const departments = ["Sales", "Marketing", "HR", "Production", "Accounts"];
 
+  const [currentUser, setCurrentUser] = useState(null);
+  const [userRole, setUserRole] = useState("");
+
   const [courses, setCourses] = useState([]);
   const [videos, setVideos] = useState([]);
   const [questionsCount, setQuestionsCount] = useState({});
@@ -16,8 +20,32 @@ function ManageCourses() {
   const [department, setDepartment] = useState("");
   const [selectedCourseId, setSelectedCourseId] = useState("");
 
+  const isDepartmentAdmin = userRole === "departmentAdmin";
+
   useEffect(() => {
-    fetchData();
+    const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
+      if (!loggedUser) return;
+
+      const userSnap = await get(ref(database, `users/${loggedUser.uid}`));
+
+      if (userSnap.exists()) {
+        const userData = {
+          id: loggedUser.uid,
+          ...userSnap.val(),
+        };
+
+        setCurrentUser(userData);
+        setUserRole(userData.role || "");
+
+        if (userData.role === "departmentAdmin") {
+          setDepartment(userData.department || "");
+        }
+      }
+
+      fetchData();
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const fetchData = async () => {
@@ -27,20 +55,28 @@ function ManageCourses() {
 
     if (coursesSnap.exists()) {
       const data = coursesSnap.val();
+
       const courseArray = Object.keys(data).map((key) => ({
         id: key,
         ...data[key],
       }));
+
       setCourses(courseArray);
+    } else {
+      setCourses([]);
     }
 
     if (videosSnap.exists()) {
       const data = videosSnap.val();
+
       const videoArray = Object.keys(data).map((key) => ({
         id: key,
         ...data[key],
       }));
+
       setVideos(videoArray);
+    } else {
+      setVideos([]);
     }
 
     if (questionsSnap.exists()) {
@@ -52,12 +88,15 @@ function ManageCourses() {
       });
 
       setQuestionsCount(countObj);
+    } else {
+      setQuestionsCount({});
     }
   };
 
-  const filteredCourses = courses.filter(
-    (course) => course.department === department
-  );
+  const filteredCourses = courses.filter((course) => {
+    if (!department) return false;
+    return course.department === department;
+  });
 
   const selectedCourse = courses.find(
     (course) => course.id === selectedCourseId
@@ -86,13 +125,27 @@ function ManageCourses() {
     fetchData();
   };
 
+  const dashboardPath = isDepartmentAdmin ? "/department-admin" : "/admin";
+
+  const createCoursePath = isDepartmentAdmin
+    ? "/department-admin/courses/create"
+    : "/admin/add-course";
+
+  const videosPath = isDepartmentAdmin
+    ? "/department-admin/videos"
+    : "/admin/videos";
+
+  const questionsPath = isDepartmentAdmin
+    ? "/department-admin/questions"
+    : "/admin/questions";
+
   return (
     <div className="manage-catalog-container">
       <div className="catalog-header-row">
         <div>
           <div className="back-link-wrapper">
-            <Link to="/admin" className="btn-catalog-back">
-              ← Admin Dashboard
+            <Link to={dashboardPath} className="btn-catalog-back">
+              ← {isDepartmentAdmin ? "Department Dashboard" : "Admin Dashboard"}
             </Link>
           </div>
 
@@ -104,7 +157,7 @@ function ManageCourses() {
           </p>
         </div>
 
-        <Link to="/admin/add-course" className="btn-catalog-create-new">
+        <Link to={createCoursePath} className="btn-catalog-create-new">
           + Add New Course
         </Link>
       </div>
@@ -114,22 +167,26 @@ function ManageCourses() {
           <div className="admin-input-group">
             <label className="admin-field-label">Department</label>
 
-            <select
-              value={department}
-              onChange={(e) => {
-                setDepartment(e.target.value);
-                setSelectedCourseId("");
-              }}
-              className="admin-form-input"
-            >
-              <option value="">Select Department</option>
+            {isDepartmentAdmin ? (
+              <input value={department} className="admin-form-input" disabled />
+            ) : (
+              <select
+                value={department}
+                onChange={(e) => {
+                  setDepartment(e.target.value);
+                  setSelectedCourseId("");
+                }}
+                className="admin-form-input"
+              >
+                <option value="">Select Department</option>
 
-              {departments.map((dept) => (
-                <option key={dept} value={dept}>
-                  {dept}
-                </option>
-              ))}
-            </select>
+                {departments.map((dept) => (
+                  <option key={dept} value={dept}>
+                    {dept}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div className="admin-input-group">
@@ -204,7 +261,7 @@ function ManageCourses() {
             <div className="course-management-actions">
               <button
                 type="button"
-                onClick={() => navigate("/admin/videos")}
+                onClick={() => navigate(videosPath)}
                 className="course-manage-action"
               >
                 <h3>Edit Videos</h3>
@@ -213,7 +270,7 @@ function ManageCourses() {
 
               <button
                 type="button"
-                onClick={() => navigate("/admin/questions")}
+                onClick={() => navigate(questionsPath)}
                 className="course-manage-action"
               >
                 <h3>Edit Questions</h3>

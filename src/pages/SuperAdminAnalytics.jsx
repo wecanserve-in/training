@@ -10,10 +10,11 @@ function SuperAdminAnalytics() {
   const [results, setResults] = useState({});
 
   const [filters, setFilters] = useState({
+        designation: "",
     zone: "",
     state: "",
     cityArea: "",
-    designation: "",
+
   });
 
   useEffect(() => {
@@ -174,10 +175,11 @@ function SuperAdminAnalytics() {
           <button
             onClick={() =>
               setFilters({
+                    designation: "",
                 zone: "",
                 state: "",
                 cityArea: "",
-                designation: "",
+            
               })
             }
           >

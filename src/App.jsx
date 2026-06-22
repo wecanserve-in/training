@@ -37,6 +37,14 @@ import AdminResults from "./pages/AdminResults";
 import EditVideo from "./pages/EditVideo";
 import EditQuestion from "./pages/EditQuestion";
 
+import DepartmentMembers from "./pages/DepartmentMembers";
+
+import UserLayout from "./components/UserLayout";
+import AssignedCourses from "./pages/AssignedCourses";
+import Certificates from "./pages/Certificates";
+import MyLearnings from "./pages/MyLearnings";
+import Profile from "./pages/Profile";
+
 function App() {
   return (
     <BrowserRouter>
@@ -169,8 +177,7 @@ function App() {
             </RoleRoute>
           }
         />
-
-     <Route
+<Route
   path="/department-admin"
   element={
     <RoleRoute allowedRoles={["departmentAdmin"]}>
@@ -179,17 +186,38 @@ function App() {
   }
 >
   <Route index element={<DepartmentAdminDashboard />} />
+
+  <Route path="courses/create" element={<AddCourse />} />
+  <Route path="courses" element={<ManageCourses />} />
+
+  <Route path="videos" element={<ManageVideos />} />
+  <Route path="questions" element={<ManageQuestions />} />
+
   <Route path="assignments" element={<DepartmentAssignTraining />} />
+<Route path="members" element={<DepartmentMembers />} />
+  <Route path="edit-video/:id" element={<EditVideo />} />
+  <Route path="edit-question/:videoId/:questionId" element={<EditQuestion />} />
 </Route>
 
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
+<Route
+  element={
+    <ProtectedRoute>
+      <UserLayout />
+    </ProtectedRoute>
+  }
+>
+  <Route path="/dashboard" element={<Dashboard />} />
+  <Route path="/assigned-courses" element={<AssignedCourses />} />
+  <Route path="/my-results" element={<MyResults />} />
+  <Route path="/course/:id" element={<CourseDetails />} />
+  <Route path="/my-learnings" element={<MyLearnings />} />
+  <Route path="/profile" element={<Profile />} />
+  <Route path="/video/:id" element={<VideoPage />} />
+  <Route path="/quiz/:id" element={<QuizPage />} />
+  <Route path="/result/:id" element={<ResultPage />} />
+  <Route path="/certificates" element={<Certificates />} />
+  <Route path="/certificate/:id" element={<CertificatePage />} />
+</Route>
 
         <Route
           path="/course/:id"
@@ -236,14 +264,7 @@ function App() {
           }
         />
 
-        <Route
-          path="/my-results"
-          element={
-            <ProtectedRoute>
-              <MyResults />
-            </ProtectedRoute>
-          }
-        />
+        
       </Routes>
     </BrowserRouter>
   );
