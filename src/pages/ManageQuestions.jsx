@@ -1,114 +1,121 @@
 import { useEffect, useState } from "react";
 import { ref, get, remove } from "firebase/database";
-import { database } from "../firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { database, auth } from "../firebase";
 import { useNavigate, Link } from "react-router-dom";
 import "../styles/managequestions.css";
 
 function ManageQuestions() {
   const navigate = useNavigate();
 
-  const departments = ["Sales", "Marketing", "HR", "Production", "Accounts"];
 
-  const [courses, setCourses] = useState([]);
-  const [videos, setVideos] = useState([]);
+const [currentUser, setCurrentUser] = useState(null);
+const [department, setDepartment] = useState("");
 
-  const [filteredCourses, setFilteredCourses] = useState([]);
-  const [filteredVideos, setFilteredVideos] = useState([]);
+const [courses, setCourses] = useState([]);
+const [filteredCourses, setFilteredCourses] = useState([]);
+const [selectedCourse, setSelectedCourse] = useState("");
 
-  const [department, setDepartment] = useState("");
-  const [selectedCourse, setSelectedCourse] = useState("");
-  const [selectedVideo, setSelectedVideo] = useState("");
+const [questions, setQuestions] = useState([]);
+const [loading, setLoading] = useState(true);
 
-  const [questions, setQuestions] = useState([]);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    const coursesSnap = await get(ref(database, "courses"));
-
-    if (coursesSnap.exists()) {
-      const data = coursesSnap.val();
-
-      const courseArray = Object.keys(data).map((key) => ({
-        id: key,
-        ...data[key],
-      }));
-
-      setCourses(courseArray);
-    }
-
-    const videosSnap = await get(ref(database, "videos"));
-
-    if (videosSnap.exists()) {
-      const data = videosSnap.val();
-
-      const videoArray = Object.keys(data).map((key) => ({
-        id: key,
-        ...data[key],
-      }));
-
-      setVideos(videoArray);
-    }
-  };
-
-  const handleDepartmentChange = (e) => {
-    const selectedDepartment = e.target.value;
-
-    setDepartment(selectedDepartment);
-    setSelectedCourse("");
-    setSelectedVideo("");
-    setQuestions([]);
-    setFilteredVideos([]);
-
-    const matchedCourses = courses.filter(
-      (course) => course.department === selectedDepartment
-    );
-
-    setFilteredCourses(matchedCourses);
-  };
-
-  const handleCourseChange = (e) => {
-    const courseId = e.target.value;
-
-    setSelectedCourse(courseId);
-    setSelectedVideo("");
-    setQuestions([]);
-
-    const matchedVideos = videos.filter((video) => video.courseId === courseId);
-
-    setFilteredVideos(matchedVideos);
-  };
-
-  const fetchQuestions = async (videoId) => {
-    if (!videoId) {
-      setQuestions([]);
+ useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
+    if (!loggedUser) {
+      navigate("/");
       return;
     }
 
-    const snapshot = await get(ref(database, `questions/${videoId}`));
+    const userSnap = await get(ref(database, `users/${loggedUser.uid}`));
 
-    if (snapshot.exists()) {
-      const data = snapshot.val();
-
-      const questionArray = Object.keys(data).map((key) => ({
-        id: key,
-        ...data[key],
-      }));
-
-      setQuestions(questionArray);
-    } else {
-      setQuestions([]);
+    if (!userSnap.exists()) {
+      alert("User profile not found");
+      navigate("/");
+      return;
     }
-  };
 
-  const handleVideoChange = (e) => {
-    const videoId = e.target.value;
+    const userData = {
+      id: loggedUser.uid,
+      ...userSnap.val(),
+    };
 
-    setSelectedVideo(videoId);
-    fetchQuestions(videoId);
-  };
+    setCurrentUser(userData);
+
+    const realDepartment = userData.department || "";
+    setDepartment(realDepartment);
+
+    await fetchData(realDepartment);
+
+    setLoading(false);
+  });
+
+  return () => unsubscribe();
+}, [navigate]);
+
+  const fetchData = async (realDepartment) => {
+  const coursesSnap = await get(ref(database, "courses"));
+
+  if (coursesSnap.exists()) {
+    const data = coursesSnap.val();
+
+    const courseArray = Object.keys(data).map((key) => ({
+      id: key,
+      ...data[key],
+    }));
+
+    const deptCourses = courseArray.filter(
+      (course) => course.department === realDepartment
+    );
+
+    setCourses(courseArray);
+    setFilteredCourses(deptCourses);
+
+    if (deptCourses.length > 0) {
+      const firstCourseId = deptCourses[0].id;
+      setSelectedCourse(firstCourseId);
+      await fetchQuestions(firstCourseId);
+    }
+  } else {
+    setCourses([]);
+    setFilteredCourses([]);
+  }
+};
+
+  
+
+ const fetchQuestions = async (courseId) => {
+  if (!courseId) {
+    setQuestions([]);
+    return;
+  }
+
+  const snapshot = await get(ref(database, `questions/${courseId}`));
+
+  if (snapshot.exists()) {
+    const data = snapshot.val();
+
+    const questionArray = Object.keys(data).map((key) => ({
+      id: key,
+      courseId,
+      ...data[key],
+    }));
+
+    setQuestions(questionArray);
+  } else {
+    setQuestions([]);
+  }
+};
+
+const handleCourseChange = async (e) => {
+  const courseId = e.target.value;
+
+  setSelectedCourse(courseId);
+  await fetchQuestions(courseId);
+};
+
+
+  
 
   const handleDelete = async (questionId) => {
     const confirmDelete = window.confirm(
@@ -117,121 +124,104 @@ function ManageQuestions() {
 
     if (!confirmDelete) return;
 
-    await remove(ref(database, `questions/${selectedVideo}/${questionId}`));
+   await remove(ref(database, `questions/${selectedCourse}/${questionId}`));
 
-    fetchQuestions(selectedVideo);
+fetchQuestions(selectedCourse);
   };
+
+  if (loading) {
+  return <div className="manage-questions-container">Loading questions...</div>;
+}
 
   return (
     <div className="manage-questions-container">
       <div className="q-header-row">
         <div>
           <div className="back-link-wrapper">
-            <Link to="/admin" className="btn-q-back">
-              ← Admin Dashboard
-            </Link>
+         <Link to="/department-admin" className="btn-q-back">
+  ← Department Dashboard
+</Link>
           </div>
 
-          <h1 className="q-main-title">Manage Question Pools</h1>
+      <h1 className="q-main-title">Manage Course Questions</h1>
 
-          <p className="q-subtitle">
-            Filter questions by department, course, and video module.
-          </p>
+<p className="q-subtitle">
+  View and manage quiz questions for courses in your department.
+</p>
         </div>
 
-        <Link to="/admin/add-question" className="btn-q-create-new">
-          + Add New Question
-        </Link>
+  <Link
+  to={
+    selectedCourse
+      ? `/department-admin/questions/add/${selectedCourse}`
+      : "#"
+  }
+  className="btn-q-create-new"
+  onClick={(e) => {
+    if (!selectedCourse) {
+      e.preventDefault();
+      alert("Please select a course first");
+    }
+  }}
+>
+  + Add New Question
+</Link>
       </div>
 
-      <div className="filter-selection-card">
-        <label className="filter-select-label">Department:</label>
+   <div className="filter-selection-card">
+  <label className="filter-select-label">Department:</label>
 
-        <div className="select-dropdown-wrapper">
-          <select
-            value={department}
-            onChange={handleDepartmentChange}
-            className="admin-filter-select"
-          >
-            <option value="">-- Select Department --</option>
+  <div className="select-dropdown-wrapper">
+    <input
+      value={department}
+      className="admin-filter-select"
+      disabled
+    />
+  </div>
 
-            {departments.map((dept) => (
-              <option key={dept} value={dept}>
-                {dept}
-              </option>
-            ))}
-          </select>
-        </div>
+  <label className="filter-select-label">Course:</label>
 
-        <label className="filter-select-label">Course:</label>
+  <div className="select-dropdown-wrapper">
+    <select
+      value={selectedCourse}
+      onChange={handleCourseChange}
+      className="admin-filter-select"
+      disabled={!department}
+    >
+      <option value="">
+        {department ? "-- Select Course --" : "Department Not Found"}
+      </option>
 
-        <div className="select-dropdown-wrapper">
-          <select
-            value={selectedCourse}
-            onChange={handleCourseChange}
-            className="admin-filter-select"
-            disabled={!department}
-          >
-            <option value="">
-              {department ? "-- Select Course --" : "Select Department First"}
-            </option>
+      {filteredCourses.map((course) => (
+        <option key={course.id} value={course.id}>
+          {course.title}
+        </option>
+      ))}
+    </select>
+  </div>
+</div>
 
-            {filteredCourses.map((course) => (
-              <option key={course.id} value={course.id}>
-                {course.title}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <label className="filter-select-label">Video:</label>
-
-        <div className="select-dropdown-wrapper">
-          <select
-            value={selectedVideo}
-            onChange={handleVideoChange}
-            className="admin-filter-select"
-            disabled={!selectedCourse}
-          >
-            <option value="">
-              {selectedCourse ? "-- Select Video --" : "Select Course First"}
-            </option>
-
-            {filteredVideos.map((video) => (
-              <option key={video.id} value={video.id}>
-                {video.title}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div className="questions-render-workspace">
-        {!department ? (
-          <div className="workspace-status-card info-prompt">
-            <h3>No Department Selected</h3>
-            <p>Please select department first.</p>
-          </div>
-        ) : !selectedCourse ? (
-          <div className="workspace-status-card info-prompt">
-            <h3>No Course Selected</h3>
-            <p>Please select a course to view its videos.</p>
-          </div>
-        ) : !selectedVideo ? (
-          <div className="workspace-status-card info-prompt">
-            <h3>No Video Selected</h3>
-            <p>Please select a video to view its question pool.</p>
-          </div>
-        ) : questions.length === 0 ? (
+<div className="questions-render-workspace">
+  {!department ? (
+  <div className="workspace-status-card info-prompt">
+    <h3>No Department Found</h3>
+    <p>Your account is not linked with any department.</p>
+  </div>
+) : !selectedCourse ? (
+  <div className="workspace-status-card info-prompt">
+    <h3>No Course Selected</h3>
+    <p>Please select a course to view its quiz questions.</p>
+  </div>
+) : questions.length === 0 ? (
           <div className="workspace-status-card zero-data-prompt">
             <h3>Empty Question Pool</h3>
-            <p>No questions have been attached to this video yet.</p>
+           <p>No questions have been added to this course yet.</p>
           </div>
         ) : (
           <div className="questions-data-list">
             <div className="pool-count-indicator">
-              Showing <strong>{questions.length}</strong> questions assigned to
-              this video.
+          Showing <strong>{questions.length}</strong> questions assigned to
+this course.
             </div>
 
             {questions.map((question, index) => (
@@ -242,9 +232,9 @@ function ManageQuestions() {
                   <div className="q-card-actions-row">
                     <button
                       onClick={() =>
-                        navigate(
-                          `/admin/edit-question/${selectedVideo}/${question.id}`
-                        )
+                      navigate(
+  `/department-admin/questions/edit/${selectedCourse}/${question.id}`
+)
                       }
                       className="btn-item-action-edit"
                     >
@@ -291,7 +281,7 @@ function ManageQuestions() {
               </div>
             ))}
           </div>
-        )}
+              )}
       </div>
     </div>
   );

@@ -86,7 +86,7 @@ function App() {
   <Route path="add-question" element={<AddQuestion />} />
   <Route path="results" element={<AdminResults />} />
   <Route path="edit-video/:id" element={<EditVideo />} />
-  <Route path="edit-question/:videoId/:questionId" element={<EditQuestion />} />
+ <Route path="questions/edit/:courseId/:questionId" element={<EditQuestion />} />
 </Route>
         <Route
           path="/admin/users"
@@ -169,14 +169,7 @@ function App() {
           }
         />
 
-        <Route
-          path="/admin/edit-question/:videoId/:questionId"
-          element={
-            <RoleRoute allowedRoles={["admin", "superAdmin"]}>
-              <EditQuestion />
-            </RoleRoute>
-          }
-        />
+     
 <Route
   path="/department-admin"
   element={
@@ -192,11 +185,11 @@ function App() {
 
   <Route path="videos" element={<ManageVideos />} />
   <Route path="questions" element={<ManageQuestions />} />
-
+<Route path="questions/add/:courseId" element={<AddQuestion />} />
   <Route path="assignments" element={<DepartmentAssignTraining />} />
 <Route path="members" element={<DepartmentMembers />} />
   <Route path="edit-video/:id" element={<EditVideo />} />
-  <Route path="edit-question/:videoId/:questionId" element={<EditQuestion />} />
+  <Route path="questions/edit/:courseId/:questionId" element={<EditQuestion />} />
 </Route>
 
 <Route

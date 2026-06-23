@@ -8,62 +8,84 @@ import "../styles/managevideos.css";
 function ManageCourses() {
   const navigate = useNavigate();
 
-  const departments = ["Sales", "Marketing", "HR", "Production", "Accounts"];
-
   const [currentUser, setCurrentUser] = useState(null);
   const [userRole, setUserRole] = useState("");
 
+  const [departments, setDepartments] = useState([]);
   const [courses, setCourses] = useState([]);
   const [videos, setVideos] = useState([]);
   const [questionsCount, setQuestionsCount] = useState({});
 
   const [department, setDepartment] = useState("");
   const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const isDepartmentAdmin = userRole === "departmentAdmin";
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
-      if (!loggedUser) return;
+      if (!loggedUser) {
+        navigate("/");
+        return;
+      }
 
       const userSnap = await get(ref(database, `users/${loggedUser.uid}`));
 
-      if (userSnap.exists()) {
-        const userData = {
-          id: loggedUser.uid,
-          ...userSnap.val(),
-        };
-
-        setCurrentUser(userData);
-        setUserRole(userData.role || "");
-
-        if (userData.role === "departmentAdmin") {
-          setDepartment(userData.department || "");
-        }
+      if (!userSnap.exists()) {
+        alert("User profile not found");
+        navigate("/");
+        return;
       }
 
-      fetchData();
+      const userData = {
+        id: loggedUser.uid,
+        ...userSnap.val(),
+      };
+
+      setCurrentUser(userData);
+      setUserRole(userData.role || "");
+
+      const userDepartment =
+        userData.role === "departmentAdmin" ? userData.department || "" : "";
+
+      setDepartment(userDepartment);
+
+      await fetchData(userData.role || "", userDepartment);
+      setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [navigate]);
 
-  const fetchData = async () => {
+  const fetchData = async (role = userRole, userDepartment = department) => {
     const coursesSnap = await get(ref(database, "courses"));
     const videosSnap = await get(ref(database, "videos"));
     const questionsSnap = await get(ref(database, "questions"));
 
+    let courseArray = [];
+
     if (coursesSnap.exists()) {
       const data = coursesSnap.val();
 
-      const courseArray = Object.keys(data).map((key) => ({
+      courseArray = Object.keys(data).map((key) => ({
         id: key,
         ...data[key],
       }));
 
       setCourses(courseArray);
+
+      const realDepartments = [
+        ...new Set(
+          courseArray
+            .map((course) => course.department)
+            .filter(Boolean)
+        ),
+      ];
+
+      setDepartments(realDepartments);
     } else {
       setCourses([]);
+      setDepartments([]);
     }
 
     if (videosSnap.exists()) {
@@ -83,13 +105,23 @@ function ManageCourses() {
       const data = questionsSnap.val();
       const countObj = {};
 
-      Object.keys(data).forEach((videoId) => {
-        countObj[videoId] = Object.keys(data[videoId]).length;
+      Object.keys(data).forEach((courseId) => {
+        countObj[courseId] = Object.keys(data[courseId] || {}).length;
       });
 
       setQuestionsCount(countObj);
     } else {
       setQuestionsCount({});
+    }
+
+    if (role === "departmentAdmin" && userDepartment) {
+      const hasCourses = courseArray.some(
+        (course) => course.department === userDepartment
+      );
+
+      if (!hasCourses) {
+        setSelectedCourseId("");
+      }
     }
   };
 
@@ -102,27 +134,41 @@ function ManageCourses() {
     (course) => course.id === selectedCourseId
   );
 
-  const courseVideos = videos.filter(
-    (video) => video.courseId === selectedCourseId
-  );
+  const courseVideos = videos
+    .filter((video) => video.courseId === selectedCourseId)
+    .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
 
-  const totalQuestions = courseVideos.reduce((total, video) => {
-    return total + (questionsCount[video.id] || 0);
-  }, 0);
+  const totalQuestions = questionsCount[selectedCourseId] || 0;
 
   const handleDeleteCourse = async () => {
     if (!selectedCourseId) return;
 
     const confirmDelete = window.confirm(
-      "Delete this course? Videos and questions linked to this course will remain unless you delete them separately."
+      "Delete this course? This will also delete linked videos and course questions."
     );
 
     if (!confirmDelete) return;
 
-    await remove(ref(database, `courses/${selectedCourseId}`));
+    try {
+      await remove(ref(database, `courses/${selectedCourseId}`));
+      await remove(ref(database, `questions/${selectedCourseId}`));
 
-    setSelectedCourseId("");
-    fetchData();
+      const linkedVideos = videos.filter(
+        (video) => video.courseId === selectedCourseId
+      );
+
+      for (const video of linkedVideos) {
+        await remove(ref(database, `videos/${video.id}`));
+      }
+
+      alert("Course deleted successfully");
+
+      setSelectedCourseId("");
+      await fetchData(userRole, department);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to delete course");
+    }
   };
 
   const dashboardPath = isDepartmentAdmin ? "/department-admin" : "/admin";
@@ -139,6 +185,10 @@ function ManageCourses() {
     ? "/department-admin/questions"
     : "/admin/questions";
 
+  if (loading) {
+    return <div className="manage-catalog-container">Loading courses...</div>;
+  }
+
   return (
     <div className="manage-catalog-container">
       <div className="catalog-header-row">
@@ -152,8 +202,7 @@ function ManageCourses() {
           <h1 className="catalog-main-title">Manage Courses</h1>
 
           <p className="catalog-subtitle">
-            Select a department and course to manage videos and questions from
-            one place.
+            Select department and course to manage videos and overall course quiz.
           </p>
         </div>
 
@@ -221,7 +270,7 @@ function ManageCourses() {
           </div>
         ) : !selectedCourse ? (
           <div className="empty-catalog-fallback">
-            <p>Select a course to view its videos and questions.</p>
+            <p>Select a course to view videos and quiz questions.</p>
           </div>
         ) : (
           <div className="selected-course-workspace">
@@ -253,8 +302,13 @@ function ManageCourses() {
               </div>
 
               <div>
-                <span>Department</span>
-                <strong>{selectedCourse.department}</strong>
+                <span>Passing Score</span>
+                <strong>{selectedCourse.passingScore || 70}%</strong>
+              </div>
+
+              <div>
+                <span>Timer</span>
+                <strong>{selectedCourse.testDuration || 60}s</strong>
               </div>
             </div>
 
@@ -265,7 +319,7 @@ function ManageCourses() {
                 className="course-manage-action"
               >
                 <h3>Edit Videos</h3>
-                <p>Update video title, file, duration and passing score.</p>
+                <p>Update course video title, description and file details.</p>
               </button>
 
               <button
@@ -274,7 +328,7 @@ function ManageCourses() {
                 className="course-manage-action"
               >
                 <h3>Edit Questions</h3>
-                <p>View, edit, delete or add assessment questions.</p>
+                <p>Manage overall quiz questions for this course.</p>
               </button>
             </div>
 
@@ -289,8 +343,7 @@ function ManageCourses() {
                     <tr>
                       <th>Video</th>
                       <th>File</th>
-                      <th style={{ textAlign: "center" }}>Pass %</th>
-                      <th style={{ textAlign: "center" }}>Questions</th>
+                      <th style={{ textAlign: "center" }}>Order</th>
                     </tr>
                   </thead>
 
@@ -311,14 +364,8 @@ function ManageCourses() {
                         </td>
 
                         <td style={{ textAlign: "center" }}>
-                          <span className="badge-metric accent-blue">
-                            {video.passingScore}%
-                          </span>
-                        </td>
-
-                        <td style={{ textAlign: "center" }}>
                           <span className="badge-metric accent-grey">
-                            {questionsCount[video.id] || 0}
+                            {video.order || "-"}
                           </span>
                         </td>
                       </tr>

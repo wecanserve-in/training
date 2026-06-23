@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
 import { ref, get, update } from "firebase/database";
 import { database } from "../firebase";
-import { useNavigate, useParams, Link } from "react-router-dom"; // Added Link for navigation safety
-import "../styles/addquestion.css"; // Sharing identical high-grade styles with the question creator
+import { useNavigate, useParams, Link } from "react-router-dom";
+import "../styles/addquestion.css";
 
 function EditQuestion() {
-  const { videoId, questionId } = useParams();
+  const { courseId, questionId } = useParams();
   const navigate = useNavigate();
+
+  const [course, setCourse] = useState(null);
+  const [department, setDepartment] = useState("");
 
   const [question, setQuestion] = useState("");
   const [optionA, setOptionA] = useState("");
@@ -17,13 +20,38 @@ function EditQuestion() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchQuestion = async () => {
-      const snapshot = await get(
-        ref(database, `questions/${videoId}/${questionId}`)
-      );
+    const fetchQuestionAndCourse = async () => {
+      try {
 
-      if (snapshot.exists()) {
-        const data = snapshot.val();
+        console.log("courseId from URL:", courseId);
+console.log("questionId from URL:", questionId);
+
+        const courseSnap = await get(ref(database, `courses/${courseId}`));
+
+        if (!courseSnap.exists()) {
+          alert("Course not found");
+      navigate("/department-admin/questions");
+          return;
+        }
+
+        const courseData = courseSnap.val();
+        setCourse(courseData);
+        setDepartment(courseData.department || "");
+
+        const questionSnap = await get(
+          ref(database, `questions/${courseId}/${questionId}`)
+        );
+
+        console.log("Question path:", `questions/${courseId}/${questionId}`);
+console.log("Question exists:", questionSnap.exists());
+
+        if (!questionSnap.exists()) {
+          alert("Question not found");
+navigate("/department-admin/questions");
+          return;
+        }
+
+        const data = questionSnap.val();
 
         setQuestion(data.question || "");
         setOptionA(data.options?.[0] || "");
@@ -31,53 +59,102 @@ function EditQuestion() {
         setOptionC(data.options?.[2] || "");
         setOptionD(data.options?.[3] || "");
         setCorrectAnswer(data.correctAnswer || "");
+      } catch (error) {
+        console.error(error);
+        alert("Failed to load question");
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
-    fetchQuestion();
-  }, [videoId, questionId]);
+    fetchQuestionAndCourse();
+  }, [courseId, questionId, navigate]);
 
   const handleUpdate = async (e) => {
     e.preventDefault();
 
-    const options = [optionA, optionB, optionC, optionD];
+    const finalQuestion = question.trim();
+    const options = [
+      optionA.trim(),
+      optionB.trim(),
+      optionC.trim(),
+      optionD.trim(),
+    ];
 
-    if (!options.includes(correctAnswer)) {
+    if (!finalQuestion || options.some((option) => !option)) {
+      alert("Please fill question and all options");
+      return;
+    }
+
+    if (!correctAnswer) {
+      alert("Please select correct answer");
+      return;
+    }
+
+    if (!options.includes(correctAnswer.trim())) {
       alert("Correct answer must match one of the options.");
       return;
     }
 
-    await update(ref(database, `questions/${videoId}/${questionId}`), {
-      question,
-      options,
-      correctAnswer,
-      updatedAt: new Date().toISOString(),
-    });
+    try {
+      await update(ref(database, `questions/${courseId}/${questionId}`), {
+        department,
+        courseId,
+        question: finalQuestion,
+        options,
+        correctAnswer: correctAnswer.trim(),
+        updatedAt: new Date().toISOString(),
+      });
 
-    alert("Question Updated Successfully");
-    navigate("/admin/questions");
+      alert("Question Updated Successfully");
+navigate("/department-admin/questions");
+    } catch (error) {
+      console.error(error);
+      alert("Failed to update question");
+    }
   };
 
-  if (loading) return <h2 className="admin-status-msg">Loading Question...</h2>;
+  if (loading) {
+    return <h2 className="admin-status-msg">Loading Question...</h2>;
+  }
 
   return (
     <div className="admin-question-container">
-      {/* Navigation Return contextual framework */}
       <div className="admin-nav-back-row">
-        <Link to="/admin/questions" className="btn-admin-back">
-          ← Cancel and Return to Pools
+      <Link to="/department-admin/questions" className="btn-admin-back">
+          ← Cancel and Return
         </Link>
       </div>
 
       <div className="admin-question-card">
-        <h1 className="admin-question-title">Edit Assessment Question</h1>
-        <p className="admin-question-subtitle">Modify evaluation phrasing, individual variables, or update the active answer key.</p>
+        <h1 className="admin-question-title">Edit Course Question</h1>
+
+        <p className="admin-question-subtitle">
+          This question belongs to the overall course quiz.
+        </p>
+
+        <div className="admin-input-group">
+          <label className="admin-field-label">Department</label>
+          <input
+            value={department}
+            className="admin-form-input"
+            disabled
+          />
+        </div>
+
+        <div className="admin-input-group">
+          <label className="admin-field-label">Course</label>
+          <input
+            value={course?.title || ""}
+            className="admin-form-input"
+            disabled
+          />
+        </div>
 
         <form onSubmit={handleUpdate} className="admin-core-form">
           <div className="admin-input-group">
             <label className="admin-field-label">Question Text</label>
+
             <textarea
               placeholder="Enter Question"
               value={question}
@@ -88,13 +165,17 @@ function EditQuestion() {
             />
           </div>
 
-          {/* Multiple Choice Options Grouping Block */}
           <div className="admin-options-card">
-            <h3 className="options-group-title">Configure Multiple Choice Answers</h3>
-            
+            <h3 className="options-group-title">
+              Configure Multiple Choice Answers
+            </h3>
+
             <div className="options-input-grid">
               <div className="admin-input-group">
-                <label className="admin-field-label choice-indicator text-a">Option A</label>
+                <label className="admin-field-label choice-indicator text-a">
+                  Option A
+                </label>
+
                 <input
                   placeholder="Option A"
                   value={optionA}
@@ -105,7 +186,10 @@ function EditQuestion() {
               </div>
 
               <div className="admin-input-group">
-                <label className="admin-field-label choice-indicator text-b">Option B</label>
+                <label className="admin-field-label choice-indicator text-b">
+                  Option B
+                </label>
+
                 <input
                   placeholder="Option B"
                   value={optionB}
@@ -116,7 +200,10 @@ function EditQuestion() {
               </div>
 
               <div className="admin-input-group">
-                <label className="admin-field-label choice-indicator text-c">Option C</label>
+                <label className="admin-field-label choice-indicator text-c">
+                  Option C
+                </label>
+
                 <input
                   placeholder="Option C"
                   value={optionC}
@@ -127,7 +214,10 @@ function EditQuestion() {
               </div>
 
               <div className="admin-input-group">
-                <label className="admin-field-label choice-indicator text-d">Option D</label>
+                <label className="admin-field-label choice-indicator text-d">
+                  Option D
+                </label>
+
                 <input
                   placeholder="Option D"
                   value={optionD}
@@ -140,7 +230,10 @@ function EditQuestion() {
           </div>
 
           <div className="admin-input-group highlight-selection-zone">
-            <label className="admin-field-label core-key-label">Designate Correct Answer Key</label>
+            <label className="admin-field-label core-key-label">
+              Correct Answer
+            </label>
+
             <select
               value={correctAnswer}
               onChange={(e) => setCorrectAnswer(e.target.value)}
@@ -157,7 +250,7 @@ function EditQuestion() {
 
           <div className="admin-form-submit-zone">
             <button type="submit" className="btn-admin-submit-form">
-              Save Revision Changes
+              Save Question
             </button>
           </div>
         </form>

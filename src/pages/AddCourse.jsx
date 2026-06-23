@@ -19,23 +19,19 @@ function AddCourse() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
 
-  const [videoTitle, setVideoTitle] = useState("");
-  const [videoDescription, setVideoDescription] = useState("");
-  const [videoFile, setVideoFile] = useState(null);
-  const [videoUrl, setVideoUrl] = useState("");
-  const [videoUploading, setVideoUploading] = useState(false);
-
   const [passingScore, setPassingScore] = useState(70);
   const [testDuration, setTestDuration] = useState(60);
-  const [videos, setVideos] = useState([]);
 
-  const [selectedVideoIndex, setSelectedVideoIndex] = useState("");
+  const [videos, setVideos] = useState([]);
+  const [videoUploading, setVideoUploading] = useState(false);
+
   const [question, setQuestion] = useState("");
   const [optionA, setOptionA] = useState("");
   const [optionB, setOptionB] = useState("");
   const [optionC, setOptionC] = useState("");
   const [optionD, setOptionD] = useState("");
   const [correctAnswer, setCorrectAnswer] = useState("");
+  const [questions, setQuestions] = useState([]);
 
   const [excelFile, setExcelFile] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -43,7 +39,7 @@ function AddCourse() {
   const steps = [
     { id: 1, label: "Course" },
     { id: 2, label: "Videos" },
-    { id: 3, label: "Questions" },
+    { id: 3, label: "Quiz" },
     { id: 4, label: "Review" },
   ];
 
@@ -81,52 +77,6 @@ function AddCourse() {
     return () => unsubscribe();
   }, [navigate]);
 
-  const uploadVideoToCloudinary = async (file) => {
-    if (!file) return;
-
-    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-
-    if (!cloudName || !uploadPreset) {
-      alert("Cloudinary env variables missing. Restart npm run dev.");
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", uploadPreset);
-    formData.append("folder", "training-videos");
-
-    try {
-      setVideoUploading(true);
-      setVideoFile(file);
-      setVideoUrl("");
-
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok || !data.secure_url) {
-        alert(data?.error?.message || "Cloudinary upload failed");
-        return;
-      }
-
-      setVideoUrl(data.secure_url);
-      alert("Video uploaded successfully. Now click Add Video to Course.");
-    } catch (error) {
-      console.error(error);
-      alert("Video upload failed");
-    } finally {
-      setVideoUploading(false);
-    }
-  };
-
   const getInputClass = (value) =>
     submittedStep && !String(value).trim()
       ? "admin-form-input input-error"
@@ -143,6 +93,13 @@ function AddCourse() {
 
   const validateVideoStep = () => videos.length > 0;
 
+  const validateQuizSettings = () => {
+    const score = Number(passingScore);
+    const duration = Number(testDuration);
+
+    return score >= 0 && score <= 100 && duration >= 5;
+  };
+
   const goToStep = (targetStep) => {
     if (targetStep < step) {
       setSubmittedStep(false);
@@ -158,58 +115,124 @@ function AddCourse() {
       return;
     }
 
+    if (!validateQuizSettings()) {
+      alert("Passing score must be 0-100 and duration must be at least 5 seconds");
+      return;
+    }
+
     setSubmittedStep(false);
     setStep(2);
   };
 
-  const addVideoToCourse = () => {
-    setSubmittedStep(true);
+  const uploadSingleVideoToCloudinary = async (file) => {
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
-    if (!videoTitle.trim() || !videoDescription.trim() || !videoUrl) {
-      alert("Please fill all video details and upload video");
-      return;
+    if (!cloudName || !uploadPreset) {
+      throw new Error("Cloudinary env variables missing. Restart npm run dev.");
     }
 
-    const alreadyAdded = videos.some((video) => video.videoUrl === videoUrl);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", uploadPreset);
+    formData.append("folder", `training-videos/${department || "General"}`);
 
-    if (alreadyAdded) {
-      alert("This video is already added");
-      return;
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`,
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || !data.secure_url) {
+      throw new Error(data?.error?.message || "Cloudinary upload failed");
     }
 
-    const newVideo = {
-      title: videoTitle.trim(),
-      description: videoDescription.trim(),
-      videoFileName: videoFile?.name || "Uploaded Video",
-      videoUrl,
-      passingScore: Number(passingScore),
-      testDuration: Number(testDuration),
-      questions: [],
+    return {
+      title: file.name.replace(/\.[^/.]+$/, ""),
+      description: "",
+      videoFileName: file.name,
+      videoUrl: data.secure_url,
+      cloudinaryPublicId: data.public_id || "",
+      createdAt: new Date().toISOString(),
     };
+  };
 
-    setVideos((prev) => [...prev, newVideo]);
+  const handleMultipleVideoUpload = async (fileList) => {
+  const files = Array.from(fileList || []).filter((file) => {
+  return (
+    file.type.startsWith("video/") ||
+    /\.(mp4|mov|avi|mkv|webm|m4v)$/i.test(file.name)
+  );
+});
+    if (files.length === 0) {
+      alert("Please select video files only");
+      return;
+    }
 
-    setVideoTitle("");
-    setVideoDescription("");
-    setVideoFile(null);
-    setVideoUrl("");
-    setPassingScore(70);
-    setTestDuration(60);
-    setSubmittedStep(false);
+    const existingNames = new Set(videos.map((video) => video.videoFileName));
+    const newFiles = files.filter((file) => !existingNames.has(file.name));
+
+    if (newFiles.length === 0) {
+      alert("Selected videos are already added");
+      return;
+    }
+
+    try {
+      setVideoUploading(true);
+
+      const uploadedVideos = [];
+
+      for (const file of newFiles) {
+        const uploadedVideo = await uploadSingleVideoToCloudinary(file);
+        uploadedVideos.push(uploadedVideo);
+      }
+
+      setVideos((prev) => [...prev, ...uploadedVideos]);
+
+      alert(`${uploadedVideos.length} video(s) uploaded successfully`);
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "Video upload failed");
+    } finally {
+      setVideoUploading(false);
+    }
+  };
+
+  const updateVideoField = (index, field, value) => {
+    setVideos((prev) =>
+      prev.map((video, i) =>
+        i === index
+          ? {
+              ...video,
+              [field]: value,
+            }
+          : video
+      )
+    );
   };
 
   const removeVideo = (index) => {
     if (!window.confirm("Remove this video?")) return;
 
     setVideos((prev) => prev.filter((_, i) => i !== index));
-    setSelectedVideoIndex("");
   };
 
   const handleNextFromVideos = () => {
     setSubmittedStep(true);
 
     if (!validateVideoStep()) {
-      alert("Please add at least one video");
+      alert("Please upload at least one video");
+      return;
+    }
+
+    const incompleteVideo = videos.some((video) => !video.title.trim());
+
+    if (incompleteVideo) {
+      alert("Please add title for every video");
       return;
     }
 
@@ -217,13 +240,17 @@ function AddCourse() {
     setStep(3);
   };
 
-  const addQuestionToVideo = () => {
-    setSubmittedStep(true);
+  const resetQuestionForm = () => {
+    setQuestion("");
+    setOptionA("");
+    setOptionB("");
+    setOptionC("");
+    setOptionD("");
+    setCorrectAnswer("");
+  };
 
-    if (selectedVideoIndex === "") {
-      alert("Please select video");
-      return;
-    }
+  const addManualQuestion = () => {
+    setSubmittedStep(true);
 
     if (
       !question.trim() ||
@@ -237,26 +264,25 @@ function AddCourse() {
       return;
     }
 
-    const updatedVideos = [...videos];
-    const index = Number(selectedVideoIndex);
+    setQuestions((prev) => [
+      ...prev,
+      {
+        question: question.trim(),
+        options: [optionA.trim(), optionB.trim(), optionC.trim(), optionD.trim()],
+        correctAnswer,
+        createdAt: new Date().toISOString(),
+        uploadedVia: "manual",
+      },
+    ]);
 
-    updatedVideos[index].questions.push({
-      question: question.trim(),
-      options: [optionA.trim(), optionB.trim(), optionC.trim(), optionD.trim()],
-      correctAnswer,
-      createdAt: new Date().toISOString(),
-      uploadedVia: "manual",
-    });
-
-    setVideos(updatedVideos);
-
-    setQuestion("");
-    setOptionA("");
-    setOptionB("");
-    setOptionC("");
-    setOptionD("");
-    setCorrectAnswer("");
+    resetQuestionForm();
     setSubmittedStep(false);
+  };
+
+  const removeQuestion = (index) => {
+    if (!window.confirm("Remove this question?")) return;
+
+    setQuestions((prev) => prev.filter((_, i) => i !== index));
   };
 
   const downloadTemplate = () => {
@@ -276,15 +302,10 @@ function AddCourse() {
     const workbook = XLSX.utils.book_new();
 
     XLSX.utils.book_append_sheet(workbook, worksheet, "Questions");
-    XLSX.writeFile(workbook, "Question_Template.xlsx");
+    XLSX.writeFile(workbook, "Course_Quiz_Template.xlsx");
   };
 
   const handleExcelUpload = () => {
-    if (selectedVideoIndex === "") {
-      alert("Please select video first");
-      return;
-    }
-
     if (!excelFile) {
       alert("Please upload Excel file");
       return;
@@ -324,13 +345,13 @@ function AddCourse() {
             return;
           }
 
-          let finalCorrectAnswer = correct;
-          const key = String(correct).toUpperCase();
+          let finalCorrectAnswer = String(correct).trim();
+          const key = String(correct).trim().toUpperCase();
 
-          if (key === "A") finalCorrectAnswer = a;
-          if (key === "B") finalCorrectAnswer = b;
-          if (key === "C") finalCorrectAnswer = c;
-          if (key === "D") finalCorrectAnswer = d;
+          if (key === "A") finalCorrectAnswer = String(a).trim();
+          if (key === "B") finalCorrectAnswer = String(b).trim();
+          if (key === "C") finalCorrectAnswer = String(c).trim();
+          if (key === "D") finalCorrectAnswer = String(d).trim();
 
           uploadedQuestions.push({
             question: String(q).trim(),
@@ -340,7 +361,7 @@ function AddCourse() {
               String(c).trim(),
               String(d).trim(),
             ],
-            correctAnswer: String(finalCorrectAnswer).trim(),
+            correctAnswer: finalCorrectAnswer,
             createdAt: new Date().toISOString(),
             uploadedVia: "excel",
           });
@@ -348,17 +369,14 @@ function AddCourse() {
           addedCount++;
         });
 
-        const updatedVideos = [...videos];
-        updatedVideos[Number(selectedVideoIndex)].questions.push(...uploadedQuestions);
-
-        setVideos(updatedVideos);
+        setQuestions((prev) => [...prev, ...uploadedQuestions]);
         setExcelFile(null);
-        setUploading(false);
 
         alert(`Excel Upload Complete\nAdded: ${addedCount}\nSkipped: ${skippedCount}`);
       } catch (error) {
         console.error(error);
         alert("Failed to read Excel file");
+      } finally {
         setUploading(false);
       }
     };
@@ -379,9 +397,26 @@ function AddCourse() {
     }
 
     if (!validateVideoStep()) {
-      alert("Please add at least one video");
+      alert("Please upload at least one video");
       setStep(2);
       return;
+    }
+
+    if (!validateQuizSettings()) {
+      alert("Please check passing score and quiz duration");
+      setStep(1);
+      return;
+    }
+
+    if (questions.length === 0) {
+      const confirmSave = window.confirm(
+        "No quiz questions added. Do you still want to save this course?"
+      );
+
+      if (!confirmSave) {
+        setStep(3);
+        return;
+      }
     }
 
     try {
@@ -392,42 +427,45 @@ function AddCourse() {
         title: title.trim(),
         description: description.trim(),
         department,
+        passingScore: Number(passingScore),
+        testDuration: Number(testDuration),
+        totalVideos: videos.length,
+        totalQuestions: questions.length,
         createdBy: currentUser?.id || "",
         createdByName: currentUser?.name || "",
         createdByRole: "departmentAdmin",
         createdAt: new Date().toISOString(),
       });
 
-      for (const video of videos) {
+      for (let i = 0; i < videos.length; i++) {
+        const video = videos[i];
         const videoRef = push(ref(database, "videos"));
-        const videoId = videoRef.key;
 
         await set(videoRef, {
-          title: video.title,
-          description: video.description,
+          title: video.title.trim(),
+          description: video.description.trim(),
           department,
           courseId,
           courseTitle: title.trim(),
           videoFileName: video.videoFileName,
           videoUrl: video.videoUrl,
-          passingScore: video.passingScore,
-          testDuration: video.testDuration,
+          cloudinaryPublicId: video.cloudinaryPublicId || "",
+          order: i + 1,
           createdBy: currentUser?.id || "",
-          createdAt: new Date().toISOString(),
+          createdAt: video.createdAt || new Date().toISOString(),
         });
+      }
 
-        for (const q of video.questions) {
-          await push(ref(database, `questions/${videoId}`), {
-            department,
-            courseId,
-            videoId,
-            question: q.question,
-            options: q.options,
-            correctAnswer: q.correctAnswer,
-            createdAt: q.createdAt || new Date().toISOString(),
-            uploadedVia: q.uploadedVia || "manual",
-          });
-        }
+      for (const q of questions) {
+        await push(ref(database, `questions/${courseId}`), {
+          department,
+          courseId,
+          question: q.question,
+          options: q.options,
+          correctAnswer: q.correctAnswer,
+          createdAt: q.createdAt || new Date().toISOString(),
+          uploadedVia: q.uploadedVia || "manual",
+        });
       }
 
       alert("Course saved successfully");
@@ -456,7 +494,7 @@ function AddCourse() {
         <div className="wizard-header">
           <h1 className="admin-form-title">Create Department Course</h1>
           <p className="admin-form-subtitle">
-            Create course, upload videos and add quiz questions in one flow.
+            Create course, upload multiple videos and add one overall course quiz.
           </p>
         </div>
 
@@ -509,57 +547,6 @@ function AddCourse() {
               />
             </div>
 
-            <div className="admin-form-submit-zone">
-              <button type="button" className="btn-admin-submit-form" onClick={handleNextFromCourse}>
-                Next: Add Videos
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="admin-core-form wizard-section">
-            <div className="section-mini-title">
-              <span>Step 02</span>
-              <h2>Add Videos</h2>
-            </div>
-
-            <div className="admin-input-group">
-              <label className="admin-field-label">Video Title *</label>
-              <input
-                placeholder="e.g., Introduction Video"
-                value={videoTitle}
-                onChange={(e) => setVideoTitle(e.target.value)}
-                className={getInputClass(videoTitle)}
-              />
-            </div>
-
-            <div className="admin-input-group">
-              <label className="admin-field-label">Video Description *</label>
-              <textarea
-                placeholder="Short video description..."
-                value={videoDescription}
-                onChange={(e) => setVideoDescription(e.target.value)}
-                className={getTextareaClass(videoDescription)}
-                rows="3"
-              />
-            </div>
-
-            <div className="admin-input-group">
-              <label className="admin-field-label">Upload Video *</label>
-
-              <input
-                type="file"
-                accept="video/*"
-                onChange={(e) => uploadVideoToCloudinary(e.target.files?.[0])}
-                className="admin-form-input"
-              />
-
-              {videoUploading && <p>Uploading Video...</p>}
-
-              {videoUrl && <p>Uploaded: {videoFile?.name}</p>}
-            </div>
-
             <div className="admin-form-row-split">
               <div className="admin-input-group">
                 <label className="admin-field-label">Passing Score (%) *</label>
@@ -585,14 +572,68 @@ function AddCourse() {
               </div>
             </div>
 
-            <button
-              type="button"
-              className="btn-add-inline"
-              onClick={addVideoToCourse}
-              disabled={videoUploading || !videoUrl}
-            >
-              {videoUploading ? "Uploading Video..." : "+ Add Video to Course"}
-            </button>
+            <div className="admin-form-submit-zone">
+              <button type="button" className="btn-admin-submit-form" onClick={handleNextFromCourse}>
+                Next: Add Videos
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="admin-core-form wizard-section">
+            <div className="section-mini-title">
+              <span>Step 02</span>
+              <h2>Upload Course Videos</h2>
+            </div>
+
+            <div className="admin-input-group">
+              <label className="admin-field-label">Upload Multiple Videos / Folder *</label>
+
+             <label className="admin-field-label">
+  Upload Multiple Videos
+</label>
+
+<input
+  type="file"
+  accept="video/*"
+  multiple
+  onChange={(e) => handleMultipleVideoUpload(e.target.files)}
+  className="admin-form-input"
+  disabled={videoUploading}
+/>
+
+<small className="field-hint-text">
+  Select multiple videos at once
+</small>
+
+<br />
+<br />
+
+<label className="admin-field-label">
+  Upload Full Folder
+</label>
+
+<input
+  type="file"
+  multiple
+  webkitdirectory=""
+  directory=""
+  onChange={(e) => handleMultipleVideoUpload(e.target.files)}
+  className="admin-form-input"
+  disabled={videoUploading}
+/>
+
+<small className="field-hint-text">
+  Select a complete folder containing videos
+</small>
+
+              <small className="field-hint-text">
+                You can select multiple videos or a full folder. Videos will upload one by one.
+              </small>
+
+              {videoUploading && <p>Uploading videos, please wait...</p>}
+            </div>
 
             {videos.length > 0 && (
               <div className="added-list-box">
@@ -600,11 +641,27 @@ function AddCourse() {
 
                 {videos.map((video, index) => (
                   <div key={`${video.videoFileName}-${index}`} className="added-row">
-                    <div>
+                    <div style={{ width: "100%" }}>
                       <strong>
-                        {index + 1}. {video.title}
+                        {index + 1}. {video.videoFileName}
                       </strong>
-                      <p>{video.videoFileName}</p>
+
+                      <input
+                        placeholder="Video title"
+                        value={video.title}
+                        onChange={(e) => updateVideoField(index, "title", e.target.value)}
+                        className="admin-form-input"
+                      />
+
+                      <textarea
+                        placeholder="Video description optional"
+                        value={video.description}
+                        onChange={(e) =>
+                          updateVideoField(index, "description", e.target.value)
+                        }
+                        className="admin-form-textarea"
+                        rows="2"
+                      />
                     </div>
 
                     <button
@@ -624,8 +681,13 @@ function AddCourse() {
                 Back
               </button>
 
-              <button type="button" className="btn-admin-submit-form" onClick={handleNextFromVideos}>
-                Next: Add Questions
+              <button
+                type="button"
+                className="btn-admin-submit-form"
+                onClick={handleNextFromVideos}
+                disabled={videoUploading}
+              >
+                Next: Add Overall Quiz
               </button>
             </div>
           </div>
@@ -635,23 +697,7 @@ function AddCourse() {
           <div className="admin-core-form wizard-section">
             <div className="section-mini-title">
               <span>Step 03</span>
-              <h2>Add Questions</h2>
-            </div>
-
-            <div className="admin-input-group">
-              <label className="admin-field-label">Select Video *</label>
-              <select
-                value={selectedVideoIndex}
-                onChange={(e) => setSelectedVideoIndex(e.target.value)}
-                className={getInputClass(selectedVideoIndex)}
-              >
-                <option value="">Select Video</option>
-                {videos.map((video, index) => (
-                  <option key={`${video.title}-${index}`} value={index}>
-                    {video.title}
-                  </option>
-                ))}
-              </select>
+              <h2>Overall Course Quiz</h2>
             </div>
 
             <div className="excel-upload-card compact-excel">
@@ -747,19 +793,29 @@ function AddCourse() {
               </select>
             </div>
 
-            <button type="button" className="btn-add-inline" onClick={addQuestionToVideo}>
-              + Add Manual Question
+            <button type="button" className="btn-add-inline" onClick={addManualQuestion}>
+              + Add Question
             </button>
 
             <div className="added-list-box">
-              <h3>Questions Summary</h3>
+              <h3>Questions Added: {questions.length}</h3>
 
-              {videos.map((video, index) => (
-                <div key={`${video.title}-${index}`} className="added-row">
+              {questions.map((item, index) => (
+                <div key={`${item.question}-${index}`} className="added-row">
                   <div>
-                    <strong>{video.title}</strong>
-                    <p>{video.questions.length} questions added</p>
+                    <strong>
+                      {index + 1}. {item.question}
+                    </strong>
+                    <p>Correct: {item.correctAnswer}</p>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => removeQuestion(index)}
+                    className="btn-remove-small"
+                  >
+                    Remove
+                  </button>
                 </div>
               ))}
             </div>
@@ -797,6 +853,14 @@ function AddCourse() {
                 <strong>Department:</strong> {department}
               </p>
 
+              <p>
+                <strong>Passing Score:</strong> {passingScore}%
+              </p>
+
+              <p>
+                <strong>Quiz Duration:</strong> {testDuration} seconds
+              </p>
+
               <p>{description}</p>
 
               <div className="review-video-list">
@@ -806,10 +870,13 @@ function AddCourse() {
                       {index + 1}. {video.title}
                     </h4>
                     <p>{video.videoFileName}</p>
-                    <span>{video.questions.length} questions</span>
                   </div>
                 ))}
               </div>
+
+              <p>
+                <strong>Total Questions:</strong> {questions.length}
+              </p>
             </div>
 
             <div className="admin-form-submit-zone">
