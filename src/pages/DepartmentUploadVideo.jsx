@@ -32,24 +32,18 @@ function DepartmentUploadVideo() {
 
   const [uploading, setUploading] = useState(false);
 
-  const defaultConfig = {
-    label: "Training Filters",
-    fields: [
-      {
-        key: "trainingType",
-        label: "Training Type",
-        required: true,
-        options: ["SOP", "Product Training", "Process Training", "Policy", "Software", "Other"],
-      },
-      {
-        key: "audience",
-        label: "Audience",
-        required: true,
-        options: ["All Employees", "Department Team", "Managers", "New Joiners", "Other"],
-      },
-    ],
-    tagOptions: ["SOP", "Product", "Process", "Policy", "Internal Training"],
-  };
+const defaultConfig = {
+  label: "Training Filters",
+  fields: [
+    {
+      key: "trainingType",
+      label: "Training Type",
+      required: true,
+      options: ["SOP", "Product Training", "Process Training", "Policy", "Software", "Other"],
+    },
+  ],
+  tagOptions: ["SOP", "Product", "Process", "Policy", "Internal Training"],
+};
 
   const departmentFieldConfig = {
     "Production & Manufacturing": {
@@ -149,12 +143,7 @@ function DepartmentUploadVideo() {
           required: true,
           options: ["Product Training", "Doctor Pitch", "Objection Handling", "Market Training", "Other"],
         },
-        {
-          key: "audience",
-          label: "Audience",
-          required: true,
-          options: ["Sales Team", "Marketing Team", "Managers", "New Joiners", "Other"],
-        },
+        
       ],
       tagOptions: ["Sales", "Marketing", "Product", "Doctor Pitch", "Objection Handling"],
     },
@@ -168,12 +157,7 @@ function DepartmentUploadVideo() {
           required: true,
           options: ["QA", "QC", "Documentation", "Audit", "SOP", "Other"],
         },
-        {
-          key: "audience",
-          label: "Audience",
-          required: true,
-          options: ["QA Team", "QC Team", "Production Team", "Managers", "Other"],
-        },
+       
       ],
       tagOptions: ["QA", "QC", "SOP", "Audit", "Compliance"],
     },
@@ -187,12 +171,7 @@ function DepartmentUploadVideo() {
           required: true,
           options: ["Research", "Formulation", "Clinical", "Product Science", "Other"],
         },
-        {
-          key: "audience",
-          label: "Audience",
-          required: true,
-          options: ["R&D Team", "PMT Team", "Managers", "Other"],
-        },
+   
       ],
       tagOptions: ["Research", "Formulation", "Clinical", "Innovation"],
     },
@@ -565,9 +544,18 @@ function DepartmentUploadVideo() {
           <p>Simple flow: details, filters, files, quiz, then save.</p>
         </div>
 
-        <Link to="/department-admin/video-library" className="view-library-btn">
-          View Library
-        </Link>
+<Link
+  to={
+    currentUser?.role === "superAdmin"
+      ? "/super-admin/video-library"
+      : currentUser?.role === "admin"
+      ? "/admin/video-library"
+      : "/department-admin/video-library"
+  }
+  className="view-library-btn"
+>
+  View Library
+</Link>
       </div>
 
       <form className="video-upload-layout" onSubmit={saveVideo}>

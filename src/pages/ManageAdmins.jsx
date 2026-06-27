@@ -31,8 +31,8 @@ function ManageAdmins() {
   ];
 
   const isHigherPost = (user) => {
-    const designation = (user.designation || "").toLowerCase();
-    const seniority = (user.seniority || "").toLowerCase();
+    const designation = String(user.designation || "").toLowerCase();
+    const seniority = String(user.seniority || "").toLowerCase();
 
     return (
       seniority === "senior" ||
@@ -51,15 +51,22 @@ function ManageAdmins() {
 
     const data = snap.val();
 
-    const normalUsers = Object.entries(data)
+    const userList = Object.entries(data)
       .filter(([_, user]) => user.role === "user")
-      .map(([id, user]) => ({ id, ...user }));
+      .map(([id, user]) => ({ id, ...user }))
+      .sort((a, b) => {
+        const aSenior = isHigherPost(a) ? 1 : 0;
+        const bSenior = isHigherPost(b) ? 1 : 0;
+
+        if (bSenior !== aSenior) return bSenior - aSenior;
+        return String(a.name || "").localeCompare(String(b.name || ""));
+      });
 
     const adminList = Object.entries(data)
       .filter(([_, user]) => user.role === "admin")
       .map(([id, user]) => ({ id, ...user }));
 
-    setUsers(normalUsers);
+    setUsers(userList);
     setAdmins(adminList);
   };
 
@@ -67,26 +74,56 @@ function ManageAdmins() {
     loadData();
   }, []);
 
-  const filteredUsers = useMemo(() => {
+  const eligibleUsers = useMemo(() => {
+    return users.filter((user) => isHigherPost(user));
+  }, [users]);
+
+  const shownUsers = useMemo(() => {
     const q = search.trim().toLowerCase();
 
-    if (q) {
-      return users.filter((user) => {
-        return (
-          user.name?.toLowerCase().includes(q) ||
-          user.email?.toLowerCase().includes(q) ||
-          user.designation?.toLowerCase().includes(q) ||
-          user.cityArea?.toLowerCase().includes(q) ||
-          user.state?.toLowerCase().includes(q) ||
-          user.zone?.toLowerCase().includes(q)
-        );
-      });
-    }
+    if (!q) return eligibleUsers.slice(0, 8);
 
-    return users.filter((user) => isHigherPost(user));
-  }, [users, search]);
+    return users
+      .filter((user) => {
+        const searchText = [
+          user.name,
+          user.email,
+          user.designation,
+          user.cityArea,
+          user.state,
+          user.zone,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+
+        return searchText.includes(q);
+      })
+      .slice(0, 8);
+  }, [users, eligibleUsers, search]);
+
+  useEffect(() => {
+    if (!search.trim()) return;
+
+    const q = search.trim().toLowerCase();
+
+    const matchedUser =
+      users.find((user) => String(user.name || "").toLowerCase() === q) ||
+      users.find((user) =>
+        String(user.name || "").toLowerCase().includes(q)
+      );
+
+    if (matchedUser) {
+      setSelectedUserId(matchedUser.id);
+    }
+  }, [search, users]);
 
   const selectedUser = users.find((user) => user.id === selectedUserId);
+
+  const selectUser = (user) => {
+    setSelectedUserId(user.id);
+    setSearch(user.name || "");
+  };
 
   const assignAdmin = async (e) => {
     e.preventDefault();
@@ -110,9 +147,9 @@ function ManageAdmins() {
       loadData();
     } catch (error) {
       alert(error.message);
+    } finally {
+      setAssigning(false);
     }
-
-    setAssigning(false);
   };
 
   const removeAdminRole = async (uid) => {
@@ -130,93 +167,78 @@ function ManageAdmins() {
     <div className="manage-admins-page">
       <div className="manage-admins-header">
         <div>
-          <h1>Manage Admins</h1>
-          <p>
-            Default list shows only senior and higher-post users. Search can find
-            any user if needed.
-          </p>
+          <h1>Admins</h1>
+          <p>Create admins quickly. Search by name or choose from top eligible users.</p>
         </div>
       </div>
 
-      <div className="admins-layout-grid">
-        <div className="admin-create-card">
-          <div className="card-title-row">
-            <div>
-              <h2>Assign Admin Access</h2>
-              <p>Select a senior or higher-post user and promote them as Admin.</p>
-            </div>
+      <div className="admin-create-card clean-admin-card">
+        <div className="card-title-row">
+          <div>
+            <h2>Make User Admin</h2>
+            <p>Admin will be able to manage users, courses, departments and reports.</p>
           </div>
-
-          <form onSubmit={assignAdmin} className="assign-admin-form">
-            <input
-              type="text"
-              placeholder="Search any user by name, email, designation, city..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setSelectedUserId("");
-              }}
-            />
-
-            <select
-              value={selectedUserId}
-              onChange={(e) => setSelectedUserId(e.target.value)}
-              required
-            >
-              <option value="">
-                {search ? "Select searched user" : "Select eligible user"}
-              </option>
-
-              {filteredUsers.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.designation || "No Designation"} — {user.name}{" "}
-                  {user.seniority ? `(${user.seniority})` : ""}
-                </option>
-              ))}
-            </select>
-
-            <button type="submit" disabled={assigning}>
-              {assigning ? "Assigning..." : "Assign Admin"}
-            </button>
-          </form>
-
-          {filteredUsers.length === 0 && (
-            <p className="empty-help">
-              No users found. Try searching by name, email, designation or city.
-            </p>
-          )}
-
-          {selectedUser && (
-            <div className="selected-user-preview">
-              <span>Selected User</span>
-              <h3>{selectedUser.name}</h3>
-              <p>{selectedUser.designation}</p>
-              <p>
-                {selectedUser.seniority
-                  ? selectedUser.seniority.charAt(0).toUpperCase() +
-                    selectedUser.seniority.slice(1)
-                  : "No seniority selected"}
-              </p>
-            </div>
-          )}
         </div>
 
-        <div className="admin-info-card">
-          <h2>Admin Assignment Rule</h2>
-          <p>
-            The normal dropdown stays clean by showing only Senior users and
-            higher posts like Manager, Head, Lead, Director or Supervisor.
-          </p>
+        <form onSubmit={assignAdmin} className="assign-admin-form clean-admin-form">
+          <input
+            type="text"
+            placeholder="Search user by name"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
 
-          <div className="rule-box">
-            <strong>Default dropdown</strong>
-            <span>Senior + higher designation users</span>
-          </div>
+          <button type="submit" disabled={assigning || !selectedUserId}>
+            {assigning ? "Assigning..." : "Make Admin"}
+          </button>
+        </form>
 
-          <div className="rule-box">
-            <strong>Search backup</strong>
-            <span>Can find any user manually</span>
+        {selectedUser && (
+          <div className="selected-user-preview clean-selected-user">
+            <span>Selected User</span>
+            <h3>{selectedUser.name}</h3>
+            <p>
+              {selectedUser.designation || "No designation"} •{" "}
+              {selectedUser.seniority || "No type"} •{" "}
+              {selectedUser.cityArea || "No city"}
+            </p>
           </div>
+        )}
+      </div>
+
+      <div className="admin-info-card clean-user-list-card">
+        <div className="card-title-row">
+          <div>
+            <h2>{search ? "Search Results" : "Top Eligible Users"}</h2>
+            <p>
+              {search
+                ? "Matching users are shown below."
+                : "Senior and higher-post users are shown first."}
+            </p>
+          </div>
+        </div>
+
+        <div className="quick-admin-list">
+          {shownUsers.map((user) => (
+            <button
+              type="button"
+              key={user.id}
+              className={`quick-admin-chip ${
+                selectedUserId === user.id ? "active" : ""
+              }`}
+              onClick={() => selectUser(user)}
+            >
+              <strong>{user.name || "Unnamed User"}</strong>
+              <span>
+                {user.designation || "No designation"} •{" "}
+                {user.cityArea || "No city"}
+              </span>
+            </button>
+          ))}
+
+          {shownUsers.length === 0 && (
+            <p className="empty-help">No user found with this name.</p>
+          )}
         </div>
       </div>
 
@@ -232,8 +254,9 @@ function ManageAdmins() {
           <table>
             <thead>
               <tr>
-                <th>Designation</th>
                 <th>Name</th>
+                <th>Email</th>
+                <th>Designation</th>
                 <th>Type</th>
                 <th>Action</th>
               </tr>
@@ -242,8 +265,9 @@ function ManageAdmins() {
             <tbody>
               {admins.map((admin) => (
                 <tr key={admin.id}>
-                  <td>{admin.designation || "-"}</td>
                   <td>{admin.name || "-"}</td>
+                  <td>{admin.email || "-"}</td>
+                  <td>{admin.designation || "-"}</td>
                   <td>
                     {admin.seniority
                       ? admin.seniority.charAt(0).toUpperCase() +
@@ -260,7 +284,7 @@ function ManageAdmins() {
 
               {admins.length === 0 && (
                 <tr>
-                  <td colSpan="4">No admins assigned yet.</td>
+                  <td colSpan="5">No admins assigned yet.</td>
                 </tr>
               )}
             </tbody>

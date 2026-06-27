@@ -17,7 +17,8 @@ function DepartmentCourses() {
   const [filterType, setFilterType] = useState("");
   const [filterOrgan, setFilterOrgan] = useState("");
   const [filterQuiz, setFilterQuiz] = useState("");
-  const [filterVideoCount, setFilterVideoCount] = useState("");
+const [filterVideoCount, setFilterVideoCount] = useState("");
+const [filterDepartment, setFilterDepartment] = useState("");
 
   const [loading, setLoading] = useState(true);
 
@@ -33,7 +34,12 @@ function DepartmentCourses() {
         }))
       : [];
 
-    const ownCourses = allCourses.filter((course) => {
+const canSeeAllCourses =
+  user.role === "admin" || user.role === "superAdmin";
+
+const ownCourses = canSeeAllCourses
+  ? allCourses
+  : allCourses.filter((course) => {
       return (
         course.createdBy === user.id ||
         course.createdByEmail === user.email ||
@@ -128,6 +134,16 @@ function DepartmentCourses() {
     return [...new Set(organs)];
   }, [courses, courseVideos, videoLibrary]);
 
+    const departmentOptions = useMemo(() => {
+  return [
+    ...new Set(
+      courses
+        .map((course) => course.department)
+        .filter(Boolean)
+    ),
+  ];
+}, [courses]);
+
   const filteredCourses = useMemo(() => {
     const searchValue = search.toLowerCase();
 
@@ -136,6 +152,7 @@ function DepartmentCourses() {
 
       const courseOrgans = videos.map((video) => video.metadata?.organName).filter(Boolean);
       const courseTypes = videos.map((video) => video.metadata?.videoType).filter(Boolean);
+
 
       const combinedText = [
         course.title,
@@ -158,6 +175,10 @@ function DepartmentCourses() {
       const videoCount = videos.length || Number(course.totalVideos || 0);
 
       const matchesSearch = combinedText.includes(searchValue);
+      const matchesDepartment =
+  filterDepartment
+    ? course.department === filterDepartment
+    : true;
       const matchesType = filterType ? courseTypes.includes(filterType) : true;
       const matchesOrgan = filterOrgan ? courseOrgans.includes(filterOrgan) : true;
 
@@ -168,14 +189,20 @@ function DepartmentCourses() {
           ? questionCount === 0
           : true;
 
+        
+
       const matchesVideoCount =
         filterVideoCount === "single"
           ? videoCount === 1
           : filterVideoCount === "multi"
           ? videoCount > 1
           : true;
-
-      return matchesSearch && matchesType && matchesOrgan && matchesQuiz && matchesVideoCount;
+return matchesSearch &&
+       matchesDepartment &&
+       matchesType &&
+       matchesOrgan &&
+       matchesQuiz &&
+      matchesVideoCount;
     });
   }, [
     courses,
@@ -184,10 +211,10 @@ function DepartmentCourses() {
     search,
     filterType,
     filterOrgan,
-    filterQuiz,
-    filterVideoCount,
-  ]);
-
+  filterQuiz,
+filterVideoCount,
+filterDepartment,
+]);
   if (loading) {
     return <div className="department-courses-page">Loading courses...</div>;
   }
@@ -198,12 +225,23 @@ function DepartmentCourses() {
         <div>
           <span>Courses</span>
           <h1>Course Library</h1>
-          <p>Showing courses created for {currentUser?.department || "your department"}.</p>
+         <p>
+  {currentUser?.role === "admin" || currentUser?.role === "superAdmin"
+    ? "Showing all courses. Use filters to narrow the list."
+    : `Showing courses created for ${currentUser?.department || "your department"}.`}
+</p>
         </div>
 
-        <Link to="/department-admin/courses/create" className="create-course-btn">
-          + Create New Course
-        </Link>
+<Link
+  to={
+    currentUser?.role === "admin" || currentUser?.role === "superAdmin"
+      ? "/admin/add-course"
+      : "/department-admin/courses/create"
+  }
+  className="create-course-btn"
+>
+  + Create New Course
+</Link>
       </div>
 
       <div className="courses-list-card">
@@ -252,6 +290,20 @@ function DepartmentCourses() {
             <option value="single">Single Video</option>
             <option value="multi">Multiple Videos</option>
           </select>
+
+          <select
+  value={filterDepartment}
+  onChange={(e) => setFilterDepartment(e.target.value)}
+>
+  <option value="">All Departments</option>
+
+  {departmentOptions.map((dept) => (
+    <option key={dept} value={dept}>
+      {dept}
+    </option>
+  ))}
+</select>
+
         </div>
 
         {filteredCourses.length === 0 ? (
@@ -264,6 +316,7 @@ function DepartmentCourses() {
             {filteredCourses.map((course) => {
               const videos = getCourseVideos(course);
               const thumbnail = getCourseThumbnail(course);
+           
               const questionCount = Number(course.totalQuestions || 0);
 
               return (
@@ -313,7 +366,13 @@ function DepartmentCourses() {
                     <button
                       type="button"
                       className="course-edit-btn"
-                      onClick={() => navigate(`/department-admin/courses/edit/${course.id}`)}
+                      onClick={() =>
+  navigate(
+    currentUser?.role === "admin" || currentUser?.role === "superAdmin"
+      ? `/admin/courses/edit/${course.id}`
+      : `/department-admin/courses/edit/${course.id}`
+  )
+}
                     >
                       Edit
                     </button>
@@ -321,7 +380,13 @@ function DepartmentCourses() {
                     <button
                       type="button"
                       className="course-assign-btn"
-                      onClick={() => navigate(`/department-admin/assignments?courseId=${course.id}`)}
+                    onClick={() =>
+  navigate(
+    currentUser?.role === "admin" || currentUser?.role === "superAdmin"
+      ? `/admin/assignments?courseId=${course.id}`
+      : `/department-admin/assignments?courseId=${course.id}`
+  )
+}
                     >
                       Assign
                     </button>

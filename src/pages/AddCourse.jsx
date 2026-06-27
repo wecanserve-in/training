@@ -72,9 +72,13 @@ function AddCourse() {
       };
 
       setCurrentUser(userData);
-      setDepartment(userData.department || "");
-      setDepartmentType(userData.departmentType || "");
-
+if (userData.role === "departmentAdmin") {
+  setDepartment(userData.department || "");
+  setDepartmentType(userData.departmentType || "");
+} else {
+  setDepartment("");
+  setDepartmentType("");
+}
       await loadVideoLibrary(userData);
       setLoadingUser(false);
     });
@@ -334,7 +338,7 @@ function AddCourse() {
   };
 
   const goNext = () => {
-    if (step === 1 && (!title.trim() || !overview.trim())) {
+   if (step === 1 && (!department || !title.trim() || !overview.trim())) {
       alert("Please add course title and overview.");
       return;
     }
@@ -399,7 +403,7 @@ function AddCourse() {
         createdBy: currentUser?.id || "",
         createdByName: currentUser?.name || "",
         createdByEmail: currentUser?.email || "",
-        createdByRole: "departmentAdmin",
+     createdByRole: currentUser?.role || "",
 
         status: "active",
         createdAt: new Date().toISOString(),
@@ -489,7 +493,22 @@ function AddCourse() {
 
             <div className="admin-input-group">
               <label className="admin-field-label">Department</label>
-              <input value={department} className="admin-form-input" disabled />
+          {currentUser?.role === "departmentAdmin" ? (
+  <input value={department} className="admin-form-input" disabled />
+) : (
+  <select
+    value={department}
+    onChange={(e) => setDepartment(e.target.value)}
+    className="admin-form-input"
+  >
+    <option value="">Select Department</option>
+    <option value="Sales">Sales</option>
+    <option value="Marketing">Marketing</option>
+    <option value="HR">HR</option>
+    <option value="Production">Production</option>
+    <option value="Accounts">Accounts</option>
+  </select>
+)}
             </div>
 
             <div className="admin-input-group">

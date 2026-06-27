@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { ref, get } from "firebase/database";
 import { database } from "../firebase";
 import "../styles/admindashboard.css";
@@ -10,7 +9,8 @@ function AdminDashboard() {
   const [courses, setCourses] = useState([]);
   const [completedCourses, setCompletedCourses] = useState({});
   const [results, setResults] = useState({});
-  const [assignments, setAssignments] = useState([]);
+  const [assignments, setAssignments] = useState({});
+  const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,14 +22,18 @@ function AdminDashboard() {
           coursesSnap,
           completedSnap,
           resultsSnap,
-          assignmentsSnap,
+          userAssignmentsSnap,
+          oldAssignmentsSnap,
+          attemptsSnap,
         ] = await Promise.all([
           get(ref(database, "users")),
           get(ref(database, "departments")),
           get(ref(database, "courses")),
           get(ref(database, "completedCourses")),
           get(ref(database, "results")),
+          get(ref(database, "userAssignments")),
           get(ref(database, "assignments")),
+          get(ref(database, "attempts")),
         ]);
 
         setUsers(
@@ -63,49 +67,74 @@ function AdminDashboard() {
         setResults(resultsSnap.exists() ? resultsSnap.val() : {});
 
         setAssignments(
-          assignmentsSnap.exists()
-            ? Object.entries(assignmentsSnap.val()).map(([id, assignment]) => ({
-                id,
-                ...assignment,
-              }))
+          userAssignmentsSnap.exists()
+            ? userAssignmentsSnap.val()
+            : oldAssignmentsSnap.exists()
+            ? oldAssignmentsSnap.val()
+            : {}
+        );
+
+        setAttempts(
+          attemptsSnap.exists()
+            ? Object.entries(attemptsSnap.val())
+                .map(([id, attempt]) => ({ id, ...attempt }))
+                .sort(
+                  (a, b) =>
+                    new Date(b.submittedAt || 0) -
+                    new Date(a.submittedAt || 0)
+                )
             : []
         );
       } catch (error) {
+        console.error(error);
         alert(error.message);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
     fetchDashboardData();
   }, []);
 
+  const getRole = (user) => String(user?.role || "").toLowerCase();
+
   const employeeUsers = useMemo(() => {
-    return users.filter((user) => user.role !== "superAdmin");
+    return users.filter((user) => !["superadmin", "admin"].includes(getRole(user)));
   }, [users]);
 
-  const normalUsers = employeeUsers.filter((user) => user.role === "user");
-  const admins = employeeUsers.filter((user) => user.role === "admin");
-  const departmentAdmins = employeeUsers.filter(
-    (user) => user.role === "departmentAdmin"
+  const learners = employeeUsers.filter(
+    (user) => !["departmentadmin"].includes(getRole(user))
   );
 
-  const getCompletedCount = (userId) => {
-    if (!completedCourses[userId]) return 0;
-    return Object.keys(completedCourses[userId]).length;
+  const departmentAdmins = employeeUsers.filter(
+    (user) => getRole(user) === "departmentadmin"
+  );
+
+  const getAssignedCourseCount = (userId) => {
+    const userAssignments = assignments?.[userId];
+    if (!userAssignments || typeof userAssignments !== "object") return 0;
+    return Object.keys(userAssignments).length;
+  };
+
+  const getCompletedCourseCount = (userId) => {
+    const userCompleted = completedCourses?.[userId];
+    if (!userCompleted || typeof userCompleted !== "object") return 0;
+    return Object.keys(userCompleted).length;
   };
 
   const getCertificateCount = (userId) => {
-    if (!results[userId]) return 0;
-
-    return Object.values(results[userId]).filter((result) => result.passed)
-      .length;
+    const userResults = results?.[userId];
+    if (!userResults || typeof userResults !== "object") return 0;
+    return Object.values(userResults).filter((result) => result?.passed).length;
   };
 
-  
+  const totalAssignedCourses = employeeUsers.reduce(
+    (total, user) => total + getAssignedCourseCount(user.id),
+    0
+  );
 
-  const totalCompleted = employeeUsers.reduce(
-    (total, user) => total + getCompletedCount(user.id),
+  const totalCompletedCourses = employeeUsers.reduce(
+    (total, user) => total + getCompletedCourseCount(user.id),
     0
   );
 
@@ -114,43 +143,58 @@ function AdminDashboard() {
     0
   );
 
- 
-const totalAssignedTrainings = assignments.length;
+  const pendingCourses = Math.max(totalAssignedCourses - totalCompletedCourses, 0);
 
-const pendingTrainings = Math.max(
-  totalAssignedTrainings - totalCompleted,
-  0
-);
+  const completionRate =
+    totalAssignedCourses > 0
+      ? Math.round((totalCompletedCourses / totalAssignedCourses) * 100)
+      : 0;
 
-const completionRate =
-  totalAssignedTrainings > 0
-    ? Math.round((totalCompleted / totalAssignedTrainings) * 100)
-    : 0;
-  
-
-  const assignedCourses = assignments.length;
-
-  const latestCourses = [...courses]
-    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
-    .slice(0, 4);
-
-  const usersNeedingAttention = employeeUsers
+  const usersNeedingAttention = learners
     .map((user) => {
-      const completed = getCompletedCount(user.id);
-      const completion =
-        courses.length > 0 ? Math.round((completed / courses.length) * 100) : 0;
+      const assigned = getAssignedCourseCount(user.id);
+      const completed = getCompletedCourseCount(user.id);
 
       return {
         ...user,
+        assigned,
         completed,
-        completion,
+        pending: Math.max(assigned - completed, 0),
+        completion: assigned > 0 ? Math.round((completed / assigned) * 100) : 0,
       };
     })
-    .filter((user) => user.completion < 100)
-    .sort((a, b) => a.completion - b.completion)
-    .slice(0, 5);
+    .filter((user) => user.assigned > 0 && user.completion < 100)
+    .sort((a, b) => b.pending - a.pending)
+    .slice(0, 6);
 
-  const departmentSummary = departments.slice(0, 5);
+  const departmentSummary = departments.slice(0, 6).map((dept) => {
+    const deptName = dept.departmentName || dept.name || dept.title || "";
+    const deptUsers = employeeUsers.filter(
+      (user) =>
+        String(user.department || "").toLowerCase() === deptName.toLowerCase()
+    );
+
+    const assigned = deptUsers.reduce(
+      (total, user) => total + getAssignedCourseCount(user.id),
+      0
+    );
+
+    const completed = deptUsers.reduce(
+      (total, user) => total + getCompletedCourseCount(user.id),
+      0
+    );
+
+    return {
+      ...dept,
+      deptName,
+      users: deptUsers.length,
+      assigned,
+      completed,
+      completion: assigned > 0 ? Math.round((completed / assigned) * 100) : 0,
+    };
+  });
+
+  const recentActivity = attempts.slice(0, 6);
 
   if (loading) {
     return (
@@ -164,8 +208,12 @@ const completionRate =
     <div className="admin-dashboard-page">
       <div className="admin-topbar">
         <div>
-          <h1>Admin Dashboard</h1>
-          <p>Real-time overview of users, courses, assignments and training progress.</p>
+          <span>Admin Overview</span>
+          <h1>Training Dashboard</h1>
+          <p>
+            Course-wise overview of users, department admins, assignments,
+            completions and certificates.
+          </p>
         </div>
 
         <img src="/Logo.webp" alt="Logo" />
@@ -173,119 +221,72 @@ const completionRate =
 
       <div className="admin-kpi-grid">
         <div className="admin-kpi-card">
-          <span>Total Users</span>
-          <h2>{employeeUsers.length}</h2>
+          <span>Total Employees</span>
+          <h2>{learners.length}</h2>
+          <p>Normal users/staff</p>
         </div>
 
         <div className="admin-kpi-card">
-          <span>Departments</span>
-          <h2>{departments.length}</h2>
+          <span>Department Admins</span>
+          <h2>{departmentAdmins.length}</h2>
+          <p>Department level managers</p>
         </div>
 
         <div className="admin-kpi-card">
-          <span>Total Courses</span>
+          <span>Active Courses</span>
           <h2>{courses.length}</h2>
+          <p>Created training courses</p>
         </div>
 
         <div className="admin-kpi-card">
-          <span>Assigned Trainings</span>
-          <h2>{assignedCourses}</h2>
+          <span>Assigned Courses</span>
+          <h2>{totalAssignedCourses}</h2>
+          <p>Total course assignments</p>
         </div>
 
-        <div className="admin-kpi-card">
-          <span>Pending Trainings</span>
-          <h2>{pendingTrainings}</h2>
+        <div className="admin-kpi-card danger">
+          <span>Pending Courses</span>
+          <h2>{pendingCourses}</h2>
+          <p>Yet to be completed</p>
         </div>
 
         <div className="admin-kpi-card primary">
           <span>Completion Rate</span>
           <h2>{completionRate}%</h2>
+          <p>Course-wise completion</p>
         </div>
       </div>
 
-      <div className="admin-main-grid">
-        <div className="admin-panel">
-          <div className="admin-panel-head">
-            <span>Quick Actions</span>
-            <h2>Training Operations</h2>
-          </div>
-
-          <div className="admin-action-grid">
-            <Link to="/admin/users">
-              <h3>Manage Users</h3>
-              <p>Add employees, update details and reset passwords.</p>
-              <strong>Open →</strong>
-            </Link>
-
-            <Link to="/admin/add-course">
-              <h3>Create Course</h3>
-              <p>Upload course videos, quiz and training content.</p>
-              <strong>Create →</strong>
-            </Link>
-
-            <Link to="/admin/assignments">
-              <h3>Assign Training</h3>
-              <p>Assign courses by zone, state, city and designation.</p>
-              <strong>Assign →</strong>
-            </Link>
-
-            <Link to="/admin/results">
-              <h3>View Results</h3>
-              <p>Track completion, quiz performance and certificates.</p>
-              <strong>View →</strong>
-            </Link>
-          </div>
-        </div>
-
+      <div className="admin-main-grid no-actions">
         <div className="admin-panel progress-panel">
           <div className="admin-panel-head">
             <span>Progress</span>
-            <h2>Company Training Status</h2>
+            <h2>Overall Training Status</h2>
           </div>
 
           <div className="progress-circle">
             <div>{completionRate}%</div>
           </div>
 
-        <p>
-  {totalCompleted} of {totalAssignedTrainings} assigned trainings completed.
-</p>
+          <p>
+            {totalCompletedCourses} of {totalAssignedCourses} assigned courses
+            completed.
+          </p>
 
           <div className="mini-stats">
             <div>
               <span>Completed</span>
-              <strong>{totalCompleted}</strong>
+              <strong>{totalCompletedCourses}</strong>
+            </div>
+
+            <div>
+              <span>Pending</span>
+              <strong>{pendingCourses}</strong>
             </div>
 
             <div>
               <span>Certificates</span>
               <strong>{totalCertificates}</strong>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="admin-bottom-grid">
-        <div className="admin-panel">
-          <div className="admin-panel-head">
-            <span>People</span>
-            <h2>User Breakdown</h2>
-          </div>
-
-          <div className="admin-breakdown-grid">
-            <div>
-              <span>Employees</span>
-              <strong>{normalUsers.length}</strong>
-            </div>
-
-            <div>
-              <span>Admins</span>
-              <strong>{admins.length}</strong>
-            </div>
-
-            <div>
-              <span>Department Admins</span>
-              <strong>{departmentAdmins.length}</strong>
             </div>
           </div>
         </div>
@@ -297,19 +298,22 @@ const completionRate =
           </div>
 
           <div className="admin-user-list">
-            {usersNeedingAttention.map((user) => (
-              <div className="admin-user-row" key={user.id}>
-                <div>
-                  <strong>{user.name || "Unnamed User"}</strong>
-                  <span>{user.designation || "No designation"}</span>
+            {usersNeedingAttention.length === 0 ? (
+              <p className="admin-empty-text">No pending user follow-up found.</p>
+            ) : (
+              usersNeedingAttention.map((user) => (
+                <div className="admin-user-row" key={user.id}>
+                  <div>
+                    <strong>{user.name || "Unnamed User"}</strong>
+                    <span>
+                      {user.designation || user.role || "User"} • Pending{" "}
+                      {user.pending}
+                    </span>
+                  </div>
+
+                  <b>{user.completion}%</b>
                 </div>
-
-                <b>{user.completion}%</b>
-              </div>
-            ))}
-
-            {usersNeedingAttention.length === 0 && (
-              <p className="admin-empty-text">All users are fully completed.</p>
+              ))
             )}
           </div>
         </div>
@@ -319,47 +323,57 @@ const completionRate =
         <div className="admin-panel">
           <div className="admin-panel-head">
             <span>Departments</span>
-            <h2>Department Admins</h2>
+            <h2>Department-wise Course Status</h2>
           </div>
 
           <div className="admin-user-list">
-            {departmentSummary.map((dept) => (
-              <div className="admin-user-row" key={dept.id}>
-                <div>
-                  <strong>{dept.departmentName || "-"}</strong>
-                  <span>{dept.departmentAdminName || "No admin assigned"}</span>
-                </div>
-
-                <b>{dept.departmentAdminDesignation || "-"}</b>
-              </div>
-            ))}
-
-            {departments.length === 0 && (
+            {departmentSummary.length === 0 ? (
               <p className="admin-empty-text">No departments created yet.</p>
+            ) : (
+              departmentSummary.map((dept) => (
+                <div className="admin-user-row dept-row" key={dept.id}>
+                  <div>
+                    <strong>{dept.deptName || "-"}</strong>
+                    <span>
+                      Users {dept.users} • Assigned {dept.assigned} • Completed{" "}
+                      {dept.completed}
+                    </span>
+                  </div>
+
+                  <b>{dept.completion}%</b>
+                </div>
+              ))
             )}
           </div>
         </div>
 
         <div className="admin-panel">
           <div className="admin-panel-head">
-            <span>Courses</span>
-            <h2>Latest Courses</h2>
+            <span>Activity</span>
+            <h2>Recent Course Attempts</h2>
           </div>
 
           <div className="admin-user-list">
-            {latestCourses.map((course) => (
-              <div className="admin-user-row" key={course.id}>
-                <div>
-                  <strong>{course.title || course.courseName || "Untitled Course"}</strong>
-                  <span>{course.department || "General Training"}</span>
+            {recentActivity.length === 0 ? (
+              <p className="admin-empty-text">No recent attempts found.</p>
+            ) : (
+              recentActivity.map((attempt) => (
+                <div className="admin-user-row" key={attempt.id}>
+                  <div>
+                    <strong>{attempt.userName || "Unnamed User"}</strong>
+                    <span>
+                      {attempt.courseTitle ||
+                        attempt.courseName ||
+                        attempt.videoTitle ||
+                        "Untitled Course"}
+                    </span>
+                  </div>
+
+                  <b className={attempt.passed ? "pass-text" : "fail-text"}>
+                    {attempt.passed ? "Passed" : "Failed"}
+                  </b>
                 </div>
-
-                <b>{course.status || "Active"}</b>
-              </div>
-            ))}
-
-            {courses.length === 0 && (
-              <p className="admin-empty-text">No courses created yet.</p>
+              ))
             )}
           </div>
         </div>

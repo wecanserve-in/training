@@ -13,7 +13,9 @@ function DepartmentTrainingAnalytics() {
   const [progress, setProgress] = useState({});
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+const [statusFilter, setStatusFilter] = useState("");
+const [roleFilter, setRoleFilter] = useState("");
+const [departmentFilter, setDepartmentFilter] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -58,29 +60,39 @@ function DepartmentTrainingAnalytics() {
               ...course,
             }))
           : [];
+const canSeeAll =
+  adminData.role === "admin" || adminData.role === "superAdmin";
 
-        const myCourses = allCourses.filter((course) => {
-          return (
-            course.createdBy === adminData.id ||
-            course.createdByEmail === adminData.email ||
-            course.department === adminData.department
-          );
-        });
+const myCourses = canSeeAll
+  ? allCourses
+  : allCourses.filter((course) => {
+      return (
+        course.createdBy === adminData.id ||
+        course.createdByEmail === adminData.email ||
+        course.department === adminData.department
+      );
+    });
 
-        const normalUsers = usersSnap.exists()
-          ? Object.entries(usersSnap.val())
-              .map(([id, user]) => ({
-                id,
-                ...user,
-              }))
-              .filter(
-                (u) =>
-                  u.role !== "admin" &&
-                  u.role !== "superAdmin" &&
-                  u.role !== "departmentAdmin"
-              )
-          : [];
+       const allUsers = usersSnap.exists()
+  ? Object.entries(usersSnap.val()).map(([id, user]) => ({
+      id,
+      ...user,
+    }))
+  : [];
 
+const canSeeAllUsers =
+  adminData.role === "admin" || adminData.role === "superAdmin";
+
+const normalUsers = canSeeAllUsers
+  ? allUsers
+  : allUsers.filter((u) => {
+      return (
+        u.role !== "admin" &&
+        u.role !== "superAdmin" &&
+        u.role !== "departmentAdmin" &&
+        u.department === adminData.department
+      );
+    });
         setCourses(myCourses);
         setUsers(normalUsers);
         setAssignments(assignmentsSnap.exists() ? assignmentsSnap.val() : {});
@@ -161,6 +173,14 @@ function DepartmentTrainingAnalytics() {
     );
   }, [courseStats]);
 
+  const roleOptions = useMemo(() => {
+  return [...new Set(users.map((u) => u.role).filter(Boolean))];
+}, [users]);
+
+const departmentOptions = useMemo(() => {
+  return [...new Set(users.map((u) => u.department).filter(Boolean))];
+}, [users]);
+
   const selectedUsers = useMemo(() => {
     if (!selectedCourseId) return [];
 
@@ -187,6 +207,8 @@ function DepartmentTrainingAnalytics() {
           user.designation,
           user.userRole,
           user.experience,
+          user.role,
+user.department,
         ]
           .filter(Boolean)
           .join(" ")
@@ -194,6 +216,7 @@ function DepartmentTrainingAnalytics() {
 
         const matchesSearch = text.includes(search.toLowerCase());
         const matchesStatus = statusFilter ? user.status === statusFilter : true;
+        z
 
         return matchesSearch && matchesStatus;
       });
@@ -275,89 +298,257 @@ function DepartmentTrainingAnalytics() {
     return <div className="training-analytics-page">Loading analytics...</div>;
   }
 
-  return (
-    <div className="training-analytics-page">
-      <div className="training-analytics-header">
+ return (
+  <div className="training-analytics-page">
+    <div className="training-analytics-header">
+      <div>
+        <span>Training Analytics</span>
+        <h1>Assignment Tracking</h1>
+        <p>Track course assignment, completion and user progress.</p>
+      </div>
+
+      <button
+        type="button"
+        className="download-report-btn"
+        onClick={downloadDepartmentReport}
+      >
+        Download Department Report
+      </button>
+    </div>
+
+    <div className="analytics-stats-grid">
+      <div className="analytics-stat-card blue">
+        <h3>{totalStats.assigned}</h3>
+        <p>Total Assigned</p>
+      </div>
+
+      <div className="analytics-stat-card orange">
+        <h3>{totalStats.inProgress}</h3>
+        <p>In Progress</p>
+      </div>
+
+      <div className="analytics-stat-card green">
+        <h3>{totalStats.completed}</h3>
+        <p>Completed</p>
+      </div>
+
+      <div className="analytics-stat-card red">
+        <h3>{totalStats.notStarted}</h3>
+        <p>Not Started</p>
+      </div>
+    </div>
+
+    <div className="analytics-card">
+      <div className="analytics-card-head">
         <div>
-          <span>Training Analytics</span>
-          <h1>Assignment Tracking</h1>
-          <p>Track course assignment, completion and user progress.</p>
-        </div>
-
-        <button
-          type="button"
-          className="download-report-btn"
-          onClick={downloadDepartmentReport}
-        >
-          Download Department Report
-        </button>
-      </div>
-
-      <div className="analytics-stats-grid">
-        <div className="analytics-stat-card blue">
-          <h3>{totalStats.assigned}</h3>
-          <p>Total Assigned</p>
-        </div>
-
-        <div className="analytics-stat-card orange">
-          <h3>{totalStats.inProgress}</h3>
-          <p>In Progress</p>
-        </div>
-
-        <div className="analytics-stat-card green">
-          <h3>{totalStats.completed}</h3>
-          <p>Completed</p>
-        </div>
-
-        <div className="analytics-stat-card red">
-          <h3>{totalStats.notStarted}</h3>
-          <p>Not Started</p>
+          <h2>Course Overview</h2>
+          <p>Click any course to see assigned users.</p>
         </div>
       </div>
 
+      <div className="course-overview-table-wrap">
+        <table className="course-overview-table">
+          <thead>
+            <tr>
+              <th>Course</th>
+              <th>Assigned</th>
+              <th>In Progress</th>
+              <th>Completed</th>
+              <th>Not Started</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {courseStats.map((course) => (
+              <tr
+                key={course.id}
+                onClick={() => setSelectedCourseId(course.id)}
+                className={selectedCourseId === course.id ? "active" : ""}
+              >
+                <td>
+                  <strong>{course.title || course.courseTitle}</strong>
+                  <small>{course.department || "-"}</small>
+                </td>
+
+                <td>{course.assigned}</td>
+                <td>{course.inProgress}</td>
+                <td>{course.completed}</td>
+                <td>{course.notStarted}</td>
+              </tr>
+            ))}
+
+            {courseStats.length === 0 && (
+              <tr>
+                <td colSpan="5" className="empty-cell">
+                  No courses created yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {selectedCourse && (
       <div className="analytics-card">
         <div className="analytics-card-head">
           <div>
-            <h2>Course Overview</h2>
-            <p>Click any course to see assigned users.</p>
+            <h2>{selectedCourse.title || selectedCourse.courseTitle}</h2>
+            <p>
+              {selectedCourse.assigned} assigned • {selectedCourse.completed} completed
+            </p>
           </div>
         </div>
 
-        <div className="course-overview-table-wrap">
-          <table className="course-overview-table">
+        <div className="funnel-box">
+          <div>
+            <span>Assigned</span>
+            <strong>{selectedCourse.assigned}</strong>
+            <div className="funnel-bar">
+              <i style={{ width: "100%" }}></i>
+            </div>
+          </div>
+
+          <div>
+            <span>Started</span>
+            <strong>{selectedCourse.inProgress + selectedCourse.completed}</strong>
+            <div className="funnel-bar">
+              <i
+                style={{
+                  width: `${
+                    selectedCourse.assigned
+                      ? ((selectedCourse.inProgress + selectedCourse.completed) /
+                          selectedCourse.assigned) *
+                        100
+                      : 0
+                  }%`,
+                }}
+              ></i>
+            </div>
+          </div>
+
+          <div>
+            <span>Completed</span>
+            <strong>{selectedCourse.completed}</strong>
+            <div className="funnel-bar">
+              <i
+                style={{
+                  width: `${
+                    selectedCourse.assigned
+                      ? (selectedCourse.completed / selectedCourse.assigned) * 100
+                      : 0
+                  }%`,
+                }}
+              ></i>
+            </div>
+          </div>
+        </div>
+
+        <div className="analytics-filter-row">
+          <input
+            placeholder="Search user, city, designation..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="">All Status</option>
+            <option value="notStarted">Not Started</option>
+            <option value="inProgress">In Progress</option>
+            <option value="completed">Completed</option>
+          </select>
+
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+          >
+            <option value="">All Roles</option>
+            {roleOptions.map((role) => (
+              <option key={role} value={role}>
+                {role === "superAdmin"
+                  ? "Super Admin"
+                  : role === "admin"
+                  ? "Admin"
+                  : role === "departmentAdmin"
+                  ? "Department Admin"
+                  : role}
+              </option>
+            ))}
+          </select>
+
+          {(currentUser?.role === "admin" ||
+            currentUser?.role === "superAdmin") && (
+            <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+            >
+              <option value="">All Departments</option>
+              {departmentOptions.map((dept) => (
+                <option key={dept} value={dept}>
+                  {dept}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        <div className="user-progress-table-wrap">
+          <table className="user-progress-table">
             <thead>
               <tr>
-                <th>Course</th>
-                <th>Assigned</th>
-                <th>In Progress</th>
-                <th>Completed</th>
-                <th>Not Started</th>
+                <th>User</th>
+                <th>Role</th>
+                <th>Designation</th>
+                <th>Location</th>
+                <th>Status</th>
               </tr>
             </thead>
 
             <tbody>
-              {courseStats.map((course) => (
-                <tr
-                  key={course.id}
-                  onClick={() => setSelectedCourseId(course.id)}
-                  className={selectedCourseId === course.id ? "active" : ""}
-                >
+              {selectedUsers.map((user) => (
+                <tr key={user.id}>
                   <td>
-                    <strong>{course.title || course.courseTitle}</strong>
-                    <small>{course.department || "-"}</small>
+                    <strong>{user.name || "Unnamed User"}</strong>
+                    <small>{user.email}</small>
                   </td>
 
-                  <td>{course.assigned}</td>
-                  <td>{course.inProgress}</td>
-                  <td>{course.completed}</td>
-                  <td>{course.notStarted}</td>
+                  <td>
+                    {user.role === "superAdmin"
+                      ? "Super Admin"
+                      : user.role === "admin"
+                      ? "Admin"
+                      : user.role === "departmentAdmin"
+                      ? "Department Admin"
+                      : user.role || "-"}
+                  </td>
+
+                  <td>{user.designation || user.userRole || "-"}</td>
+
+                  <td>
+                    {[user.city || user.cityArea || user.area, user.state, user.zone]
+                      .filter(Boolean)
+                      .join(", ") || "-"}
+                  </td>
+
+                  <td>
+                    <span className={`analytics-status ${user.status}`}>
+                      {user.status === "completed"
+                        ? "Completed"
+                        : user.status === "inProgress"
+                        ? "In Progress"
+                        : "Not Started"}
+                    </span>
+                  </td>
                 </tr>
               ))}
 
-              {courseStats.length === 0 && (
+              {selectedUsers.length === 0 && (
                 <tr>
                   <td colSpan="5" className="empty-cell">
-                    No courses created yet.
+                    No users found for this course/filter.
                   </td>
                 </tr>
               )}
@@ -365,133 +556,9 @@ function DepartmentTrainingAnalytics() {
           </table>
         </div>
       </div>
-
-      {selectedCourse && (
-        <div className="analytics-card">
-          <div className="analytics-card-head">
-            <div>
-              <h2>{selectedCourse.title || selectedCourse.courseTitle}</h2>
-              <p>
-                {selectedCourse.assigned} assigned • {selectedCourse.completed} completed
-              </p>
-            </div>
-          </div>
-
-          <div className="funnel-box">
-            <div>
-              <span>Assigned</span>
-              <strong>{selectedCourse.assigned}</strong>
-              <div className="funnel-bar">
-                <i style={{ width: "100%" }}></i>
-              </div>
-            </div>
-
-            <div>
-              <span>Started</span>
-              <strong>{selectedCourse.inProgress + selectedCourse.completed}</strong>
-              <div className="funnel-bar">
-                <i
-                  style={{
-                    width: `${
-                      selectedCourse.assigned
-                        ? ((selectedCourse.inProgress + selectedCourse.completed) /
-                            selectedCourse.assigned) *
-                          100
-                        : 0
-                    }%`,
-                  }}
-                ></i>
-              </div>
-            </div>
-
-            <div>
-              <span>Completed</span>
-              <strong>{selectedCourse.completed}</strong>
-              <div className="funnel-bar">
-                <i
-                  style={{
-                    width: `${
-                      selectedCourse.assigned
-                        ? (selectedCourse.completed / selectedCourse.assigned) * 100
-                        : 0
-                    }%`,
-                  }}
-                ></i>
-              </div>
-            </div>
-          </div>
-
-          <div className="analytics-filter-row">
-            <input
-              placeholder="Search user, city, designation..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="">All Status</option>
-              <option value="notStarted">Not Started</option>
-              <option value="inProgress">In Progress</option>
-              <option value="completed">Completed</option>
-            </select>
-          </div>
-
-          <div className="user-progress-table-wrap">
-            <table className="user-progress-table">
-              <thead>
-                <tr>
-                  <th>User</th>
-                  <th>Designation</th>
-                  <th>Location</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {selectedUsers.map((user) => (
-                  <tr key={user.id}>
-                    <td>
-                      <strong>{user.name || "Unnamed User"}</strong>
-                      <small>{user.email}</small>
-                    </td>
-
-                    <td>{user.designation || user.userRole || "-"}</td>
-
-                    <td>
-                      {[user.city || user.cityArea || user.area, user.state, user.zone]
-                        .filter(Boolean)
-                        .join(", ") || "-"}
-                    </td>
-
-                    <td>
-                      <span className={`analytics-status ${user.status}`}>
-                        {user.status === "completed"
-                          ? "Completed"
-                          : user.status === "inProgress"
-                          ? "In Progress"
-                          : "Not Started"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-
-                {selectedUsers.length === 0 && (
-                  <tr>
-                    <td colSpan="4" className="empty-cell">
-                      No users found for this course/filter.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+    )}
+  </div>
+);
 }
 
 export default DepartmentTrainingAnalytics;

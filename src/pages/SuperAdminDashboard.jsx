@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ref, get } from "firebase/database";
 import { database } from "../firebase";
@@ -11,6 +11,7 @@ function SuperAdminDashboard() {
     admins: 0,
     departments: 0,
     courses: 0,
+    assignedCourses: 0,
     completed: 0,
     certificates: 0,
     pending: 0,
@@ -28,61 +29,68 @@ function SuperAdminDashboard() {
       const usersSnap = await get(ref(database, "users"));
       const coursesSnap = await get(ref(database, "courses"));
       const completedSnap = await get(ref(database, "completedCourses"));
-     const resultsSnap = await get(ref(database, "results"));
-const assignmentsSnap = await get(ref(database, "assignments"));
+      const resultsSnap = await get(ref(database, "results"));
+      const assignmentsSnap = await get(ref(database, "userAssignments"));
 
       const usersData = usersSnap.exists() ? usersSnap.val() : {};
       const coursesData = coursesSnap.exists() ? coursesSnap.val() : {};
       const completedData = completedSnap.exists() ? completedSnap.val() : {};
       const resultsData = resultsSnap.exists() ? resultsSnap.val() : {};
-const assignmentsData = assignmentsSnap.exists()
-  ? assignmentsSnap.val()
-  : {};
-  
-      const usersArr = Object.values(usersData);
+      const assignmentsData = assignmentsSnap.exists() ? assignmentsSnap.val() : {};
+
+      const usersArr = Object.entries(usersData).map(([id, user]) => ({
+        id,
+        uid: user.uid || id,
+        ...user,
+      }));
+
       const coursesArr = Object.entries(coursesData).map(([id, course]) => ({
         id,
         ...course,
       }));
 
-      const totalUsers = usersArr.length;
+      const normalUsers = usersArr.filter(
+        (user) => !["superAdmin", "superadmin"].includes(user.role)
+      );
+
+      const totalUsers = normalUsers.length;
+      const activeUsers = normalUsers.filter((user) => user.status !== "inactive").length;
       const admins = usersArr.filter((user) => user.role === "admin").length;
-      const activeUsers = usersArr.filter((user) => user.status !== "inactive").length;
+      const departmentAdmins = usersArr.filter((user) => user.role === "departmentAdmin").length;
 
       const departmentSet = new Set();
       usersArr.forEach((user) => {
         if (user.department) departmentSet.add(user.department);
       });
 
+      let assignedCourses = 0;
+
+      Object.values(assignmentsData).forEach((userAssignments) => {
+        Object.values(userAssignments || {}).forEach((assignment) => {
+          if (assignment?.assigned) assignedCourses += 1;
+        });
+      });
+
       let completed = 0;
+
       Object.values(completedData).forEach((userCourses) => {
         completed += Object.keys(userCourses || {}).length;
       });
 
       let certificates = 0;
+
       Object.values(resultsData).forEach((userResults) => {
         Object.values(userResults || {}).forEach((result) => {
-          if (result.passed) certificates += 1;
+          if (result?.passed) certificates += 1;
         });
       });
 
-const totalAssignedTrainings =
-  Object.keys(assignmentsData).length;
+      const pending = Math.max(assignedCourses - completed, 0);
 
-const pending = Math.max(
-  totalAssignedTrainings - completed,
-  0
-);
-
-const completionRate =
-  totalAssignedTrainings > 0
-    ? Math.min(
-        Math.round(
-          (completed / totalAssignedTrainings) * 100
-        ),
-        100
-      )
-    : 0;
+      const completionRate =
+        assignedCourses > 0
+          ? Math.min(Math.round((completed / assignedCourses) * 100), 100)
+          : 0;
 
       const certificateRate =
         completed > 0 ? Math.min(Math.round((certificates / completed) * 100), 100) : 0;
@@ -91,48 +99,63 @@ const completionRate =
 
       usersArr.forEach((user) => {
         const dept = user.department || "Not Assigned";
+
         if (!deptMap[dept]) {
           deptMap[dept] = {
             department: dept,
             users: 0,
+            assigned: 0,
             completed: 0,
-            total: 0,
           };
         }
 
-       deptMap[dept].total += 0;
-        deptMap[dept].total += coursesArr.length;
+        deptMap[dept].users += 1;
 
+        const userAssignments = assignmentsData[user.uid] || assignmentsData[user.id] || {};
         const userCompleted = completedData[user.uid] || completedData[user.id] || {};
+
+        deptMap[dept].assigned += Object.values(userAssignments).filter(
+          (item) => item?.assigned
+        ).length;
+
         deptMap[dept].completed += Object.keys(userCompleted || {}).length;
       });
 
       const deptRows = Object.values(deptMap)
         .map((item) => ({
           ...item,
-          rate: item.total > 0 ? Math.round((item.completed / item.total) * 100) : 0,
+          rate:
+            item.assigned > 0
+              ? Math.min(Math.round((item.completed / item.assigned) * 100), 100)
+              : 0,
         }))
+        .filter((item) => item.assigned > 0)
         .sort((a, b) => b.rate - a.rate)
         .slice(0, 5);
 
       const trainingRows = coursesArr.slice(0, 5).map((course) => {
+        let enrolled = 0;
         let courseCompleted = 0;
 
+        Object.entries(assignmentsData).forEach(([userId, userAssignments]) => {
+          if (userAssignments?.[course.id]?.assigned) enrolled += 1;
+        });
+
         Object.values(completedData).forEach((userCourses) => {
-          if (userCourses && userCourses[course.id]) courseCompleted += 1;
+          if (userCourses?.[course.id]) courseCompleted += 1;
         });
 
         const progress =
-          totalUsers > 0 ? Math.min(Math.round((courseCompleted / totalUsers) * 100), 100) : 0;
+          enrolled > 0 ? Math.min(Math.round((courseCompleted / enrolled) * 100), 100) : 0;
 
         return {
           id: course.id,
           title: course.title || course.name || "Untitled Course",
           department: course.department || "General",
-          enrolled: totalUsers,
+          enrolled,
           completed: courseCompleted,
           progress,
-          status: "Active",
+          status: course.status || "Active",
         };
       });
 
@@ -142,6 +165,7 @@ const completionRate =
         admins,
         departments: departmentSet.size,
         courses: coursesArr.length,
+        assignedCourses,
         completed,
         certificates,
         pending,
@@ -152,56 +176,35 @@ const completionRate =
       setRecentTrainings(trainingRows);
       setDepartmentRows(deptRows);
 
-     setAlerts([
-  {
-    label: "Pending Trainings",
-    value: pending,
-    type: "warning",
-  },
-  {
-    label: "Department Admins",
-    value: usersArr.filter(
-      (u) => u.role === "departmentAdmin"
-    ).length,
-    type: "info",
-  },
-  {
-    label: "Certificates Issued",
-    value: certificates,
-    type: "success",
-  },
-]);
+      setAlerts([
+        {
+          label: "Pending Courses",
+          value: pending,
+          type: "warning",
+        },
+        {
+          label: "Department Admins",
+          value: departmentAdmins,
+          type: "info",
+        },
+        {
+          label: "Certificates Issued",
+          value: certificates,
+          type: "success",
+        },
+      ]);
 
-setActivity([
-  `${totalUsers} total employees`,
-  `${coursesArr.length} active courses`,
-  `${completed} completed trainings`,
-  `${certificates} certificates generated`,
-]);
+      setActivity([
+        `${totalUsers} total users`,
+        `${coursesArr.length} active courses`,
+        `${assignedCourses} assigned courses`,
+        `${completed} completed courses`,
+        `${certificates} certificates generated`,
+      ]);
     };
 
     fetchStats();
   }, []);
-
-  const chartPoints = useMemo(() => {
-    const completed = stats.completed || 0;
-    const pending = stats.pending || 0;
-    const certificates = stats.certificates || 0;
-
-    return [
-      Math.max(Math.round(completed * 0.25), 1),
-      Math.max(Math.round(completed * 0.45), 1),
-      Math.max(Math.round(completed * 0.55), 1),
-      Math.max(Math.round(completed * 0.7), 1),
-      Math.max(Math.round(completed * 0.85), 1),
-      Math.max(completed, 1),
-      Math.max(completed + certificates, 1),
-    ].map((value, index) => ({
-      label: `W${index + 1}`,
-      completed: value,
-      pending: Math.max(Math.round(pending * (index + 1) * 0.08), 1),
-    }));
-  }, [stats]);
 
   return (
     <div className="super-dashboard">
@@ -218,9 +221,9 @@ setActivity([
         <MetricCard title="Total Users" value={stats.users} color="blue" />
         <MetricCard title="Active Users" value={stats.activeUsers} color="green" />
         <MetricCard title="Total Courses" value={stats.courses} color="purple" />
-        <MetricCard title="Completed Trainings" value={stats.completed} color="teal" />
+        <MetricCard title="Completed Courses" value={stats.completed} color="teal" />
         <MetricCard title="Certificates Issued" value={stats.certificates} color="orange" />
-        <MetricCard title="Pending Trainings" value={stats.pending} color="red" />
+        <MetricCard title="Pending Courses" value={stats.pending} color="red" />
       </section>
 
       <section className="dashboard-main-grid">
@@ -228,7 +231,7 @@ setActivity([
           <div className="card-head">
             <div>
               <h2>Training Progress Overview</h2>
-              <p>Completed vs pending training progress</p>
+              <p>Completed vs pending course progress</p>
             </div>
           </div>
 
@@ -260,13 +263,13 @@ setActivity([
         </div>
 
         <div className="dash-card circle-card">
-          <h2>Training Completion Rate</h2>
+          <h2>Course Completion Rate</h2>
 
           <div className="circle-progress">
             <div>{stats.completionRate}%</div>
           </div>
 
-          <p>Overall Completion</p>
+          <p>{stats.completed} of {stats.assignedCourses} assigned courses completed</p>
         </div>
 
         <div className="dash-card department-card">
@@ -281,6 +284,7 @@ setActivity([
                   <span>{index + 1}. {item.department}</span>
                   <strong>{item.rate}%</strong>
                 </div>
+
                 <div className="dept-track">
                   <span style={{ width: `${item.rate}%` }}></span>
                 </div>
@@ -298,8 +302,8 @@ setActivity([
         <div className="dash-card table-card">
           <div className="card-head">
             <div>
-              <h2>Recent Trainings</h2>
-              <p>Course-wise completion overview</p>
+              <h2>Recent Courses</h2>
+              <p>Course-wise assignment and completion overview</p>
             </div>
           </div>
 
@@ -307,9 +311,9 @@ setActivity([
             <table className="training-table">
               <thead>
                 <tr>
-                  <th>Training Name</th>
+                  <th>Course Name</th>
                   <th>Department</th>
-                  <th>Enrolled</th>
+                  <th>Assigned</th>
                   <th>Completed</th>
                   <th>Progress</th>
                   <th>Status</th>
@@ -345,7 +349,7 @@ setActivity([
           </div>
 
           <Link to="/super-admin/analytics" className="table-link">
-            View all trainings
+            View all courses
           </Link>
         </div>
 

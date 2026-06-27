@@ -369,303 +369,263 @@ function ManageUsers() {
     fetchUsers();
     e.target.value = "";
   };
-
-  return (
-    <div className="manage-users-page">
-      <div className="users-header">
-        <div>
-         
-          <h1>Users</h1>
-          <p>Create users, manage designations and employee seniority.</p>
-        </div>
+return (
+  <div className="manage-users-page">
+    <div className="users-header">
+      <div>
+        <h1>Users</h1>
+        <p>Create users, bulk upload employees, manage designations and view all users.</p>
       </div>
-
-      <div className="users-top-grid">
-        <div className="users-card form-card">
-          <div className="card-title-row">
-            <div>
-              <h2>{editingUserId ? "Edit User" : "Add User"}</h2>
-              <p>
-                {editingUserId
-                  ? "Update employee details."
-                  : "Create one employee account."}
-              </p>
-            </div>
-
-            <span className="password-pill">Default: {DEFAULT_PASSWORD}</span>
-          </div>
-
-          <form
-            onSubmit={editingUserId ? updateExistingUser : createSingleUser}
-            className="users-form-grid"
-          >
-            <input
-              placeholder="Full Name"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-            />
-
-            <input
-              placeholder="Email Address"
-              type="email"
-              value={form.email}
-              disabled={!!editingUserId}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              required
-            />
-
-            <select
-              value={form.designation}
-              onChange={(e) =>
-                setForm({ ...form, designation: e.target.value })
-              }
-              required
-            >
-              <option value="">Select Designation</option>
-              {designations.map((item) => (
-                <option key={item.id} value={item.name}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={form.seniority}
-              onChange={(e) => setForm({ ...form, seniority: e.target.value })}
-              required
-            >
-              <option value="">Select Type</option>
-              <option value="senior">Senior</option>
-              <option value="junior">Junior</option>
-              <option value="intern">Intern</option>
-            </select>
-
-            <select
-              value={form.cityArea}
-              onChange={(e) => handleCityChange(e.target.value)}
-              required
-            >
-              <option value="">Select City / Area</option>
-              {allCities.map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-            </select>
-
-            <input placeholder="State" value={form.state} readOnly required />
-            <input placeholder="Zone" value={form.zone} readOnly required />
-
-            <button type="submit" disabled={creating}>
-              {editingUserId
-                ? "Update User"
-                : creating
-                ? "Creating..."
-                : "Create User"}
-            </button>
-
-            {editingUserId && (
-              <button
-                type="button"
-                className="cancel-edit-btn"
-                onClick={cancelEdit}
-              >
-                Cancel
-              </button>
-            )}
-          </form>
-        </div>
-
-        <div className="users-card bulk-small-card">
-          <div className="bulk-head">
-            <div>
-              <h2>Bulk Upload</h2>
-              <p className="upload-help">
-                Upload multiple users using Excel. Required columns: name,
-                email, designation, seniority, cityArea.
-              </p>
-            </div>
-          </div>
-
-          <div className="bulk-actions">
-            <button className="template-btn" onClick={downloadTemplate}>
-              Download Template
-            </button>
-
-            <button
-              className="secondary-btn"
-              onClick={() => setBulkOpen(!bulkOpen)}
-            >
-              {bulkOpen ? "Hide Upload" : "Upload Excel"}
-            </button>
-          </div>
-
-          {bulkOpen && (
-            <label className="upload-compact">
-              <input
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={handleBulkUpload}
-              />
-              <span>Select Excel File</span>
-            </label>
-          )}
-
-          {bulkStatus && <p className="bulk-status">{bulkStatus}</p>}
-        </div>
-      </div>
-
-      <div className="users-card master-card">
-        <div className="card-title-row">
-          <div>
-            <h2>Designations</h2>
-            <p>Add designations only. Seniority is selected while adding user.</p>
-          </div>
-        </div>
-
-        <div className="inline-add designation-add-row">
-          <input
-            placeholder="Add designation e.g. Manager, Sales Executive"
-            value={newDesignation}
-            onChange={(e) => setNewDesignation(e.target.value)}
-          />
-
-          <button onClick={addDesignation}>Add</button>
-        </div>
-
-        <div className="designation-list-simple">
-          {designations.map((item) => (
-            <div className="designation-level-row" key={item.id}>
-              <span>{item.name}</span>
-              <button onClick={() => removeDesignation(item.id)}>×</button>
-            </div>
-          ))}
-
-          {designations.length === 0 && (
-            <p className="empty-text">No designations added yet.</p>
-          )}
-        </div>
-      </div>
-
-      <div className="users-card">
-        <div className="card-title-row">
-          <div>
-            <h2>Existing Users</h2>
-            <p>{users.length} users found</p>
-          </div>
-        </div>
-
-        <div className="users-table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Designation</th>
-                <th>Type</th>
-                <th>Zone</th>
-                <th>State</th>
-                <th>City / Area</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.id}>
-                  <td>{user.name}</td>
-                  <td>{user.email}</td>
-                  <td>{user.designation}</td>
-                  <td>
-                    {user.seniority
-                      ? user.seniority.charAt(0).toUpperCase() +
-                        user.seniority.slice(1)
-                      : "-"}
-                  </td>
-                  <td>{user.zone}</td>
-                  <td>{user.state}</td>
-                  <td>{user.cityArea}</td>
-                  <td>
-                    <div className="user-actions">
-                      <button onClick={() => startEditUser(user)}>Edit</button>
-                      <button onClick={() => resetUserPassword(user.email)}>
-                        Reset
-                      </button>
-                      <button
-                        className="danger"
-                        onClick={() => deleteUser(user.id)}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-
-              {users.length === 0 && (
-                <tr>
-                  <td colSpan="8">No users created yet.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {uploadModal.open && (
-        <div className="upload-modal-overlay">
-          <div className="upload-modal">
-            <div className="modal-loader"></div>
-            <h2>
-              {uploadModal.status === "done" ? "Upload Completed" : "Adding Users"}
-            </h2>
-            <p>
-              {uploadModal.status === "done"
-                ? `${uploadModal.success} users added, ${uploadModal.failed} failed.`
-                : `Adding ${uploadModal.current}/${uploadModal.total}`}
-            </p>
-
-            <div className="modal-progress">
-              <span
-                style={{
-                  width: `${
-                    uploadModal.total > 0
-                      ? Math.round(
-                          (uploadModal.current / uploadModal.total) * 100
-                        )
-                      : 0
-                  }%`,
-                }}
-              ></span>
-            </div>
-
-            <div className="modal-counts">
-              <span>Success: {uploadModal.success}</span>
-              <span>Failed: {uploadModal.failed}</span>
-            </div>
-
-            {uploadModal.status === "done" && (
-              <button
-                onClick={() =>
-                  setUploadModal({
-                    open: false,
-                    current: 0,
-                    total: 0,
-                    success: 0,
-                    failed: 0,
-                    status: "idle",
-                  })
-                }
-              >
-                Done
-              </button>
-            )}
-          </div>
-        </div>
-      )}
     </div>
-  );
+
+    <div className="users-card full-user-form-card">
+      <div className="card-title-row">
+        <div>
+          <h2>{editingUserId ? "Edit User" : "Add New User"}</h2>
+          <p>
+            {editingUserId
+              ? "Update employee details below."
+              : "Create one employee account with designation, seniority and location."}
+          </p>
+        </div>
+
+        <span className="password-pill">Default Password: {DEFAULT_PASSWORD}</span>
+      </div>
+
+      <form
+        onSubmit={editingUserId ? updateExistingUser : createSingleUser}
+        className="users-form-grid clean-horizontal-form"
+      >
+        <input
+          placeholder="Full Name"
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          required
+        />
+
+        <input
+          placeholder="Email Address"
+          type="email"
+          value={form.email}
+          disabled={!!editingUserId}
+          onChange={(e) => setForm({ ...form, email: e.target.value })}
+          required
+        />
+
+        <select
+          value={form.designation}
+          onChange={(e) => setForm({ ...form, designation: e.target.value })}
+          required
+        >
+          <option value="">Designation</option>
+          {designations.map((item) => (
+            <option key={item.id} value={item.name}>
+              {item.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={form.seniority}
+          onChange={(e) => setForm({ ...form, seniority: e.target.value })}
+          required
+        >
+          <option value="">Type</option>
+          <option value="senior">Senior</option>
+          <option value="junior">Junior</option>
+          <option value="intern">Intern</option>
+        </select>
+
+        <select
+          value={form.cityArea}
+          onChange={(e) => handleCityChange(e.target.value)}
+          required
+        >
+          <option value="">City / Area</option>
+          {allCities.map((city) => (
+            <option key={city} value={city}>
+              {city}
+            </option>
+          ))}
+        </select>
+
+        <input placeholder="State" value={form.state} readOnly required />
+        <input placeholder="Zone" value={form.zone} readOnly required />
+
+        <button type="submit" disabled={creating}>
+          {editingUserId ? "Update User" : creating ? "Creating..." : "Create User"}
+        </button>
+
+        {editingUserId && (
+          <button type="button" className="cancel-edit-btn" onClick={cancelEdit}>
+            Cancel
+          </button>
+        )}
+      </form>
+    </div>
+
+    <div className="users-card bulk-horizontal-card">
+      <div>
+        <h2>Bulk Upload Users</h2>
+        <p>Upload Excel with: name, email, designation, seniority, cityArea.</p>
+      </div>
+
+      <div className="bulk-horizontal-actions">
+        <button className="template-btn" onClick={downloadTemplate}>
+          Download Template
+        </button>
+
+        <label className="upload-btn-clean">
+          <input type="file" accept=".xlsx,.xls,.csv" onChange={handleBulkUpload} />
+          Upload Excel
+        </label>
+      </div>
+
+      {bulkStatus && <p className="bulk-status">{bulkStatus}</p>}
+    </div>
+
+    <div className="users-card designation-clean-card">
+      <div className="card-title-row">
+        <div>
+          <h2>Designations</h2>
+          <p>Add roles like Sales Executive, Manager, Web Developer etc.</p>
+        </div>
+      </div>
+
+      <div className="designation-clean-row">
+        <input
+          placeholder="Add new designation"
+          value={newDesignation}
+          onChange={(e) => setNewDesignation(e.target.value)}
+        />
+
+        <button onClick={addDesignation}>Add Designation</button>
+      </div>
+
+      <div className="designation-chip-list">
+        {designations.map((item) => (
+          <span key={item.id} className="designation-chip">
+            {item.name}
+            <button onClick={() => removeDesignation(item.id)}>×</button>
+          </span>
+        ))}
+
+        {designations.length === 0 && (
+          <p className="empty-text">No designations added yet.</p>
+        )}
+      </div>
+    </div>
+
+    <div className="users-card users-table-card-clean">
+      <div className="card-title-row">
+        <div>
+          <h2>Existing Users</h2>
+          <p>{users.length} users found</p>
+        </div>
+      </div>
+
+      <div className="users-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Designation</th>
+              <th>Type</th>
+              <th>Zone</th>
+              <th>State</th>
+              <th>City / Area</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {users.map((user) => (
+              <tr key={user.id}>
+                <td>{user.name}</td>
+                <td>{user.email}</td>
+                <td>{user.designation}</td>
+                <td>
+                  {user.seniority
+                    ? user.seniority.charAt(0).toUpperCase() + user.seniority.slice(1)
+                    : "-"}
+                </td>
+                <td>{user.zone}</td>
+                <td>{user.state}</td>
+                <td>{user.cityArea}</td>
+                <td>
+                  <div className="user-actions">
+                    <button onClick={() => startEditUser(user)}>Edit</button>
+                    <button onClick={() => resetUserPassword(user.email)}>Reset</button>
+                    <button className="danger" onClick={() => deleteUser(user.id)}>
+                      Remove
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+
+            {users.length === 0 && (
+              <tr>
+                <td colSpan="8">No users created yet.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {uploadModal.open && (
+      <div className="upload-modal-overlay">
+        <div className="upload-modal">
+          <div className="modal-loader"></div>
+
+          <h2>{uploadModal.status === "done" ? "Upload Completed" : "Adding Users"}</h2>
+
+          <p>
+            {uploadModal.status === "done"
+              ? `${uploadModal.success} users added, ${uploadModal.failed} failed.`
+              : `Adding ${uploadModal.current}/${uploadModal.total}`}
+          </p>
+
+          <div className="modal-progress">
+            <span
+              style={{
+                width: `${
+                  uploadModal.total > 0
+                    ? Math.round((uploadModal.current / uploadModal.total) * 100)
+                    : 0
+                }%`,
+              }}
+            ></span>
+          </div>
+
+          <div className="modal-counts">
+            <span>Success: {uploadModal.success}</span>
+            <span>Failed: {uploadModal.failed}</span>
+          </div>
+
+          {uploadModal.status === "done" && (
+            <button
+              onClick={() =>
+                setUploadModal({
+                  open: false,
+                  current: 0,
+                  total: 0,
+                  success: 0,
+                  failed: 0,
+                  status: "idle",
+                })
+              }
+            >
+              Done
+            </button>
+          )}
+        </div>
+      </div>
+    )}
+  </div>
+);
 }
 
 export default ManageUsers;

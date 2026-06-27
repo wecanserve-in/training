@@ -1,190 +1,258 @@
-/* ==========================================================================
-   Admin Performance Metrics & Evaluation Log Grid Stylesheet
-   ========================================================================== */
-
-.results-dashboard-container {
-  width: 100%;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 40px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: #f8fafc;
+.admin-log-page {
   min-height: 100vh;
-  box-sizing: border-box;
+  padding: 34px;
+  background: #f6f8fc;
+  color: #111827;
 }
 
-/* Header Context Architecture blocks */
-.results-header-row {
-  border-bottom: 2px solid #e2e8f0;
-  padding-bottom: 24px;
-  margin-bottom: 32px;
+.admin-log-header {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-left: 6px solid #2563eb;
+  border-radius: 20px;
+  padding: 28px 32px;
+  margin-bottom: 24px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
 }
 
-.back-link-wrapper {
-  margin-bottom: 8px;
-}
-
-.btn-results-back {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #64748b;
-  text-decoration: none;
-  transition: color 0.15s ease;
-}
-
-.btn-results-back:hover {
+.admin-log-back {
+  display: inline-block;
+  margin-bottom: 14px;
   color: #2563eb;
+  text-decoration: none;
+  font-weight: 700;
 }
 
-.results-main-title {
-  font-size: 2rem;
-  font-weight: 800;
-  color: #0f172a;
-  margin: 0 0 6px 0;
-  letter-spacing: -0.025em;
-}
-
-.results-subtitle {
-  font-size: 0.975rem;
-  color: #64748b;
+.admin-log-header h1 {
   margin: 0;
-  line-height: 1.4;
+  font-size: 34px;
+  font-weight: 900;
+  color: #0f172a;
 }
 
-/* Base Layout Wrapper for Content Table */
-.results-table-card-wrapper {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.015);
-  overflow: hidden;
-}
-
-.empty-results-fallback {
-  padding: 80px 40px;
-  text-align: center;
+.admin-log-header p {
+  margin: 8px 0 0;
   color: #64748b;
+  font-weight: 600;
 }
 
-.empty-results-fallback h3 {
-  margin: 0 0 8px 0;
+.log-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.log-summary-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+}
+
+.log-summary-card span {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.log-summary-card h2 {
+  margin: 10px 0 4px;
+  font-size: 32px;
+  color: #0f172a;
+}
+
+.log-summary-card p {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.log-summary-card.success {
+  border-left: 5px solid #16a34a;
+}
+
+.log-summary-card.danger {
+  border-left: 5px solid #dc2626;
+}
+
+.log-control-card {
+  display: grid;
+  grid-template-columns: 1.5fr 0.8fr 1fr 140px;
+  gap: 14px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  padding: 18px;
+  margin-bottom: 24px;
+}
+
+.log-control-card input,
+.log-control-card select {
+  height: 48px;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  padding: 0 14px;
+  font-weight: 700;
+  outline: none;
+  background: #ffffff;
+}
+
+.log-control-card button {
+  border: none;
+  border-radius: 12px;
+  background: #eef2f7;
+  color: #334155;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.log-table-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+}
+
+.log-table-title-row {
+  padding: 22px 26px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.log-table-title-row h2 {
+  margin: 0;
+  font-size: 24px;
+  color: #0f172a;
+}
+
+.log-table-title-row p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.log-table-wrapper {
+  overflow-x: auto;
+}
+
+.admin-log-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-log-table th {
+  text-align: left;
+  padding: 16px 20px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.admin-log-table td {
+  padding: 18px 20px;
+  border-top: 1px solid #edf2f7;
+  vertical-align: middle;
+  color: #334155;
+  font-weight: 700;
+}
+
+.admin-log-table td strong {
+  display: block;
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.admin-log-table td small {
+  display: block;
+  color: #64748b;
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.log-course-name {
   color: #1e293b;
 }
 
-.empty-results-fallback p {
-  margin: 0;
-  font-size: 0.95rem;
+.score-chip {
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-weight: 900;
+  font-size: 13px;
 }
 
-/* Structural Styles for Enterprise Tables */
-.corporate-results-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
+.score-chip.pass {
+  background: #dcfce7;
+  color: #15803d;
 }
 
-.corporate-results-table th {
-  background-color: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
-  padding: 18px 24px;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #475569;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  white-space: nowrap;
+.score-chip.fail {
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
-.corporate-results-table td {
-  padding: 18px 24px;
-  border-bottom: 1px solid #f1f5f9;
-  vertical-align: middle;
-  font-size: 0.95rem;
+.admin-log-table code {
+  background: #f1f5f9;
+  padding: 7px 10px;
+  border-radius: 8px;
   color: #334155;
+  font-weight: 900;
 }
 
-.corporate-results-table tr:last-child td {
-  border-bottom: none;
+.log-status {
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
-.corporate-results-table tr:hover td {
-  background-color: #fcfcfc;
+.log-status.passed {
+  background: #ecfdf5;
+  color: #047857;
 }
 
-/* User Profile Column Element Styles */
-.employee-user-name {
-  font-weight: 700;
+.log-status.failed {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.empty-log-state {
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.empty-log-state h3 {
+  margin: 0;
   color: #0f172a;
 }
 
-.module-title-string {
-  font-weight: 500;
-  color: #334155;
-  line-height: 1.4;
-}
-
-/* Raw Metric Value Wrappers */
-.raw-fraction-code {
-  font-family: SFMono-Regular, Consolas, monospace;
-  font-size: 0.875rem;
-  background-color: #f1f5f9;
-  padding: 4px 8px;
-  border-radius: 4px;
-  color: #334155;
+.empty-log-state p {
+  color: #64748b;
   font-weight: 600;
 }
 
-.percentage-badge {
-  font-size: 1rem;
-  font-weight: 700;
-}
+@media (max-width: 1000px) {
+  .log-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 
-.percentage-badge.text-pass {
-  color: #166534;
-}
-
-.percentage-badge.text-fail {
-  color: #991b1b;
-}
-
-/* Status Indicators (Pills) Layout Setup overrides */
-.status-pill-badge {
-  display: inline-block;
-  padding: 6px 14px;
-  font-size: 0.8rem;
-  font-weight: 700;
-  border-radius: 50px;
-  letter-spacing: 0.025em;
-  text-align: center;
-  min-width: 75px;
-}
-
-.status-pill-badge.pill-pass {
-  background-color: #dcfce7;
-  color: #166534;
-}
-
-.status-pill-badge.pill-fail {
-  background-color: #fee2e2;
-  color: #991b1b;
-}
-
-/* Localization Timestamp Styles */
-.localized-date-stamp {
-  font-size: 0.875rem;
-  color: #64748b;
-  font-weight: 500;
-}
-
-/* Adaptive Responsive Layout Rules overrides */
-@media (max-width: 1024px) {
-  .results-table-card-wrapper {
-    overflow-x: auto; /* Activates a smooth swipe overflow mechanic on smaller table viewports */
+  .log-control-card {
+    grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 640px) {
-  .results-dashboard-container {
-    padding: 24px 16px;
+@media (max-width: 600px) {
+  .admin-log-page {
+    padding: 18px;
+  }
+
+  .log-summary-grid {
+    grid-template-columns: 1fr;
   }
 }

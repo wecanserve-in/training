@@ -10,12 +10,7 @@ function ManageDepartments() {
   const [departmentName, setDepartmentName] = useState("");
   const [departmentType, setDepartmentType] = useState("");
   const [selectedMember, setSelectedMember] = useState("");
-
-  const [filters, setFilters] = useState({
-    seniority: "all",
-    designation: "all",
-    search: "",
-  });
+  const [adminSearch, setAdminSearch] = useState("");
 
   const departmentTypes = [
     "Research & Development",
@@ -49,8 +44,8 @@ function ManageDepartments() {
   ];
 
   const isHigherPost = (user) => {
-    const designation = (user.designation || "").toLowerCase();
-    const seniority = (user.seniority || "").toLowerCase();
+    const designation = String(user.designation || "").toLowerCase();
+    const seniority = String(user.seniority || "").toLowerCase();
 
     return (
       seniority === "senior" ||
@@ -62,16 +57,14 @@ function ManageDepartments() {
     const deptSnap = await get(ref(database, "departments"));
     const userSnap = await get(ref(database, "users"));
 
-    if (deptSnap.exists()) {
-      setDepartments(
-        Object.entries(deptSnap.val()).map(([id, data]) => ({
-          id,
-          ...data,
-        }))
-      );
-    } else {
-      setDepartments([]);
-    }
+    setDepartments(
+      deptSnap.exists()
+        ? Object.entries(deptSnap.val()).map(([id, data]) => ({
+            id,
+            ...data,
+          }))
+        : []
+    );
 
     if (userSnap.exists()) {
       const memberList = Object.entries(userSnap.val())
@@ -85,8 +78,7 @@ function ManageDepartments() {
           const bSenior = isHigherPost(b) ? 1 : 0;
 
           if (bSenior !== aSenior) return bSenior - aSenior;
-
-          return (a.name || "").localeCompare(b.name || "");
+          return String(a.name || "").localeCompare(String(b.name || ""));
         });
 
       setMembers(memberList);
@@ -99,52 +91,76 @@ function ManageDepartments() {
     loadData();
   }, []);
 
-  const designations = useMemo(() => {
-    return [...new Set(members.map((m) => m.designation).filter(Boolean))];
+  const eligibleMembers = useMemo(() => {
+    return members.filter((member) => isHigherPost(member));
   }, [members]);
 
-  const filteredMembers = useMemo(() => {
-    const q = filters.search.trim().toLowerCase();
+  const searchedMembers = useMemo(() => {
+    const q = adminSearch.trim().toLowerCase();
 
-    return members.filter((member) => {
-      const searchText = `${member.name || ""} ${member.email || ""} ${
-        member.designation || ""
-      } ${member.cityArea || ""} ${member.state || ""} ${
-        member.zone || ""
-      }`.toLowerCase();
+    if (!q) return eligibleMembers.slice(0, 8);
 
-      const matchSearch = searchText.includes(q);
+    return members
+      .filter((member) => {
+        const searchText = [
+          member.name,
+          member.email,
+          member.designation,
+          member.cityArea,
+          member.state,
+          member.zone,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
 
-      if (q) return matchSearch;
+        return searchText.includes(q);
+      })
+      .slice(0, 8);
+  }, [members, eligibleMembers, adminSearch]);
 
-      const matchHigherPost = isHigherPost(member);
+  useEffect(() => {
+    if (!adminSearch.trim()) return;
 
-      const matchSeniority =
-        filters.seniority === "all" ||
-        member.seniority === filters.seniority;
+    const q = adminSearch.trim().toLowerCase();
 
-      const matchDesignation =
-        filters.designation === "all" ||
-        member.designation === filters.designation;
+    const exactMatch =
+      members.find((member) => String(member.name || "").toLowerCase() === q) ||
+      members.find((member) =>
+        String(member.name || "").toLowerCase().includes(q)
+      );
 
-      return matchHigherPost && matchSeniority && matchDesignation;
-    });
-  }, [members, filters]);
+    if (exactMatch) {
+      setSelectedMember(exactMatch.id);
+    }
+  }, [adminSearch, members]);
 
   const selectedMemberData = members.find((m) => m.id === selectedMember);
+
+  const selectAdmin = (member) => {
+    setSelectedMember(member.id);
+    setAdminSearch(member.name || "");
+  };
+
+  const resetForm = () => {
+    setDepartmentName("");
+    setDepartmentType("");
+    setSelectedMember("");
+    setAdminSearch("");
+  };
 
   const createDepartment = async (e) => {
     e.preventDefault();
 
     if (!departmentName || !departmentType || !selectedMember) {
-      alert("Please fill all fields");
+      alert("Please fill department name, type and department admin.");
       return;
     }
 
     const member = members.find((m) => m.id === selectedMember);
 
     if (!member) {
-      alert("Selected member not found.");
+      alert("Selected user not found.");
       return;
     }
 
@@ -168,16 +184,7 @@ function ManageDepartments() {
       promotedToDepartmentAdminAt: new Date().toISOString(),
     });
 
-    setDepartmentName("");
-    setDepartmentType("");
-    setSelectedMember("");
-
-    setFilters({
-      seniority: "all",
-      designation: "all",
-      search: "",
-    });
-
+    resetForm();
     loadData();
   };
 
@@ -204,149 +211,93 @@ function ManageDepartments() {
     <div className="manage-dept-page">
       <div className="dept-header">
         <h1>Departments</h1>
-        <p>
-          Create departments, choose department type and assign Department Admins
-          from senior or higher-post users.
-        </p>
+        <p>Create departments and quickly assign eligible department admins.</p>
       </div>
 
-      <div className="dept-top-grid">
-        <div className="dept-card">
-          <div className="card-title-row">
-            <div>
-              <h2>Create Department</h2>
-              <p>
-                Department type will control video upload filters later.
-              </p>
-            </div>
+      <div className="dept-card create-dept-full">
+        <div className="card-title-row">
+          <div>
+            <h2>Create Department</h2>
+            <p>Search by name or choose from top eligible users.</p>
           </div>
-
-          <form className="dept-form" onSubmit={createDepartment}>
-            <input
-              placeholder="Department Name"
-              value={departmentName}
-              onChange={(e) => setDepartmentName(e.target.value)}
-              required
-            />
-
-            <select
-              value={departmentType}
-              onChange={(e) => setDepartmentType(e.target.value)}
-              required
-            >
-              <option value="">Select Department Type</option>
-
-              {departmentTypes.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={selectedMember}
-              onChange={(e) => setSelectedMember(e.target.value)}
-              required
-            >
-              <option value="">
-                {filters.search
-                  ? "Select searched user"
-                  : "Department Admin"}
-              </option>
-
-              {filteredMembers.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.designation || "No Designation"} — {member.name}{" "}
-                  {member.seniority ? `(${member.seniority})` : ""}
-                </option>
-              ))}
-            </select>
-
-            <button type="submit">Create Department</button>
-          </form>
-
-          {filteredMembers.length === 0 && (
-            <p className="empty-help">
-              No users found. Try searching by name, email, designation or city.
-            </p>
-          )}
-
-          {selectedMemberData && (
-            <div className="selected-member-box">
-              <span>Selected Admin</span>
-              <h3>{selectedMemberData.name}</h3>
-              <p>
-                {selectedMemberData.designation || "No Designation"} •{" "}
-                {selectedMemberData.seniority
-                  ? selectedMemberData.seniority.charAt(0).toUpperCase() +
-                    selectedMemberData.seniority.slice(1)
-                  : "No seniority selected"}
-              </p>
-            </div>
-          )}
         </div>
 
-        <div className="dept-card filter-card">
-          <div className="card-title-row">
-            <div>
-              <h2>Filters</h2>
-              <p>Keep dropdown clean. Use search to find any user manually.</p>
-            </div>
-          </div>
+        <form className="dept-form clean-dept-form" onSubmit={createDepartment}>
+          <input
+            placeholder="Department Name"
+            value={departmentName}
+            onChange={(e) => setDepartmentName(e.target.value)}
+            required
+          />
 
-          <div className="dept-filter-grid">
-            <select
-              value={filters.seniority}
-              onChange={(e) =>
-                setFilters({
-                  ...filters,
-                  seniority: e.target.value,
-                  search: "",
-                })
-              }
+          <select
+            value={departmentType}
+            onChange={(e) => setDepartmentType(e.target.value)}
+            required
+          >
+            <option value="">Select Department Type</option>
+            {departmentTypes.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+
+          <input
+            placeholder="Search admin by name"
+            value={adminSearch}
+            onChange={(e) => setAdminSearch(e.target.value)}
+          />
+
+          <button type="submit">Create Department</button>
+        </form>
+
+        {selectedMemberData && (
+          <div className="selected-admin-strip">
+            <span>Selected Department Admin</span>
+            <strong>{selectedMemberData.name}</strong>
+            <p>
+              {selectedMemberData.designation || "No designation"} •{" "}
+              {selectedMemberData.seniority || "No type"} •{" "}
+              {selectedMemberData.cityArea || "No city"}
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="dept-card quick-admin-card">
+        <div className="card-title-row">
+          <div>
+            <h2>{adminSearch ? "Search Results" : "Top Eligible Users"}</h2>
+            <p>
+              {adminSearch
+                ? "Best matching users are shown below."
+                : "Senior / higher-post users are shown first."}
+            </p>
+          </div>
+        </div>
+
+        <div className="quick-admin-list">
+          {searchedMembers.map((member) => (
+            <button
+              type="button"
+              key={member.id}
+              className={`quick-admin-chip ${
+                selectedMember === member.id ? "active" : ""
+              }`}
+              onClick={() => selectAdmin(member)}
             >
-              <option value="all">All Eligible</option>
-              <option value="senior">Senior Only</option>
-              <option value="junior">Junior</option>
-              <option value="intern">Intern</option>
-            </select>
+              <strong>{member.name}</strong>
+              <span>
+                {member.designation || "No designation"} •{" "}
+                {member.cityArea || "No city"}
+              </span>
+            </button>
+          ))}
 
-            <select
-              value={filters.designation}
-              onChange={(e) =>
-                setFilters({
-                  ...filters,
-                  designation: e.target.value,
-                  search: "",
-                })
-              }
-            >
-              <option value="all">All Designations</option>
-              {designations.map((designation) => (
-                <option key={designation} value={designation}>
-                  {designation}
-                </option>
-              ))}
-            </select>
-
-            <input
-              placeholder="Search any user by name / email / designation / city"
-              value={filters.search}
-              onChange={(e) =>
-                setFilters({
-                  ...filters,
-                  search: e.target.value,
-                })
-              }
-            />
-          </div>
-
-          <div className="filter-count-box">
-            <strong>{filteredMembers.length}</strong>
-            <span>
-              {filters.search ? "searched users found" : "eligible members found"}
-            </span>
-          </div>
+          {searchedMembers.length === 0 && (
+            <p className="empty-help">No user found with this name.</p>
+          )}
         </div>
       </div>
 
@@ -376,7 +327,7 @@ function ManageDepartments() {
                 <tr key={dept.id}>
                   <td>{dept.departmentName}</td>
                   <td>{dept.departmentType || "-"}</td>
-                  <td>{dept.departmentAdminName}</td>
+                  <td>{dept.departmentAdminName || "-"}</td>
                   <td>{dept.departmentAdminDesignation || "-"}</td>
                   <td>
                     {dept.departmentAdminSeniority

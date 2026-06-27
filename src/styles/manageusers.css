@@ -697,3 +697,275 @@
   color: #6b7280;
   font-size: 14px;
 }
+
+.users-top-grid {
+  display: block;
+}
+
+.manage-users-page {
+  padding: 28px;
+  background: #f6f8fc;
+}
+
+.users-header {
+  margin-bottom: 22px;
+}
+
+.users-header h1 {
+  font-size: 32px;
+  margin: 0;
+  color: #0f172a;
+  font-weight: 900;
+}
+
+.users-header p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.users-card {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 22px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 26px rgba(15, 23, 42, 0.05);
+}
+
+.card-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.card-title-row h2,
+.bulk-horizontal-card h2 {
+  margin: 0;
+  font-size: 22px;
+  color: #0f172a;
+  font-weight: 900;
+}
+
+.card-title-row p,
+.bulk-horizontal-card p {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.password-pill {
+  background: #eff6ff;
+  color: #2563eb;
+  padding: 9px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.clean-horizontal-form {
+  display: grid;
+  grid-template-columns: 1.1fr 1.2fr 1fr 0.8fr 1fr 0.9fr 0.9fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.clean-horizontal-form input,
+.clean-horizontal-form select {
+  height: 46px;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  padding: 0 12px;
+  outline: none;
+  font-weight: 700;
+  color: #334155;
+  background: #ffffff;
+}
+
+.clean-horizontal-form input:read-only {
+  background: #f8fafc;
+}
+
+.clean-horizontal-form button,
+.designation-clean-row button,
+.bulk-horizontal-actions button,
+.upload-btn-clean {
+  height: 46px;
+  border: none;
+  border-radius: 12px;
+  padding: 0 18px;
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 900;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.clean-horizontal-form .cancel-edit-btn {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.bulk-horizontal-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.bulk-horizontal-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.template-btn {
+  background: #0f172a !important;
+}
+
+.upload-btn-clean {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.upload-btn-clean input {
+  display: none;
+}
+
+.bulk-status {
+  margin: 0;
+  color: #15803d;
+  font-weight: 800;
+}
+
+.designation-clean-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.designation-clean-row input {
+  height: 46px;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  padding: 0 14px;
+  font-weight: 700;
+  outline: none;
+}
+
+.designation-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.designation-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #f1f5f9;
+  color: #334155;
+  padding: 9px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.designation-chip button {
+  border: none;
+  background: #e2e8f0;
+  color: #334155;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.users-table-wrap {
+  overflow-x: auto;
+}
+
+.users-table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.users-table-wrap th {
+  text-align: left;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 13px;
+  text-transform: uppercase;
+  padding: 14px;
+}
+
+.users-table-wrap td {
+  padding: 14px;
+  border-top: 1px solid #edf2f7;
+  color: #334155;
+  font-weight: 700;
+}
+
+.user-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.user-actions button {
+  border: none;
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.user-actions .danger {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+@media (max-width: 1300px) {
+  .clean-horizontal-form {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .clean-horizontal-form button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 800px) {
+  .manage-users-page {
+    padding: 18px;
+  }
+
+  .card-title-row,
+  .bulk-horizontal-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .clean-horizontal-form,
+  .designation-clean-row {
+    grid-template-columns: 1fr;
+  }
+
+  .bulk-horizontal-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .bulk-horizontal-actions button,
+  .upload-btn-clean {
+    width: 100%;
+  }
+}

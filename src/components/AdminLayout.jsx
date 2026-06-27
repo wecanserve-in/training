@@ -1,41 +1,51 @@
 import { Link, Outlet, useNavigate } from "react-router-dom";
-import { signOut } from "firebase/auth";
-
+import { signOut, onAuthStateChanged } from "firebase/auth";
 import { auth, database } from "../firebase";
 import { useEffect, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import "../styles/superadminlayout.css";
 
 function AdminLayout() {
   const navigate = useNavigate();
-  const [openLearning, setOpenLearning] = useState(false);
+
+  const [openTraining, setOpenTraining] = useState(true);
+  const [openReports, setOpenReports] = useState(true);
+  const [openMyLearning, setOpenMyLearning] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
   const handleLogout = async () => {
     await signOut(auth);
     navigate("/");
   };
 
-  const [currentUser, setCurrentUser] = useState(null);
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) {
+        setCurrentUser(null);
+        return;
+      }
 
-useEffect(() => {
-  const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-    if (!firebaseUser) {
-      setCurrentUser(null);
-      return;
-    }
+      try {
+        const snap = await get(ref(database, `users/${firebaseUser.uid}`));
 
-    try {
-      const snap = await get(ref(database, `users/${firebaseUser.uid}`));
+        if (snap.exists()) {
+          setCurrentUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            ...snap.val(),
+          });
+        } else {
+          setCurrentUser({
+            uid: firebaseUser.uid,
+            name: firebaseUser.displayName || firebaseUser.email,
+            email: firebaseUser.email,
+            role: "admin",
+          });
+        }
+      } catch (error) {
+        console.error("User profile fetch error:", error);
 
-      if (snap.exists()) {
-        setCurrentUser({
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          ...snap.val(),
-        });
-      } else {
         setCurrentUser({
           uid: firebaseUser.uid,
           name: firebaseUser.displayName || firebaseUser.email,
@@ -43,20 +53,10 @@ useEffect(() => {
           role: "admin",
         });
       }
-    } catch (error) {
-      console.error("User profile fetch error:", error);
+    });
 
-      setCurrentUser({
-        uid: firebaseUser.uid,
-        name: firebaseUser.displayName || firebaseUser.email,
-        email: firebaseUser.email,
-        role: "admin",
-      });
-    }
-  });
-
-  return () => unsubscribe();
-}, []);
+    return () => unsubscribe();
+  }, []);
 
   const closeMobileMenu = () => {
     setMobileOpen(false);
@@ -82,51 +82,121 @@ useEffect(() => {
           <img src="/Logo.webp" alt="Logo" />
         </div>
 
-      <div className="sidebar-profile">
-  <div className="profile-circle">
-    {(currentUser?.name || currentUser?.email || "A")
-      .charAt(0)
-      .toUpperCase()}
-  </div>
+        <div className="sidebar-profile">
+          <div className="profile-circle">
+            {(currentUser?.name || currentUser?.email || "A")
+              .charAt(0)
+              .toUpperCase()}
+          </div>
 
-  <h3>{currentUser?.name || currentUser?.email || "Admin"}</h3>
+          <h3>{currentUser?.name || currentUser?.email || "Admin"}</h3>
+          <p>{currentUser?.email || "Loading..."}</p>
 
-  <p>{currentUser?.email || "Loading user..."}</p>
+          <p>
+            {currentUser?.designation ||
+              (currentUser?.role === "admin"
+                ? "Admin"
+                : currentUser?.role === "superAdmin"
+                ? "Super Admin"
+                : "User")}
+          </p>
+        </div>
 
-  <p>
-    {currentUser?.designation ||
-      (currentUser?.role === "admin"
-        ? "Admin"
-        : currentUser?.role === "departmentAdmin"
-        ? "Department Admin"
-        : "User")}
-  </p>
-</div>
         <nav className="sidebar-menu">
-          <Link to="/admin" onClick={closeMobileMenu}>Dashboard</Link>
-          <Link to="/admin/users" onClick={closeMobileMenu}>Add Users</Link>
-          <Link to="/admin/departments" onClick={closeMobileMenu}>Manage Departments</Link>
-          <Link to="/admin/courses" onClick={closeMobileMenu}>Courses</Link>
-          <Link to="/admin/assignments" onClick={closeMobileMenu}>Assignments</Link>
-          <Link to="/admin/analytics" onClick={closeMobileMenu}>Analytics</Link>
-          <Link to="/admin/results" onClick={closeMobileMenu}>Reports</Link>
+          <Link to="/admin" onClick={closeMobileMenu}>
+            Home
+          </Link>
+
+          <Link to="/admin/users" onClick={closeMobileMenu}>
+            Users
+          </Link>
+
+          <Link to="/admin/departments" onClick={closeMobileMenu}>
+            Departments
+          </Link>
 
           <div className="sidebar-dropdown">
             <button
               type="button"
               className="dropdown-toggle"
-              onClick={() => setOpenLearning(!openLearning)}
+              onClick={() => setOpenTraining(!openTraining)}
             >
-              My Learnings
+              Training
             </button>
 
-            {openLearning && (
+            {openTraining && (
               <div className="dropdown-submenu">
-                <Link to="/admin/my-learnings" onClick={closeMobileMenu}>My Learnings</Link>
-                <Link to="/admin/assigned-courses" onClick={closeMobileMenu}>Assigned Courses</Link>
-                <Link to="/admin/my-results" onClick={closeMobileMenu}>My Results</Link>
-                <Link to="/admin/certificates" onClick={closeMobileMenu}>Certificates</Link>
-                <Link to="/admin/profile" onClick={closeMobileMenu}>Profile</Link>
+                <Link to="/admin/courses" onClick={closeMobileMenu}>
+                  Courses
+                </Link>
+
+                <Link to="/admin/video-library" onClick={closeMobileMenu}>
+                  Videos
+                </Link>
+
+                <Link to="/admin/assignments" onClick={closeMobileMenu}>
+                  Assign Course
+                </Link>
+              </div>
+            )}
+          </div>
+
+          <div className="sidebar-dropdown">
+            <button
+              type="button"
+              className="dropdown-toggle"
+              onClick={() => setOpenReports(!openReports)}
+            >
+              Reports
+            </button>
+
+            {openReports && (
+              <div className="dropdown-submenu">
+                <Link to="/admin/analytics" onClick={closeMobileMenu}>
+                  Progress Report
+                </Link>
+
+                <Link to="/admin/assignment-analytics" onClick={closeMobileMenu}>
+                  Assigned Users
+                </Link>
+
+                <Link to="/admin/results" onClick={closeMobileMenu}>
+                  Test Records
+                </Link>
+              </div>
+            )}
+          </div>
+
+          <div className="sidebar-dropdown">
+            <button
+              type="button"
+              className="dropdown-toggle"
+              onClick={() => setOpenMyLearning(!openMyLearning)}
+            >
+              My Courses
+            </button>
+
+            {openMyLearning && (
+              <div className="dropdown-submenu">
+                <Link to="/admin/assigned-courses" onClick={closeMobileMenu}>
+                  Assigned Courses
+                </Link>
+
+                <Link to="/admin/my-learnings" onClick={closeMobileMenu}>
+                  My Progress
+                </Link>
+
+                <Link to="/admin/my-results" onClick={closeMobileMenu}>
+                  My Test Results
+                </Link>
+
+                <Link to="/admin/certificates" onClick={closeMobileMenu}>
+                  My Certificates
+                </Link>
+
+                <Link to="/admin/profile" onClick={closeMobileMenu}>
+                  My Profile
+                </Link>
               </div>
             )}
           </div>

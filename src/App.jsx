@@ -65,7 +65,18 @@ function App() {
           <Route path="admins" element={<ManageAdmins />} />
           <Route path="users" element={<ManageUsers />} />
           <Route path="departments" element={<ManageDepartments />} />
+
           <Route path="analytics" element={<SuperAdminAnalytics />} />
+          <Route path="assignment-analytics" element={<DepartmentTrainingAnalytics />} />
+
+          <Route path="courses" element={<DepartmentCourses />} />
+          <Route path="add-course" element={<AddCourse />} />
+          <Route path="assignments" element={<DepartmentAssignTraining />} />
+
+          <Route path="video-library" element={<DepartmentVideoLibrary />} />
+          <Route path="video-library/upload" element={<DepartmentUploadVideo />} />
+
+          <Route path="results" element={<AdminResults />} />
 
           <Route path="my-learnings" element={<MyLearnings />} />
           <Route path="assigned-courses" element={<AssignedCourses />} />
@@ -91,9 +102,17 @@ function App() {
           <Route index element={<AdminDashboard />} />
           <Route path="users" element={<ManageUsers />} />
           <Route path="departments" element={<ManageDepartments />} />
+
           <Route path="analytics" element={<AdminAnalytics />} />
+          <Route path="assignment-analytics" element={<DepartmentTrainingAnalytics />} />
+
           <Route path="courses" element={<DepartmentCourses />} />
           <Route path="add-course" element={<AddCourse />} />
+          <Route path="assignments" element={<DepartmentAssignTraining />} />
+
+          <Route path="video-library" element={<DepartmentVideoLibrary />} />
+          <Route path="video-library/upload" element={<DepartmentUploadVideo />} />
+
           <Route path="videos" element={<ManageVideos />} />
           <Route path="add-video" element={<AddVideo />} />
           <Route path="questions" element={<ManageQuestions />} />
@@ -129,15 +148,16 @@ function App() {
           <Route path="courses" element={<DepartmentCourses />} />
           <Route path="courses/create" element={<AddCourse />} />
 
-          <Route path="videos" element={<ManageVideos />} />
-          <Route path="questions" element={<ManageQuestions />} />
-          <Route path="questions/add/:courseId" element={<AddQuestion />} />
           <Route path="assignments" element={<DepartmentAssignTraining />} />
-          <Route path="edit-video/:id" element={<EditVideo />} />
+          <Route path="analytics" element={<DepartmentTrainingAnalytics />} />
 
           <Route path="video-library" element={<DepartmentVideoLibrary />} />
           <Route path="video-library/upload" element={<DepartmentUploadVideo />} />
 
+          <Route path="videos" element={<ManageVideos />} />
+          <Route path="questions" element={<ManageQuestions />} />
+          <Route path="questions/add/:courseId" element={<AddQuestion />} />
+          <Route path="edit-video/:id" element={<EditVideo />} />
           <Route path="questions/edit/:courseId/:questionId" element={<EditQuestion />} />
 
           <Route path="my-learnings" element={<MyLearnings />} />
@@ -145,7 +165,7 @@ function App() {
           <Route path="my-results" element={<MyResults />} />
           <Route path="certificates" element={<Certificates />} />
           <Route path="profile" element={<Profile />} />
-<Route path="analytics" element={<DepartmentTrainingAnalytics />} />
+
           <Route path="course/:id" element={<CourseDetails />} />
           <Route path="video/:id" element={<VideoPage />} />
           <Route path="quiz/:id" element={<QuizPage />} />

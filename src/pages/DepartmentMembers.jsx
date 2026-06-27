@@ -12,15 +12,7 @@ function DepartmentMembers() {
   const [progress, setProgress] = useState({});
   const [completedCourses, setCompletedCourses] = useState({});
   const [results, setResults] = useState({});
-
   const [search, setSearch] = useState("");
-  const [courseFilter, setCourseFilter] = useState("");
-  const [zoneFilter, setZoneFilter] = useState("");
-  const [stateFilter, setStateFilter] = useState("");
-  const [cityFilter, setCityFilter] = useState("");
-  const [designationFilter, setDesignationFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-
   const [loading, setLoading] = useState(true);
 
   const getField = (obj, keys) => {
@@ -34,10 +26,8 @@ function DepartmentMembers() {
   };
 
   const keys = {
-    zone: ["zone", "Zone"],
-    state: ["state", "State"],
-    city: ["city", "City", "area", "Area", "location", "Location", "hq", "HQ"],
-    designation: ["designation", "userRole", "jobTitle", "roleTitle", "position"],
+    city: ["cityArea", "city", "City", "area", "Area", "location", "Location"],
+    designation: ["designation", "jobTitle", "roleTitle", "position"],
   };
 
   const loadData = async (adminData) => {
@@ -56,8 +46,8 @@ function DepartmentMembers() {
       : [];
 
     const normalUsers = allUsers.filter((user) => {
-      const role = user.role || "";
-      return role !== "admin" && role !== "superAdmin" && role !== "departmentAdmin";
+      const role = String(user.role || "").toLowerCase();
+      return !["admin", "superadmin", "departmentadmin"].includes(role);
     });
 
     const allCourses = coursesSnap.exists()
@@ -110,7 +100,7 @@ function DepartmentMembers() {
     const completed = completedCourses?.[userId]?.[courseId];
     const result = results?.[userId]?.[courseId];
 
-    if (!assigned) return "notAssigned";
+    if (!assigned) return "notStarted";
     if (completed?.passed || completed?.completed || result?.passed) return "completed";
 
     const userProgress = progress?.[userId] || {};
@@ -124,7 +114,6 @@ function DepartmentMembers() {
   const getUserProgress = (userId, courseId) => {
     const status = getUserStatus(userId, courseId);
     if (status === "completed") return 100;
-    if (status === "notStarted") return 0;
 
     const userProgress = progress?.[userId] || {};
     const values = Object.values(userProgress).map((p) => Number(p?.watchedPercent || 0));
@@ -181,63 +170,46 @@ function DepartmentMembers() {
     );
   }, [assignmentRows]);
 
-  const zoneOptions = [...new Set(users.map((u) => getField(u, keys.zone)).filter(Boolean))];
-  const stateOptions = [...new Set(users.map((u) => getField(u, keys.state)).filter(Boolean))];
-  const cityOptions = [...new Set(users.map((u) => getField(u, keys.city)).filter(Boolean))];
-  const designationOptions = [
-    ...new Set(users.map((u) => getField(u, keys.designation)).filter(Boolean)),
-  ];
+  const topPendingUser = useMemo(() => {
+    return [...assignmentRows]
+      .filter((row) => row.status === "notStarted")
+      .sort((a, b) => new Date(a.assignment?.assignedAt || 0) - new Date(b.assignment?.assignedAt || 0))[0];
+  }, [assignmentRows]);
+
+  const topInProgressUser = useMemo(() => {
+    return [...assignmentRows]
+      .filter((row) => row.status === "inProgress")
+      .sort((a, b) => b.progressPercent - a.progressPercent)[0];
+  }, [assignmentRows]);
+
+  const latestCompletedUser = useMemo(() => {
+    return [...assignmentRows].filter((row) => row.status === "completed")[0];
+  }, [assignmentRows]);
 
   const filteredRows = useMemo(() => {
+    const value = search.toLowerCase().trim();
+
+    if (!value) return assignmentRows;
+
     return assignmentRows.filter((row) => {
-      const zone = getField(row.user, keys.zone);
-      const state = getField(row.user, keys.state);
-      const city = getField(row.user, keys.city);
       const designation = getField(row.user, keys.designation);
+      const city = getField(row.user, keys.city);
 
       const searchText = [
         row.user.name,
         row.user.email,
         row.course.title,
         designation,
-        zone,
-        state,
         city,
+        row.status,
       ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
 
-      return (
-        searchText.includes(search.toLowerCase()) &&
-        (!courseFilter || row.courseId === courseFilter) &&
-        (!zoneFilter || zone === zoneFilter) &&
-        (!stateFilter || state === stateFilter) &&
-        (!cityFilter || city === cityFilter) &&
-        (!designationFilter || designation === designationFilter) &&
-        (!statusFilter || row.status === statusFilter)
-      );
+      return searchText.includes(value);
     });
-  }, [
-    assignmentRows,
-    search,
-    courseFilter,
-    zoneFilter,
-    stateFilter,
-    cityFilter,
-    designationFilter,
-    statusFilter,
-  ]);
-
-  const resetFilters = () => {
-    setSearch("");
-    setCourseFilter("");
-    setZoneFilter("");
-    setStateFilter("");
-    setCityFilter("");
-    setDesignationFilter("");
-    setStatusFilter("");
-  };
+  }, [assignmentRows, search]);
 
   const removeAssignment = async (userId, courseId) => {
     if (!window.confirm("Remove this course assignment?")) return;
@@ -258,15 +230,15 @@ function DepartmentMembers() {
 
   return (
     <div className="tracker-page">
-      <div className="tracker-header">
+      <div className="tracker-header clean-header">
         <div>
-          <span>Training Tracker</span>
-          <h1>Assigned Course Users</h1>
-          <p>Track who received which course and their current progress.</p>
+          <span>Department Training</span>
+          <h1>Assigned Users Tracker</h1>
+          <p>Quick view of assigned courses, user progress and pending follow-ups.</p>
         </div>
       </div>
 
-      <div className="tracker-stats-grid">
+      <div className="tracker-stats-grid clean-stats">
         <div className="tracker-stat blue">
           <h3>{stats.total}</h3>
           <p>Total Assigned</p>
@@ -288,69 +260,43 @@ function DepartmentMembers() {
         </div>
       </div>
 
-      <div className="tracker-card">
-        <div className="tracker-card-head">
-          <div>
-            <h2>Assigned List</h2>
-            <p>{filteredRows.length} of {assignmentRows.length} records showing</p>
-          </div>
+      <div className="priority-strip">
+        <div className="priority-card danger">
+          <span>Top Follow-up</span>
+          <strong>{topPendingUser?.user?.name || "No pending user"}</strong>
+          <p>{topPendingUser?.course?.title || "All users have started"}</p>
         </div>
 
-        <div className="tracker-filters">
+        <div className="priority-card warning">
+          <span>Highest In Progress</span>
+          <strong>{topInProgressUser?.user?.name || "No active user"}</strong>
+          <p>
+            {topInProgressUser
+              ? `${topInProgressUser.progressPercent}% completed`
+              : "No course in progress"}
+          </p>
+        </div>
+
+        <div className="priority-card success">
+          <span>Latest Completed</span>
+          <strong>{latestCompletedUser?.user?.name || "No completion yet"}</strong>
+          <p>{latestCompletedUser?.course?.title || "No completed course"}</p>
+        </div>
+      </div>
+
+      <div className="tracker-card">
+        <div className="tracker-card-head clean-table-head">
+          <div>
+            <h2>Course Assignment Records</h2>
+            <p>{filteredRows.length} of {assignmentRows.length} records showing</p>
+          </div>
+
           <input
-            placeholder="Search user, course, city, designation..."
+            className="quick-search-input"
+            placeholder="Search name, email, course, city..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-
-          <select value={courseFilter} onChange={(e) => setCourseFilter(e.target.value)}>
-            <option value="">All Courses</option>
-            {courses.map((course) => (
-              <option key={course.id} value={course.id}>
-                {course.title}
-              </option>
-            ))}
-          </select>
-
-          <select value={zoneFilter} onChange={(e) => setZoneFilter(e.target.value)}>
-            <option value="">All Zones</option>
-            {zoneOptions.map((zone) => (
-              <option key={zone} value={zone}>{zone}</option>
-            ))}
-          </select>
-
-          <select value={stateFilter} onChange={(e) => setStateFilter(e.target.value)}>
-            <option value="">All States</option>
-            {stateOptions.map((state) => (
-              <option key={state} value={state}>{state}</option>
-            ))}
-          </select>
-
-          <select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)}>
-            <option value="">All Cities</option>
-            {cityOptions.map((city) => (
-              <option key={city} value={city}>{city}</option>
-            ))}
-          </select>
-
-          <select
-            value={designationFilter}
-            onChange={(e) => setDesignationFilter(e.target.value)}
-          >
-            <option value="">All Designations</option>
-            {designationOptions.map((des) => (
-              <option key={des} value={des}>{des}</option>
-            ))}
-          </select>
-
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="">All Status</option>
-            <option value="notStarted">Not Started</option>
-            <option value="inProgress">In Progress</option>
-            <option value="completed">Completed</option>
-          </select>
-
-          <button type="button" onClick={resetFilters}>Reset</button>
         </div>
 
         <div className="tracker-table-wrap">
@@ -360,7 +306,7 @@ function DepartmentMembers() {
                 <th>User</th>
                 <th>Course</th>
                 <th>Designation</th>
-                <th>Location</th>
+                <th>City</th>
                 <th>Progress</th>
                 <th>Status</th>
                 <th>Assigned On</th>
@@ -378,14 +324,7 @@ function DepartmentMembers() {
               ) : (
                 filteredRows.map((row) => {
                   const designation = getField(row.user, keys.designation) || "-";
-                  const location =
-                    [
-                      getField(row.user, keys.city),
-                      getField(row.user, keys.state),
-                      getField(row.user, keys.zone),
-                    ]
-                      .filter(Boolean)
-                      .join(", ") || "-";
+                  const city = getField(row.user, keys.city) || "-";
 
                   return (
                     <tr key={row.id}>
@@ -394,6 +333,7 @@ function DepartmentMembers() {
                           <div className="tracker-avatar">
                             {(row.user.name || row.user.email || "U").charAt(0).toUpperCase()}
                           </div>
+
                           <div>
                             <strong>{row.user.name || "Unnamed User"}</strong>
                             <small>{row.user.email}</small>
@@ -407,7 +347,7 @@ function DepartmentMembers() {
                       </td>
 
                       <td>{designation}</td>
-                      <td>{location}</td>
+                      <td>{city}</td>
 
                       <td>
                         <div className="tracker-progress">
