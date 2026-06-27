@@ -7,20 +7,25 @@ import {
   sendPasswordResetEmail,
   updateProfile,
 } from "firebase/auth";
-import { ref, set, get, update, remove } from "firebase/database";
+import { ref, set, get, update, remove, push } from "firebase/database";
 import { auth } from "../firebase";
 import * as XLSX from "xlsx";
 import { database, firebaseConfig } from "../firebase";
-import { designations, locations } from "../data/masterData";
+import { locations } from "../data/masterData";
 import "../styles/manageusers.css";
 
 const DEFAULT_PASSWORD = "portal@123";
 
 function ManageUsers() {
   const [users, setUsers] = useState([]);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkStatus, setBulkStatus] = useState("");
   const [creating, setCreating] = useState(false);
-const [editingUserId, setEditingUserId] = useState(null);
+  const [editingUserId, setEditingUserId] = useState(null);
+
+  const [designations, setDesignations] = useState([]);
+  const [newDesignation, setNewDesignation] = useState("");
+
   const [uploadModal, setUploadModal] = useState({
     open: false,
     current: 0,
@@ -34,6 +39,7 @@ const [editingUserId, setEditingUserId] = useState(null);
     name: "",
     email: "",
     designation: "",
+    seniority: "",
     zone: "",
     state: "",
     cityArea: "",
@@ -41,17 +47,26 @@ const [editingUserId, setEditingUserId] = useState(null);
 
   const allCities = locations.flatMap((location) => location.cities);
 
-  const handleCityChange = (city) => {
-    const matchedLocation = locations.find((location) =>
-      location.cities.includes(city)
-    );
+  useEffect(() => {
+    fetchMasterData();
+    fetchUsers();
+  }, []);
 
-    setForm({
-      ...form,
-      cityArea: city,
-      zone: matchedLocation?.zone || "",
-      state: matchedLocation?.state || "",
-    });
+  const fetchMasterData = async () => {
+    const snap = await get(ref(database, "master/designations"));
+
+    if (snap.exists()) {
+      const data = snap.val();
+
+      setDesignations(
+        Object.entries(data).map(([id, item]) => ({
+          id,
+          ...item,
+        }))
+      );
+    } else {
+      setDesignations([]);
+    }
   };
 
   const fetchUsers = async () => {
@@ -67,15 +82,56 @@ const [editingUserId, setEditingUserId] = useState(null);
     setUsers(userList);
   };
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  const addDesignation = async () => {
+    const name = newDesignation.trim();
+    if (!name) return;
+
+    const exists = designations.some(
+      (item) => item.name.toLowerCase() === name.toLowerCase()
+    );
+
+    if (exists) {
+      alert("Designation already exists.");
+      return;
+    }
+
+    const newRef = push(ref(database, "master/designations"));
+
+    await set(newRef, {
+      name,
+      createdAt: new Date().toISOString(),
+    });
+
+    setNewDesignation("");
+    fetchMasterData();
+  };
+
+  const removeDesignation = async (id) => {
+    if (!window.confirm("Remove this designation?")) return;
+
+    await remove(ref(database, `master/designations/${id}`));
+    fetchMasterData();
+  };
+
+  const handleCityChange = (city) => {
+    const matchedLocation = locations.find((location) =>
+      location.cities.includes(city)
+    );
+
+    setForm({
+      ...form,
+      cityArea: city,
+      zone: matchedLocation?.zone || "",
+      state: matchedLocation?.state || "",
+    });
+  };
 
   const resetForm = () => {
     setForm({
       name: "",
       email: "",
       designation: "",
+      seniority: "",
       zone: "",
       state: "",
       cityArea: "",
@@ -87,6 +143,7 @@ const [editingUserId, setEditingUserId] = useState(null);
       !userData.name ||
       !userData.email ||
       !userData.designation ||
+      !userData.seniority ||
       !userData.cityArea
     ) {
       return { success: false, error: "Missing required fields" };
@@ -108,10 +165,12 @@ const [editingUserId, setEditingUserId] = useState(null);
       });
 
       await set(ref(database, `users/${userCredential.user.uid}`), {
+        uid: userCredential.user.uid,
         name: userData.name.trim(),
         email: userData.email.trim(),
         role: "user",
         designation: userData.designation.trim(),
+        seniority: userData.seniority,
         zone: userData.zone.trim(),
         state: userData.state.trim(),
         cityArea: userData.cityArea.trim(),
@@ -121,7 +180,6 @@ const [editingUserId, setEditingUserId] = useState(null);
       });
 
       await sendPasswordResetEmail(secondaryAuth, userData.email.trim());
-
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -147,19 +205,82 @@ const [editingUserId, setEditingUserId] = useState(null);
     setCreating(false);
   };
 
+  const updateExistingUser = async (e) => {
+    e.preventDefault();
+    if (!editingUserId) return;
+
+    try {
+      await update(ref(database, `users/${editingUserId}`), {
+        name: form.name.trim(),
+        designation: form.designation.trim(),
+        seniority: form.seniority,
+        zone: form.zone.trim(),
+        state: form.state.trim(),
+        cityArea: form.cityArea.trim(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      alert("User updated successfully.");
+      setEditingUserId(null);
+      resetForm();
+      fetchUsers();
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const startEditUser = (user) => {
+    setEditingUserId(user.id);
+
+    setForm({
+      name: user.name || "",
+      email: user.email || "",
+      designation: user.designation || "",
+      seniority: user.seniority || "",
+      zone: user.zone || "",
+      state: user.state || "",
+      cityArea: user.cityArea || "",
+    });
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const cancelEdit = () => {
+    setEditingUserId(null);
+    resetForm();
+  };
+
+  const deleteUser = async (uid) => {
+    if (!window.confirm("Remove this user from database?")) return;
+
+    try {
+      await remove(ref(database, `users/${uid}`));
+      alert("User removed from database.");
+      fetchUsers();
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  const resetUserPassword = async (email) => {
+    if (!window.confirm(`Send password reset email to ${email}?`)) return;
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      alert("Password reset email sent successfully.");
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
   const downloadTemplate = () => {
     const templateData = [
       {
         name: "Rahul Sharma",
         email: "rahul@example.com",
         designation: "Sales Executive",
+        seniority: "senior",
         cityArea: "Mumbai",
-      },
-      {
-        name: "Priya Mehta",
-        email: "priya@example.com",
-        designation: "Web Developer",
-        cityArea: "Navi Mumbai",
       },
     ];
 
@@ -212,6 +333,14 @@ const [editingUserId, setEditingUserId] = useState(null);
         name: row.name || row.Name || "",
         email: row.email || row.Email || "",
         designation: row.designation || row.Designation || "",
+        seniority:
+          row.seniority ||
+          row.Seniority ||
+          row.type ||
+          row.Type ||
+          row.category ||
+          row.Category ||
+          "",
         cityArea: city,
         zone: matchedLocation?.zone || "",
         state: matchedLocation?.state || "",
@@ -241,198 +370,191 @@ const [editingUserId, setEditingUserId] = useState(null);
     e.target.value = "";
   };
 
-  const startEditUser = (user) => {
-  setEditingUserId(user.id);
-
-  setForm({
-    name: user.name || "",
-    email: user.email || "",
-    designation: user.designation || "",
-    zone: user.zone || "",
-    state: user.state || "",
-    cityArea: user.cityArea || "",
-  });
-
-  window.scrollTo({
-    top: 0,
-    behavior: "smooth",
-  });
-};
-
-const cancelEdit = () => {
-  setEditingUserId(null);
-  resetForm();
-};
-
-const updateExistingUser = async (e) => {
-  e.preventDefault();
-
-  if (!editingUserId) return;
-
-  try {
-    await update(ref(database, `users/${editingUserId}`), {
-      name: form.name.trim(),
-      email: form.email.trim(),
-      designation: form.designation.trim(),
-      zone: form.zone.trim(),
-      state: form.state.trim(),
-      cityArea: form.cityArea.trim(),
-      updatedAt: new Date().toISOString(),
-    });
-
-    alert("User updated successfully.");
-
-    setEditingUserId(null);
-    resetForm();
-    fetchUsers();
-  } catch (error) {
-    alert(error.message);
-  }
-};
-
-const deleteUser = async (uid) => {
-  if (!window.confirm("Remove this user from database?")) return;
-
-  try {
-    await remove(ref(database, `users/${uid}`));
-    alert("User removed from database.");
-    fetchUsers();
-  } catch (error) {
-    alert(error.message);
-  }
-};
-
-const resetUserPassword = async (email) => {
-  if (!window.confirm(`Send password reset email to ${email}?`)) return;
-
-  try {
-    await sendPasswordResetEmail(auth, email);
-    alert("Password reset email sent successfully.");
-  } catch (error) {
-    alert(error.message);
-  }
-};
-
   return (
     <div className="manage-users-page">
       <div className="users-header">
         <div>
-          <Link to="/super-admin">← Back to Dashboard</Link>
-          <h1>User Master Data</h1>
-          <p>Create employees with designation, city, state and zone.</p>
+         
+          <h1>Users</h1>
+          <p>Create users, manage designations and employee seniority.</p>
         </div>
       </div>
 
-      <div className="users-card form-card">
+      <div className="users-top-grid">
+        <div className="users-card form-card">
+          <div className="card-title-row">
+            <div>
+              <h2>{editingUserId ? "Edit User" : "Add User"}</h2>
+              <p>
+                {editingUserId
+                  ? "Update employee details."
+                  : "Create one employee account."}
+              </p>
+            </div>
+
+            <span className="password-pill">Default: {DEFAULT_PASSWORD}</span>
+          </div>
+
+          <form
+            onSubmit={editingUserId ? updateExistingUser : createSingleUser}
+            className="users-form-grid"
+          >
+            <input
+              placeholder="Full Name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+            />
+
+            <input
+              placeholder="Email Address"
+              type="email"
+              value={form.email}
+              disabled={!!editingUserId}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              required
+            />
+
+            <select
+              value={form.designation}
+              onChange={(e) =>
+                setForm({ ...form, designation: e.target.value })
+              }
+              required
+            >
+              <option value="">Select Designation</option>
+              {designations.map((item) => (
+                <option key={item.id} value={item.name}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={form.seniority}
+              onChange={(e) => setForm({ ...form, seniority: e.target.value })}
+              required
+            >
+              <option value="">Select Type</option>
+              <option value="senior">Senior</option>
+              <option value="junior">Junior</option>
+              <option value="intern">Intern</option>
+            </select>
+
+            <select
+              value={form.cityArea}
+              onChange={(e) => handleCityChange(e.target.value)}
+              required
+            >
+              <option value="">Select City / Area</option>
+              {allCities.map((city) => (
+                <option key={city} value={city}>
+                  {city}
+                </option>
+              ))}
+            </select>
+
+            <input placeholder="State" value={form.state} readOnly required />
+            <input placeholder="Zone" value={form.zone} readOnly required />
+
+            <button type="submit" disabled={creating}>
+              {editingUserId
+                ? "Update User"
+                : creating
+                ? "Creating..."
+                : "Create User"}
+            </button>
+
+            {editingUserId && (
+              <button
+                type="button"
+                className="cancel-edit-btn"
+                onClick={cancelEdit}
+              >
+                Cancel
+              </button>
+            )}
+          </form>
+        </div>
+
+        <div className="users-card bulk-small-card">
+          <div className="bulk-head">
+            <div>
+              <h2>Bulk Upload</h2>
+              <p className="upload-help">
+                Upload multiple users using Excel. Required columns: name,
+                email, designation, seniority, cityArea.
+              </p>
+            </div>
+          </div>
+
+          <div className="bulk-actions">
+            <button className="template-btn" onClick={downloadTemplate}>
+              Download Template
+            </button>
+
+            <button
+              className="secondary-btn"
+              onClick={() => setBulkOpen(!bulkOpen)}
+            >
+              {bulkOpen ? "Hide Upload" : "Upload Excel"}
+            </button>
+          </div>
+
+          {bulkOpen && (
+            <label className="upload-compact">
+              <input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleBulkUpload}
+              />
+              <span>Select Excel File</span>
+            </label>
+          )}
+
+          {bulkStatus && <p className="bulk-status">{bulkStatus}</p>}
+        </div>
+      </div>
+
+      <div className="users-card master-card">
         <div className="card-title-row">
           <div>
-           <h2>{editingUserId ? "Edit User" : "Add Single User"}</h2>
-<p>
-  {editingUserId
-    ? "Update employee details."
-    : "Create one employee account with default password."}
-</p>
+            <h2>Designations</h2>
+            <p>Add designations only. Seniority is selected while adding user.</p>
           </div>
-
-          <span className="password-pill">Default: {DEFAULT_PASSWORD}</span>
         </div>
 
-        <form
-  onSubmit={editingUserId ? updateExistingUser : createSingleUser}
-  className="users-form-grid"
->
+        <div className="inline-add designation-add-row">
           <input
-            placeholder="Full Name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
+            placeholder="Add designation e.g. Manager, Sales Executive"
+            value={newDesignation}
+            onChange={(e) => setNewDesignation(e.target.value)}
           />
 
-         <input
-  placeholder="Email Address"
-  type="email"
-  value={form.email}
-  disabled={!!editingUserId}
-  onChange={(e) => setForm({ ...form, email: e.target.value })}
-  required
-/>
+          <button onClick={addDesignation}>Add</button>
+        </div>
 
-          <select
-            value={form.designation}
-            onChange={(e) => setForm({ ...form, designation: e.target.value })}
-            required
-          >
-            <option value="">Select Designation</option>
-            {designations.map((item) => (
-              <option key={item} value={item}>
-                {item}
-              </option>
-            ))}
-          </select>
+        <div className="designation-list-simple">
+          {designations.map((item) => (
+            <div className="designation-level-row" key={item.id}>
+              <span>{item.name}</span>
+              <button onClick={() => removeDesignation(item.id)}>×</button>
+            </div>
+          ))}
 
-          <select
-            value={form.cityArea}
-            onChange={(e) => handleCityChange(e.target.value)}
-            required
-          >
-            <option value="">Select City / Area</option>
-            {allCities.map((city) => (
-              <option key={city} value={city}>
-                {city}
-              </option>
-            ))}
-          </select>
-
-          <input placeholder="State Auto-filled" value={form.state} readOnly required />
-          <input placeholder="Zone Auto-filled" value={form.zone} readOnly required />
-
-        <button type="submit" disabled={creating}>
-  {editingUserId
-    ? "Update User"
-    : creating
-    ? "Creating..."
-    : "Create User"}
-</button>
-
-{editingUserId && (
-  <button type="button" className="cancel-edit-btn" onClick={cancelEdit}>
-    Cancel
-  </button>
-)}
-        </form>
+          {designations.length === 0 && (
+            <p className="empty-text">No designations added yet.</p>
+          )}
+        </div>
       </div>
 
       <div className="users-card">
-        <div className="bulk-head">
+        <div className="card-title-row">
           <div>
-            <h2>Bulk Upload Users</h2>
-            <p className="upload-help">
-              Excel columns required: name, email, designation, cityArea
-            </p>
+            <h2>Existing Users</h2>
+            <p>{users.length} users found</p>
           </div>
-
-          <button className="template-btn" onClick={downloadTemplate}>
-            Download Template
-          </button>
         </div>
-
-        <label className="upload-box">
-          <input
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            onChange={handleBulkUpload}
-          />
-
-          <div className="upload-icon">⬆</div>
-          <h3>Upload Excel File</h3>
-          <p>Click here to upload .xlsx, .xls or .csv user list</p>
-        </label>
-
-        {bulkStatus && <p className="bulk-status">{bulkStatus}</p>}
-      </div>
-
-      <div className="users-card">
-        <h2>Existing Users</h2>
 
         <div className="users-table-wrap">
           <table>
@@ -441,6 +563,7 @@ const resetUserPassword = async (email) => {
                 <th>Name</th>
                 <th>Email</th>
                 <th>Designation</th>
+                <th>Type</th>
                 <th>Zone</th>
                 <th>State</th>
                 <th>City / Area</th>
@@ -454,28 +577,35 @@ const resetUserPassword = async (email) => {
                   <td>{user.name}</td>
                   <td>{user.email}</td>
                   <td>{user.designation}</td>
+                  <td>
+                    {user.seniority
+                      ? user.seniority.charAt(0).toUpperCase() +
+                        user.seniority.slice(1)
+                      : "-"}
+                  </td>
                   <td>{user.zone}</td>
                   <td>{user.state}</td>
                   <td>{user.cityArea}</td>
                   <td>
-  <div className="user-actions">
-    <button onClick={() => startEditUser(user)}>Edit</button>
-
-    <button onClick={() => resetUserPassword(user.email)}>
-      Reset Password
-    </button>
-
-    <button className="danger" onClick={() => deleteUser(user.id)}>
-      Remove
-    </button>
-  </div>
-</td>
+                    <div className="user-actions">
+                      <button onClick={() => startEditUser(user)}>Edit</button>
+                      <button onClick={() => resetUserPassword(user.email)}>
+                        Reset
+                      </button>
+                      <button
+                        className="danger"
+                        onClick={() => deleteUser(user.id)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
 
               {users.length === 0 && (
                 <tr>
-                <td colSpan="7">No users created yet.</td>
+                  <td colSpan="8">No users created yet.</td>
                 </tr>
               )}
             </tbody>
@@ -487,13 +617,9 @@ const resetUserPassword = async (email) => {
         <div className="upload-modal-overlay">
           <div className="upload-modal">
             <div className="modal-loader"></div>
-
             <h2>
-              {uploadModal.status === "done"
-                ? "Upload Completed"
-                : "Adding Users"}
+              {uploadModal.status === "done" ? "Upload Completed" : "Adding Users"}
             </h2>
-
             <p>
               {uploadModal.status === "done"
                 ? `${uploadModal.success} users added, ${uploadModal.failed} failed.`

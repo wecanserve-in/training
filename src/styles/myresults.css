@@ -93,3 +93,22 @@
     min-width: 680px;
   }
 }
+
+.download-cert-btn,
+.retry-course-btn {
+  border: none;
+  padding: 9px 14px;
+  border-radius: 999px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.download-cert-btn {
+  background: #e8f5e9;
+  color: #188038;
+}
+
+.retry-course-btn {
+  background: #fff4d6;
+  color: #9a5b00;
+}

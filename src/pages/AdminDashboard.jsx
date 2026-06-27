@@ -1,97 +1,171 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ref, get } from "firebase/database";
 import { database } from "../firebase";
 import "../styles/admindashboard.css";
 
 function AdminDashboard() {
-  const [stats, setStats] = useState({
-    users: 0,
-    departments: 0,
-    courses: 0,
-    videos: 0,
-    questions: 0,
-    completed: 0,
-    certificates: 0,
-  });
+  const [users, setUsers] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [completedCourses, setCompletedCourses] = useState({});
+  const [results, setResults] = useState({});
+  const [assignments, setAssignments] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchStats = async () => {
-      const usersSnap = await get(ref(database, "users"));
-      const departmentsSnap = await get(ref(database, "departments"));
-      const coursesSnap = await get(ref(database, "courses"));
-      const videosSnap = await get(ref(database, "videos"));
-      const questionsSnap = await get(ref(database, "questions"));
-      const completedSnap = await get(ref(database, "completedCourses"));
-      const resultsSnap = await get(ref(database, "results"));
+    const fetchDashboardData = async () => {
+      try {
+        const [
+          usersSnap,
+          departmentsSnap,
+          coursesSnap,
+          completedSnap,
+          resultsSnap,
+          assignmentsSnap,
+        ] = await Promise.all([
+          get(ref(database, "users")),
+          get(ref(database, "departments")),
+          get(ref(database, "courses")),
+          get(ref(database, "completedCourses")),
+          get(ref(database, "results")),
+          get(ref(database, "assignments")),
+        ]);
 
-      const users = usersSnap.exists()
-        ? Object.values(usersSnap.val()).filter((u) => u.role !== "superAdmin")
-            .length
-        : 0;
+        setUsers(
+          usersSnap.exists()
+            ? Object.entries(usersSnap.val()).map(([id, user]) => ({
+                id,
+                ...user,
+              }))
+            : []
+        );
 
-      const departments = departmentsSnap.exists()
-        ? Object.keys(departmentsSnap.val()).length
-        : 0;
+        setDepartments(
+          departmentsSnap.exists()
+            ? Object.entries(departmentsSnap.val()).map(([id, dept]) => ({
+                id,
+                ...dept,
+              }))
+            : []
+        );
 
-      const courses = coursesSnap.exists()
-        ? Object.keys(coursesSnap.val()).length
-        : 0;
+        setCourses(
+          coursesSnap.exists()
+            ? Object.entries(coursesSnap.val()).map(([id, course]) => ({
+                id,
+                ...course,
+              }))
+            : []
+        );
 
-      const videos = videosSnap.exists()
-        ? Object.keys(videosSnap.val()).length
-        : 0;
+        setCompletedCourses(completedSnap.exists() ? completedSnap.val() : {});
+        setResults(resultsSnap.exists() ? resultsSnap.val() : {});
 
-      let questions = 0;
-      if (questionsSnap.exists()) {
-        Object.values(questionsSnap.val()).forEach((videoQuestions) => {
-          questions += Object.keys(videoQuestions).length;
-        });
+        setAssignments(
+          assignmentsSnap.exists()
+            ? Object.entries(assignmentsSnap.val()).map(([id, assignment]) => ({
+                id,
+                ...assignment,
+              }))
+            : []
+        );
+      } catch (error) {
+        alert(error.message);
       }
 
-      let completed = 0;
-      if (completedSnap.exists()) {
-        Object.values(completedSnap.val()).forEach((userCourses) => {
-          completed += Object.keys(userCourses).length;
-        });
-      }
-
-      let certificates = 0;
-      if (resultsSnap.exists()) {
-        Object.values(resultsSnap.val()).forEach((userResults) => {
-          Object.values(userResults).forEach((result) => {
-            if (result.passed) certificates += 1;
-          });
-        });
-      }
-
-      setStats({
-        users,
-        departments,
-        courses,
-        videos,
-        questions,
-        completed,
-        certificates,
-      });
+      setLoading(false);
     };
 
-    fetchStats();
+    fetchDashboardData();
   }, []);
 
-  const totalPossible = stats.users * stats.courses;
+  const employeeUsers = useMemo(() => {
+    return users.filter((user) => user.role !== "superAdmin");
+  }, [users]);
 
-  const completionRate =
-    totalPossible > 0
-      ? Math.min(Math.round((stats.completed / totalPossible) * 100), 100)
-      : 0;
+  const normalUsers = employeeUsers.filter((user) => user.role === "user");
+  const admins = employeeUsers.filter((user) => user.role === "admin");
+  const departmentAdmins = employeeUsers.filter(
+    (user) => user.role === "departmentAdmin"
+  );
+
+  const getCompletedCount = (userId) => {
+    if (!completedCourses[userId]) return 0;
+    return Object.keys(completedCourses[userId]).length;
+  };
+
+  const getCertificateCount = (userId) => {
+    if (!results[userId]) return 0;
+
+    return Object.values(results[userId]).filter((result) => result.passed)
+      .length;
+  };
+
+  
+
+  const totalCompleted = employeeUsers.reduce(
+    (total, user) => total + getCompletedCount(user.id),
+    0
+  );
+
+  const totalCertificates = employeeUsers.reduce(
+    (total, user) => total + getCertificateCount(user.id),
+    0
+  );
+
+ 
+const totalAssignedTrainings = assignments.length;
+
+const pendingTrainings = Math.max(
+  totalAssignedTrainings - totalCompleted,
+  0
+);
+
+const completionRate =
+  totalAssignedTrainings > 0
+    ? Math.round((totalCompleted / totalAssignedTrainings) * 100)
+    : 0;
+  
+
+  const assignedCourses = assignments.length;
+
+  const latestCourses = [...courses]
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+    .slice(0, 4);
+
+  const usersNeedingAttention = employeeUsers
+    .map((user) => {
+      const completed = getCompletedCount(user.id);
+      const completion =
+        courses.length > 0 ? Math.round((completed / courses.length) * 100) : 0;
+
+      return {
+        ...user,
+        completed,
+        completion,
+      };
+    })
+    .filter((user) => user.completion < 100)
+    .sort((a, b) => a.completion - b.completion)
+    .slice(0, 5);
+
+  const departmentSummary = departments.slice(0, 5);
+
+  if (loading) {
+    return (
+      <div className="admin-loading-box">
+        <h2>Loading dashboard...</h2>
+      </div>
+    );
+  }
 
   return (
-    <>
+    <div className="admin-dashboard-page">
       <div className="admin-topbar">
         <div>
           <h1>Admin Dashboard</h1>
-          <p>Manage users, courses, training assignments and reports.</p>
+          <p>Real-time overview of users, courses, assignments and training progress.</p>
         </div>
 
         <img src="/Logo.webp" alt="Logo" />
@@ -100,31 +174,31 @@ function AdminDashboard() {
       <div className="admin-kpi-grid">
         <div className="admin-kpi-card">
           <span>Total Users</span>
-          <h2>{stats.users}</h2>
+          <h2>{employeeUsers.length}</h2>
         </div>
 
         <div className="admin-kpi-card">
           <span>Departments</span>
-          <h2>{stats.departments}</h2>
+          <h2>{departments.length}</h2>
         </div>
 
         <div className="admin-kpi-card">
-          <span>Courses</span>
-          <h2>{stats.courses}</h2>
+          <span>Total Courses</span>
+          <h2>{courses.length}</h2>
         </div>
 
         <div className="admin-kpi-card">
-          <span>Videos</span>
-          <h2>{stats.videos}</h2>
+          <span>Assigned Trainings</span>
+          <h2>{assignedCourses}</h2>
         </div>
 
         <div className="admin-kpi-card">
-          <span>Questions</span>
-          <h2>{stats.questions}</h2>
+          <span>Pending Trainings</span>
+          <h2>{pendingTrainings}</h2>
         </div>
 
         <div className="admin-kpi-card primary">
-          <span>Completion</span>
+          <span>Completion Rate</span>
           <h2>{completionRate}%</h2>
         </div>
       </div>
@@ -139,20 +213,14 @@ function AdminDashboard() {
           <div className="admin-action-grid">
             <Link to="/admin/users">
               <h3>Manage Users</h3>
-              <p>Add, edit, remove and reset employee accounts.</p>
+              <p>Add employees, update details and reset passwords.</p>
               <strong>Open →</strong>
             </Link>
 
             <Link to="/admin/add-course">
               <h3>Create Course</h3>
-              <p>Create training course with videos and quiz.</p>
+              <p>Upload course videos, quiz and training content.</p>
               <strong>Create →</strong>
-            </Link>
-
-            <Link to="/admin/courses">
-              <h3>Manage Courses</h3>
-              <p>Edit courses, videos and questions from one place.</p>
-              <strong>Manage →</strong>
             </Link>
 
             <Link to="/admin/assignments">
@@ -160,30 +228,38 @@ function AdminDashboard() {
               <p>Assign courses by zone, state, city and designation.</p>
               <strong>Assign →</strong>
             </Link>
+
+            <Link to="/admin/results">
+              <h3>View Results</h3>
+              <p>Track completion, quiz performance and certificates.</p>
+              <strong>View →</strong>
+            </Link>
           </div>
         </div>
 
         <div className="admin-panel progress-panel">
           <div className="admin-panel-head">
-            <span>Overview</span>
-            <h2>Training Progress</h2>
+            <span>Progress</span>
+            <h2>Company Training Status</h2>
           </div>
 
           <div className="progress-circle">
             <div>{completionRate}%</div>
           </div>
 
-          <p>Overall company training completion rate.</p>
+        <p>
+  {totalCompleted} of {totalAssignedTrainings} assigned trainings completed.
+</p>
 
           <div className="mini-stats">
             <div>
               <span>Completed</span>
-              <strong>{stats.completed}</strong>
+              <strong>{totalCompleted}</strong>
             </div>
 
             <div>
               <span>Certificates</span>
-              <strong>{stats.certificates}</strong>
+              <strong>{totalCertificates}</strong>
             </div>
           </div>
         </div>
@@ -191,41 +267,104 @@ function AdminDashboard() {
 
       <div className="admin-bottom-grid">
         <div className="admin-panel">
-          <h2>Recommended Workflow</h2>
+          <div className="admin-panel-head">
+            <span>People</span>
+            <h2>User Breakdown</h2>
+          </div>
 
-          <div className="workflow-steps">
+          <div className="admin-breakdown-grid">
             <div>
-              <strong>01</strong>
-              <p>Create Users</p>
+              <span>Employees</span>
+              <strong>{normalUsers.length}</strong>
             </div>
 
             <div>
-              <strong>02</strong>
-              <p>Create Course</p>
+              <span>Admins</span>
+              <strong>{admins.length}</strong>
             </div>
 
             <div>
-              <strong>03</strong>
-              <p>Assign Training</p>
-            </div>
-
-            <div>
-              <strong>04</strong>
-              <p>Track Reports</p>
+              <span>Department Admins</span>
+              <strong>{departmentAdmins.length}</strong>
             </div>
           </div>
         </div>
 
         <div className="admin-panel">
-          <h2>Reports</h2>
+          <div className="admin-panel-head">
+            <span>Attention</span>
+            <h2>Users Needing Follow-up</h2>
+          </div>
 
-          <div className="report-links">
-            <Link to="/admin/results">View Training Results</Link>
-            <Link to="/dashboard">My Learnings</Link>
+          <div className="admin-user-list">
+            {usersNeedingAttention.map((user) => (
+              <div className="admin-user-row" key={user.id}>
+                <div>
+                  <strong>{user.name || "Unnamed User"}</strong>
+                  <span>{user.designation || "No designation"}</span>
+                </div>
+
+                <b>{user.completion}%</b>
+              </div>
+            ))}
+
+            {usersNeedingAttention.length === 0 && (
+              <p className="admin-empty-text">All users are fully completed.</p>
+            )}
           </div>
         </div>
       </div>
-    </>
+
+      <div className="admin-bottom-grid">
+        <div className="admin-panel">
+          <div className="admin-panel-head">
+            <span>Departments</span>
+            <h2>Department Admins</h2>
+          </div>
+
+          <div className="admin-user-list">
+            {departmentSummary.map((dept) => (
+              <div className="admin-user-row" key={dept.id}>
+                <div>
+                  <strong>{dept.departmentName || "-"}</strong>
+                  <span>{dept.departmentAdminName || "No admin assigned"}</span>
+                </div>
+
+                <b>{dept.departmentAdminDesignation || "-"}</b>
+              </div>
+            ))}
+
+            {departments.length === 0 && (
+              <p className="admin-empty-text">No departments created yet.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="admin-panel">
+          <div className="admin-panel-head">
+            <span>Courses</span>
+            <h2>Latest Courses</h2>
+          </div>
+
+          <div className="admin-user-list">
+            {latestCourses.map((course) => (
+              <div className="admin-user-row" key={course.id}>
+                <div>
+                  <strong>{course.title || course.courseName || "Untitled Course"}</strong>
+                  <span>{course.department || "General Training"}</span>
+                </div>
+
+                <b>{course.status || "Active"}</b>
+              </div>
+            ))}
+
+            {courses.length === 0 && (
+              <p className="admin-empty-text">No courses created yet.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

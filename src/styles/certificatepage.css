@@ -1,129 +1,234 @@
-/* ==========================================================================
-   Certificate Screen Layout Stylesheet - Employee Training Portal
-   ========================================================================== */
-
 .cert-page-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 40px 24px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background-color: #f8fafc;
   min-height: 100vh;
+  background: #f4f7fb;
+  padding: 28px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
   box-sizing: border-box;
+  animation: certPageFade 0.35s ease;
 }
 
-/* System Loading Indicator */
 .cert-status-msg {
-  text-align: center;
-  margin-top: 100px;
-  color: #64748b;
-  font-weight: 500;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1a73e8;
+  font-size: 24px;
+  font-weight: 800;
 }
 
-/* Header Section Formatting */
 .cert-header-actions {
+  max-width: 1180px;
+  margin: 0 auto 22px;
+  background: #ffffff;
+  border: 1px solid #dbe7f5;
+  border-radius: 22px;
+  padding: 22px 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 24px;
-  margin-bottom: 32px;
-  gap: 20px;
+  gap: 18px;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+  animation: certSlideDown 0.35s ease;
 }
 
 .cert-main-title {
-  font-size: 2rem;
-  font-weight: 700;
+  font-size: 30px;
+  font-weight: 900;
   color: #0f172a;
-  margin: 0 0 4px 0;
-  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+  letter-spacing: -0.03em;
 }
 
 .cert-subtitle {
-  font-size: 0.95rem;
+  font-size: 15px;
   color: #64748b;
   margin: 0;
+  line-height: 1.5;
 }
 
-/* Preview Area Box - Fixed to contain the 1600px scaling matrix */
 .cert-canvas-preview-frame {
+  max-width: 1180px;
+  margin: 0 auto;
   width: 100%;
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 40px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
-  margin-bottom: 24px;
-  
-  /* Layout constraints preventing layout engine overflow bleed */
+  height: 660px;
+  background: #ffffff;
+  border: 1px solid #dbe7f5;
+  border-radius: 24px;
+  padding: 36px;
   overflow: hidden;
-  height: 660px; /* Aligns visually with the 1100px canvas scale height */
   display: flex;
   justify-content: center;
   align-items: flex-start;
   box-sizing: border-box;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+  position: relative;
+  animation: certCardUp 0.4s ease;
 }
 
-/* Canvas Element Wrapper Frame Box */
+.cert-canvas-preview-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 5px;
+  background: linear-gradient(90deg, #1a73e8, #34a853, #fbbc04);
+}
+
+.cert-canvas-preview-frame::after {
+  content: "Certificate Preview";
+  position: absolute;
+  top: 18px;
+  left: 24px;
+  background: #eef4ff;
+  color: #1a73e8;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
 .cert-canvas-element {
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
-  border-radius: 4px;
+  box-shadow: 0 24px 55px rgba(15, 23, 42, 0.18);
+  border-radius: 10px;
   background-color: #ffffff;
-  flex-shrink: 0; /* Keeps the scale wrapper from squeezing on window shrink */
+  flex-shrink: 0;
+  transition: 0.35s ease;
 }
 
-/* Execution Button Trigger Footer Bar Layout */
+.cert-canvas-element:hover {
+  transform: scale(0.555) translateY(-4px) !important;
+}
+
 .cert-trigger-footer {
-  text-align: center;
-  margin-top: 0; /* Reset negative layout bounds completely */
-  padding: 24px 0 60px 0;
+  max-width: 1180px;
+  margin: 22px auto 0;
+  background: #ffffff;
+  border: 1px solid #dbe7f5;
+  border-radius: 22px;
+  padding: 18px;
+  display: flex;
+  justify-content: center;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.05);
 }
 
-/* Interactive Control Interface Elements */
-.btn-cert-primary {
-  padding: 16px 40px;
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: #ffffff;
-  background-color: #2563eb; /* Platform Identity Blue */
+.btn-cert-primary,
+.btn-cert-secondary {
   border: none;
-  border-radius: 8px;
+  border-radius: 999px;
+  font-weight: 900;
   cursor: pointer;
-  transition: background-color 0.15s ease;
-  box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.2);
+  transition: 0.25s ease;
+}
+
+.btn-cert-primary {
+  min-width: 260px;
+  height: 54px;
+  padding: 0 28px;
+  font-size: 15px;
+  color: #ffffff;
+  background: #1a73e8;
+  box-shadow: 0 10px 22px rgba(26, 115, 232, 0.22);
 }
 
 .btn-cert-primary:hover {
-  background-color: #1d4ed8;
+  transform: translateY(-2px);
+  background: #155fc0;
+  box-shadow: 0 14px 28px rgba(26, 115, 232, 0.28);
 }
 
 .btn-cert-secondary {
-  padding: 10px 20px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #475569;
-  background-color: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.15s ease;
+  height: 46px;
+  padding: 0 20px;
+  font-size: 14px;
+  color: #1a73e8;
+  background: #eef4ff;
+  border: 1px solid #d7e5ff;
 }
 
 .btn-cert-secondary:hover {
-  background-color: #f1f5f9;
-  color: #0f172a;
-  border-color: #94a3b8;
+  transform: translateY(-2px);
+  background: #1a73e8;
+  color: #ffffff;
 }
 
-/* Responsive Media Handling overrides */
-@media (max-width: 768px) {
+@keyframes certPageFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes certSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes certCardUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 900px) {
+  .cert-page-container {
+    padding: 18px;
+  }
+
   .cert-header-actions {
     flex-direction: column;
     align-items: flex-start;
-    gap: 16px;
   }
+
   .btn-cert-secondary {
     width: 100%;
-    text-align: center;
+  }
+
+  .cert-canvas-preview-frame {
+    height: 520px;
+    padding: 28px 18px;
+  }
+
+  .cert-canvas-element {
+    transform: scale(0.42) !important;
+    transform-origin: top center !important;
+  }
+
+  .cert-canvas-element:hover {
+    transform: scale(0.425) translateY(-4px) !important;
+  }
+
+  .btn-cert-primary {
+    width: 100%;
+  }
+}
+
+@media (max-width: 600px) {
+  .cert-main-title {
+    font-size: 24px;
+  }
+
+  .cert-canvas-preview-frame {
+    height: 390px;
+  }
+
+  .cert-canvas-element {
+    transform: scale(0.29) !important;
+  }
+
+  .cert-canvas-element:hover {
+    transform: scale(0.292) translateY(-4px) !important;
   }
 }

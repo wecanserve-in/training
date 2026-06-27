@@ -10,10 +10,8 @@ import {
   FaClock,
   FaCheckCircle,
   FaCertificate,
+  FaPlay,
 } from "react-icons/fa";
-
-
-const ADMIN_EMAIL = "wemedialabs@gmail.com";
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -34,104 +32,118 @@ function Dashboard() {
       }
 
       try {
-        const isAdmin = user.email === ADMIN_EMAIL;
-
-        const userSnapshot = await get(ref(database, `users/${user.uid}`));
-        if (userSnapshot.exists()) {
-          setUserData({ id: user.uid, ...userSnapshot.val() });
-        }
-
         const [
+          userSnapshot,
+          assignmentsSnapshot,
           resultsSnapshot,
           completedSnapshot,
           progressSnapshot,
           coursesSnapshot,
           videosSnapshot,
+          courseVideosSnapshot,
+          videoLibrarySnapshot,
         ] = await Promise.all([
+          get(ref(database, `users/${user.uid}`)),
+          get(ref(database, `userAssignments/${user.uid}`)),
           get(ref(database, `results/${user.uid}`)),
           get(ref(database, `completedCourses/${user.uid}`)),
           get(ref(database, `progress/${user.uid}`)),
           get(ref(database, "courses")),
           get(ref(database, "videos")),
+          get(ref(database, "courseVideos")),
+          get(ref(database, "videoLibrary")),
         ]);
 
-        const userResults = resultsSnapshot.exists()
-          ? resultsSnapshot.val()
-          : {};
+        if (userSnapshot.exists()) {
+          setUserData({ id: user.uid, email: user.email, ...userSnapshot.val() });
+        }
+
+        const userResults = resultsSnapshot.exists() ? resultsSnapshot.val() : {};
         const userCompletedCourses = completedSnapshot.exists()
           ? completedSnapshot.val()
           : {};
-        const userProgress = progressSnapshot.exists()
-          ? progressSnapshot.val()
-          : {};
+        const userProgress = progressSnapshot.exists() ? progressSnapshot.val() : {};
 
         setResults(userResults);
         setCompletedCourses(userCompletedCourses);
         setProgressMap(userProgress);
 
-        if (!coursesSnapshot.exists()) {
+        if (!assignmentsSnapshot.exists() || !coursesSnapshot.exists()) {
           setCourses([]);
           setCourseVideosMap({});
           setLoading(false);
           return;
         }
 
-        const allCoursesData = coursesSnapshot.val();
+        const assignments = assignmentsSnapshot.val();
+        const allCourses = coursesSnapshot.val();
 
-        let courseArray = [];
+        const assignedCourseIds = Object.keys(assignments).filter(
+          (courseId) => assignments[courseId]?.assigned
+        );
 
-        if (isAdmin) {
-          courseArray = Object.keys(allCoursesData).map((key) => ({
-            id: key,
-            ...allCoursesData[key],
-          }));
-        } else {
-          const assignmentsSnapshot = await get(
-            ref(database, `userAssignments/${user.uid}`)
-          );
+        const courseArray = assignedCourseIds
+          .map((courseId) => ({
+            id: courseId,
+            ...allCourses[courseId],
+            assignment: assignments[courseId],
+          }))
+          .filter((course) => course.title || course.courseTitle);
 
-          if (!assignmentsSnapshot.exists()) {
-            setCourses([]);
-            setCourseVideosMap({});
-            setLoading(false);
-            return;
-          }
-
-          const assignmentData = assignmentsSnapshot.val();
-
-          const assignedCourseIds = Object.keys(assignmentData).filter(
-            (courseId) => assignmentData[courseId]?.assigned
-          );
-
-          courseArray = assignedCourseIds
-            .map((courseId) => ({
-              id: courseId,
-              ...allCoursesData[courseId],
-              assignment: assignmentData[courseId],
+        const oldVideos = videosSnapshot.exists()
+          ? Object.entries(videosSnapshot.val()).map(([videoId, video]) => ({
+              id: videoId,
+              ...video,
             }))
-            .filter((course) => course.title || course.courseTitle);
-        }
+          : [];
+
+        const libraryVideos = videoLibrarySnapshot.exists()
+          ? Object.entries(videoLibrarySnapshot.val()).map(([videoId, video]) => ({
+              id: videoId,
+              ...video,
+            }))
+          : [];
+
+        const courseVideosData = courseVideosSnapshot.exists()
+          ? courseVideosSnapshot.val()
+          : {};
 
         const map = {};
 
-        if (videosSnapshot.exists()) {
-          const allVideos = Object.entries(videosSnapshot.val()).map(
-            ([videoId, video]) => ({
-              id: videoId,
-              ...video,
-            })
-          );
+        courseArray.forEach((course) => {
+          const mappedVideos = courseVideosData?.[course.id]
+            ? Object.entries(courseVideosData[course.id]).map(([videoId, video]) => ({
+                id: videoId,
+                ...video,
+              }))
+            : [];
 
-          courseArray.forEach((course) => {
-            map[course.id] = allVideos
-              .filter((video) => video.courseId === course.id)
-              .sort(
-                (a, b) =>
-                  new Date(a.createdAt || 0).getTime() -
-                  new Date(b.createdAt || 0).getTime()
-              );
-          });
-        }
+          if (mappedVideos.length > 0) {
+            map[course.id] = mappedVideos.sort((a, b) => (a.order || 0) - (b.order || 0));
+            return;
+          }
+
+          if (Array.isArray(course.videoIds) && course.videoIds.length > 0) {
+            map[course.id] = course.videoIds
+              .map((videoId) => libraryVideos.find((video) => video.id === videoId))
+              .filter(Boolean);
+            return;
+          }
+
+          map[course.id] = oldVideos
+            .filter((video) => video.courseId === course.id)
+            .sort(
+              (a, b) =>
+                new Date(a.createdAt || 0).getTime() -
+                new Date(b.createdAt || 0).getTime()
+            );
+        });
+
+        courseArray.sort(
+          (a, b) =>
+            new Date(b.assignment?.assignedAt || b.createdAt || 0) -
+            new Date(a.assignment?.assignedAt || a.createdAt || 0)
+        );
 
         setCourses(courseArray);
         setCourseVideosMap(map);
@@ -147,30 +159,34 @@ function Dashboard() {
   }, [navigate]);
 
   const getCourseProgress = (courseId) => {
-    if (completedCourses?.[courseId]) return 100;
+    if (completedCourses?.[courseId]?.passed || completedCourses?.[courseId]?.completed) {
+      return 100;
+    }
 
     const courseVideos = courseVideosMap[courseId] || [];
-
     if (courseVideos.length === 0) return 0;
 
-    const completedVideoCount = courseVideos.filter(
-      (video) => progressMap?.[video.id]?.completed
-    ).length;
+    const total = courseVideos.reduce((sum, video) => {
+      const progress = progressMap?.[video.id];
 
-    return Math.round((completedVideoCount / courseVideos.length) * 100);
+      if (progress?.completed) return sum + 100;
+
+      return sum + Number(progress?.watchedPercent || 0);
+    }, 0);
+
+    return Math.round(total / courseVideos.length);
   };
 
   const getCourseStatus = (courseId) => {
     const progress = getCourseProgress(courseId);
 
-    if (progress >= 100) return "Completed";
-    if (progress > 0) return "In Progress";
-    return "Not Started";
+    if (progress >= 100) return "completed";
+    if (progress > 0) return "inProgress";
+    return "notStarted";
   };
 
   const getNextVideoId = (courseId) => {
     const courseVideos = courseVideosMap[courseId] || [];
-
     if (courseVideos.length === 0) return null;
 
     const nextVideo = courseVideos.find(
@@ -180,11 +196,21 @@ function Dashboard() {
     return nextVideo?.id || courseVideos[0]?.id || null;
   };
 
+  const getCourseThumbnail = (course) => {
+    if (course.thumbnailUrl) return course.thumbnailUrl;
+    if (course.courseThumbnail) return course.courseThumbnail;
+    if (course.assignment?.courseThumbnail) return course.assignment.courseThumbnail;
+
+    const videos = courseVideosMap[course.id] || [];
+    const videoWithThumb = videos.find((video) => video.thumbnailUrl);
+
+    return videoWithThumb?.thumbnailUrl || "";
+  };
+
   const totalCourses = courses.length;
 
   const completedCount = useMemo(() => {
-    return courses.filter((course) => getCourseProgress(course.id) >= 100)
-      .length;
+    return courses.filter((course) => getCourseProgress(course.id) >= 100).length;
   }, [courses, courseVideosMap, progressMap, completedCourses]);
 
   const inProgressCount = useMemo(() => {
@@ -194,10 +220,7 @@ function Dashboard() {
     }).length;
   }, [courses, courseVideosMap, progressMap, completedCourses]);
 
-  const notStartedCount = Math.max(
-    totalCourses - completedCount - inProgressCount,
-    0
-  );
+  const notStartedCount = Math.max(totalCourses - completedCount - inProgressCount, 0);
 
   const passedCount = useMemo(() => {
     return courses.filter((course) => {
@@ -210,43 +233,66 @@ function Dashboard() {
   const progressPercent =
     totalCourses > 0 ? Math.round((completedCount / totalCourses) * 100) : 0;
 
-  const continueLearning = useMemo(() => {
-    const incompleteCourses = courses
-      .filter((course) => getCourseProgress(course.id) < 100)
+  const allVideosFlat = useMemo(() => {
+    return courses.flatMap((course) => {
+      const videos = courseVideosMap[course.id] || [];
+
+      return videos.map((video) => ({
+        ...video,
+        courseId: course.id,
+        courseTitle: course.title || course.courseTitle,
+        courseThumbnail: getCourseThumbnail(course),
+        courseAssignedAt: course.assignment?.assignedAt || course.createdAt,
+      }));
+    });
+  }, [courses, courseVideosMap, completedCourses, progressMap]);
+
+  const continueVideo = useMemo(() => {
+    const watchedVideos = allVideosFlat
+      .map((video) => ({
+        ...video,
+        progress: progressMap?.[video.id] || {},
+        watchedPercent: Number(progressMap?.[video.id]?.watchedPercent || 0),
+      }))
+      .filter((video) => video.watchedPercent > 0 && !video.progress?.completed)
       .sort((a, b) => {
-        const progressA = getCourseProgress(a.id);
-        const progressB = getCourseProgress(b.id);
-
-        if (progressB !== progressA) return progressB - progressA;
-
-        const dateA = new Date(
-          a.assignment?.assignedAt || a.createdAt || 0
-        ).getTime();
-
-        const dateB = new Date(
-          b.assignment?.assignedAt || b.createdAt || 0
-        ).getTime();
-
-        return dateB - dateA;
+        const aTime = new Date(a.progress?.updatedAt || a.progress?.lastWatchedAt || 0).getTime();
+        const bTime = new Date(b.progress?.updatedAt || b.progress?.lastWatchedAt || 0).getTime();
+        return bTime - aTime;
       });
 
-    return incompleteCourses[0] || null;
-  }, [courses, courseVideosMap, progressMap, completedCourses]);
+    if (watchedVideos.length > 0) return watchedVideos[0];
 
-  const latestCourses = useMemo(() => {
+    const firstNotStartedCourse = courses.find((course) => getCourseProgress(course.id) < 100);
+    const firstVideo = firstNotStartedCourse
+      ? (courseVideosMap[firstNotStartedCourse.id] || [])[0]
+      : null;
+
+    if (!firstVideo) return null;
+
+    return {
+      ...firstVideo,
+      courseId: firstNotStartedCourse.id,
+      courseTitle: firstNotStartedCourse.title || firstNotStartedCourse.courseTitle,
+      courseThumbnail: getCourseThumbnail(firstNotStartedCourse),
+      watchedPercent: 0,
+    };
+  }, [allVideosFlat, progressMap, courses, courseVideosMap]);
+
+  const quickVideos = useMemo(() => {
+    return allVideosFlat
+      .filter((video) => !progressMap?.[video.id]?.completed)
+      .slice(0, 5);
+  }, [allVideosFlat, progressMap]);
+
+  const newlyAssignedCourses = useMemo(() => {
     return [...courses]
-      .sort((a, b) => {
-        const dateA = new Date(
-          a.assignment?.assignedAt || a.createdAt || 0
-        ).getTime();
-
-        const dateB = new Date(
-          b.assignment?.assignedAt || b.createdAt || 0
-        ).getTime();
-
-        return dateB - dateA;
-      })
-      .slice(0, 3);
+      .sort(
+        (a, b) =>
+          new Date(b.assignment?.assignedAt || b.createdAt || 0) -
+          new Date(a.assignment?.assignedAt || a.createdAt || 0)
+      )
+      .slice(0, 4);
   }, [courses]);
 
   if (loading) {
@@ -255,10 +301,11 @@ function Dashboard() {
 
   return (
     <div className="learner-dashboard-page">
-      <div className="learner-topbar">
+      <div className="learner-topbar enhanced-dashboard-top">
         <div>
+          <span>My Dashboard</span>
           <h1>Welcome back, {userData?.name || "Learner"}</h1>
-          <p>Keep learning and grow every day.</p>
+          <p>Your learning progress and next training are ready.</p>
         </div>
 
         <div className="learner-avatar">
@@ -266,175 +313,183 @@ function Dashboard() {
         </div>
       </div>
 
-      <div className="learner-stat-grid">
-        <div className="learner-stat-card">
-          <div className="stat-icon green">
-  <FaBookOpen />
-</div>
+      <div className="performance-section">
+        <div className="performance-head">
           <div>
-            <span>Assigned Courses</span>
-            <h2>{totalCourses}</h2>
+            <h2>My Performance</h2>
+            <p>Only important learning numbers.</p>
           </div>
+
+          <div className="overall-pill">{progressPercent}% Overall</div>
         </div>
 
-        <div className="learner-stat-card">
-          <div className="stat-icon blue">
-  <FaClock />
-</div>
-          <div>
-            <span>In Progress</span>
-            <h2>{inProgressCount}</h2>
-          </div>
-        </div>
-
-        <div className="learner-stat-card">
-          <div className="stat-icon green"><FaCheckCircle /></div>
-          <div>
-            <span>Completed</span>
-            <h2>{completedCount}</h2>
-          </div>
-        </div>
-
-        <div className="learner-stat-card">
-          <div className="stat-icon yellow">  <FaCertificate /></div>
-          <div>
-            <span>Certificates Earned</span>
-            <h2>{passedCount}</h2>
-          </div>
-        </div>
-      </div>
-
-      <div className="learner-mid-grid">
-        <div className="learner-panel continue-panel">
-          <h2>Continue Learning</h2>
-
-          {continueLearning ? (
-            <div className="continue-box">
-              <div className="course-icon-box">
-                {(continueLearning.title || continueLearning.courseTitle || "C")
-                  .charAt(0)
-                  .toUpperCase()}
-              </div>
-
-              <div className="continue-info">
-                <h3>
-                  {continueLearning.title || continueLearning.courseTitle}
-                </h3>
-
-                <span>Progress</span>
-
-                <div className="mini-progress">
-                  <span
-                    style={{
-                      width: `${getCourseProgress(continueLearning.id)}%`,
-                    }}
-                  ></span>
-                </div>
-              </div>
-
-              <strong>{getCourseProgress(continueLearning.id)}%</strong>
-
-              <Link
-                to={
-                  getNextVideoId(continueLearning.id)
-                    ? `/video/${getNextVideoId(continueLearning.id)}`
-                    : `/course/${continueLearning.id}`
-                }
-              >
-                <button>Continue</button>
-              </Link>
+        <div className="learner-stat-grid performance-grid">
+          <div className="learner-stat-card">
+            <div className="stat-icon blue">
+              <FaBookOpen />
             </div>
-          ) : (
-            <p className="no-data-msg">All courses completed.</p>
-          )}
-        </div>
-
-        <div className="learner-panel progress-panel">
-          <h2>Overall Progress</h2>
-
-          <div className="progress-content">
-            <div
-              className="dashboard-progress-ring"
-              style={{
-                background: `conic-gradient(#0f9d58 ${progressPercent}%, #edf1f5 0)`,
-              }}
-            >
-              <div>
-                <strong>{progressPercent}%</strong>
-                <span>Overall Completion</span>
-              </div>
+            <div>
+              <span>Assigned</span>
+              <h2>{totalCourses}</h2>
             </div>
+          </div>
 
-            <div className="progress-legend">
-              <p>
-                <span className="dot green"></span>Completed{" "}
-                <strong>{completedCount}</strong>
-              </p>
+          <div className="learner-stat-card">
+            <div className="stat-icon yellow">
+              <FaClock />
+            </div>
+            <div>
+              <span>In Progress</span>
+              <h2>{inProgressCount}</h2>
+            </div>
+          </div>
 
-              <p>
-                <span className="dot blue"></span>In Progress{" "}
-                <strong>{inProgressCount}</strong>
-              </p>
+          <div className="learner-stat-card">
+            <div className="stat-icon green">
+              <FaCheckCircle />
+            </div>
+            <div>
+              <span>Completed</span>
+              <h2>{completedCount}</h2>
+            </div>
+          </div>
 
-              <p>
-                <span className="dot grey"></span>Not Started{" "}
-                <strong>{notStartedCount}</strong>
-              </p>
+          <div className="learner-stat-card">
+            <div className="stat-icon red">
+              <FaCertificate />
+            </div>
+            <div>
+              <span>Certificates</span>
+              <h2>{passedCount}</h2>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="learner-panel">
+      <div className="continue-learning-section">
         <div className="panel-head-row">
-          <h2>Recently Assigned Courses</h2>
+          <div>
+            <h2>Continue Learning</h2>
+            <p>Resume your latest video.</p>
+          </div>
+
+          <Link to="/assigned-courses">View All Courses</Link>
+        </div>
+
+        {continueVideo ? (
+          <div className="featured-video-card">
+            <div className="featured-video-thumb">
+              {continueVideo.thumbnailUrl || continueVideo.courseThumbnail ? (
+                <img
+                  src={continueVideo.thumbnailUrl || continueVideo.courseThumbnail}
+                  alt={continueVideo.title}
+                />
+              ) : (
+                <div>
+                  <FaPlay />
+                </div>
+              )}
+            </div>
+
+            <div className="featured-video-info">
+              <span>{continueVideo.courseTitle}</span>
+              <h3>{continueVideo.title}</h3>
+              <p>{continueVideo.description || "Continue your training video."}</p>
+
+              <div className="featured-progress">
+                <div>
+                  <span style={{ width: `${continueVideo.watchedPercent || 0}%` }}></span>
+                </div>
+                <strong>{continueVideo.watchedPercent || 0}%</strong>
+              </div>
+            </div>
+
+<Link to={`/course/${continueVideo.courseId}`}>
+              <button>Continue</button>
+            </Link>
+          </div>
+        ) : (
+          <div className="empty-dashboard-card">
+            <h3>No video to continue</h3>
+            <p>Newly assigned courses will appear below.</p>
+          </div>
+        )}
+
+        {quickVideos.length > 0 && (
+          <div className="quick-video-row">
+            {quickVideos.map((video) => (
+              <Link to={`/video/${video.id}`} className="quick-video-card" key={video.id}>
+                <div>
+                  {video.thumbnailUrl || video.courseThumbnail ? (
+                    <img
+                      src={video.thumbnailUrl || video.courseThumbnail}
+                      alt={video.title}
+                    />
+                  ) : (
+                    <span>
+                      <FaPlay />
+                    </span>
+                  )}
+                </div>
+
+                <h4>{video.title}</h4>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="new-courses-section">
+        <div className="panel-head-row">
+          <div>
+            <h2>Newly Assigned Courses</h2>
+            <p>Latest courses assigned to you.</p>
+          </div>
+
           <Link to="/assigned-courses">View All</Link>
         </div>
 
-        {latestCourses.length === 0 ? (
-          <p className="no-data-msg">No courses assigned yet.</p>
+        {newlyAssignedCourses.length === 0 ? (
+          <div className="empty-dashboard-card">
+            <h3>No courses assigned yet</h3>
+            <p>Your assigned courses will appear here.</p>
+          </div>
         ) : (
-          <div className="course-list-table">
-            {latestCourses.map((course) => {
+          <div className="new-course-grid">
+            {newlyAssignedCourses.map((course) => {
               const progress = getCourseProgress(course.id);
               const status = getCourseStatus(course.id);
-              const nextVideoId = getNextVideoId(course.id);
+
+              const thumbnail = getCourseThumbnail(course);
 
               return (
-                <div className="course-list-row" key={course.id}>
-                  <div className="list-course-name">
-                    <div className="small-course-icon">
-                      {(course.title || course.courseTitle || "C")
-                        .charAt(0)
-                        .toUpperCase()}
-                    </div>
-
-                    <strong>{course.title || course.courseTitle}</strong>
+                <div className="new-course-card" key={course.id}>
+                  <div className="new-course-thumb">
+                    {thumbnail ? (
+                      <img src={thumbnail} alt={course.title || course.courseTitle} />
+                    ) : (
+                      <div>{(course.title || course.courseTitle || "C").charAt(0)}</div>
+                    )}
                   </div>
 
-                  <div className="list-progress">
-                    <span>Progress</span>
+                  <div className="new-course-body">
+                    <span>{course.department || "Training"}</span>
+                    <h3>{course.title || course.courseTitle}</h3>
+                    <p>{course.description || course.overview || "Assigned training course."}</p>
 
-                    <div className="mini-progress">
-                      <span style={{ width: `${progress}%` }}></span>
+                    <div className="new-course-progress">
+                      <div>
+                        <span style={{ width: `${progress}%` }}></span>
+                      </div>
+                      <strong>{progress}%</strong>
                     </div>
 
-                    <strong>{progress}%</strong>
+                   <Link to={`/course/${course.id}`}>
+  <button>
+    {status === "completed" ? "Review Course" : "Start Course"}
+  </button>
+</Link>
                   </div>
-
-                  <div className="list-status">{status}</div>
-
-                  <Link
-                    to={
-                      nextVideoId && progress < 100
-                        ? `/video/${nextVideoId}`
-                        : `/course/${course.id}`
-                    }
-                  >
-                    <button className="outline-small-btn">
-                      {progress >= 100 ? "Review" : "Continue"}
-                    </button>
-                  </Link>
                 </div>
               );
             })}

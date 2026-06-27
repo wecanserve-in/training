@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ref, get } from "firebase/database";
 import { database } from "../firebase";
@@ -7,259 +7,388 @@ import "../styles/superadmin.css";
 function SuperAdminDashboard() {
   const [stats, setStats] = useState({
     users: 0,
+    activeUsers: 0,
     admins: 0,
     departments: 0,
     courses: 0,
     completed: 0,
     certificates: 0,
+    pending: 0,
+    completionRate: 0,
+    certificateRate: 0,
   });
+
+  const [recentTrainings, setRecentTrainings] = useState([]);
+  const [departmentRows, setDepartmentRows] = useState([]);
+  const [alerts, setAlerts] = useState([]);
+  const [activity, setActivity] = useState([]);
 
   useEffect(() => {
     const fetchStats = async () => {
       const usersSnap = await get(ref(database, "users"));
       const coursesSnap = await get(ref(database, "courses"));
       const completedSnap = await get(ref(database, "completedCourses"));
-      const resultsSnap = await get(ref(database, "results"));
+     const resultsSnap = await get(ref(database, "results"));
+const assignmentsSnap = await get(ref(database, "assignments"));
 
-      let users = 0;
-      let admins = 0;
-      const departmentsSet = new Set();
+      const usersData = usersSnap.exists() ? usersSnap.val() : {};
+      const coursesData = coursesSnap.exists() ? coursesSnap.val() : {};
+      const completedData = completedSnap.exists() ? completedSnap.val() : {};
+      const resultsData = resultsSnap.exists() ? resultsSnap.val() : {};
+const assignmentsData = assignmentsSnap.exists()
+  ? assignmentsSnap.val()
+  : {};
+  
+      const usersArr = Object.values(usersData);
+      const coursesArr = Object.entries(coursesData).map(([id, course]) => ({
+        id,
+        ...course,
+      }));
 
-      if (usersSnap.exists()) {
-        const userData = usersSnap.val();
-        users = Object.keys(userData).length;
+      const totalUsers = usersArr.length;
+      const admins = usersArr.filter((user) => user.role === "admin").length;
+      const activeUsers = usersArr.filter((user) => user.status !== "inactive").length;
 
-        Object.values(userData).forEach((user) => {
-          if (user.role === "admin") admins += 1;
-          if (user.department) departmentsSet.add(user.department);
-        });
-      }
-
-      const courses = coursesSnap.exists()
-        ? Object.keys(coursesSnap.val()).length
-        : 0;
+      const departmentSet = new Set();
+      usersArr.forEach((user) => {
+        if (user.department) departmentSet.add(user.department);
+      });
 
       let completed = 0;
-      if (completedSnap.exists()) {
-        Object.values(completedSnap.val()).forEach((userCourses) => {
-          completed += Object.keys(userCourses).length;
-        });
-      }
+      Object.values(completedData).forEach((userCourses) => {
+        completed += Object.keys(userCourses || {}).length;
+      });
 
       let certificates = 0;
-      if (resultsSnap.exists()) {
-        Object.values(resultsSnap.val()).forEach((userResults) => {
-          Object.values(userResults).forEach((result) => {
-            if (result.passed) certificates += 1;
-          });
+      Object.values(resultsData).forEach((userResults) => {
+        Object.values(userResults || {}).forEach((result) => {
+          if (result.passed) certificates += 1;
         });
-      }
+      });
+
+const totalAssignedTrainings =
+  Object.keys(assignmentsData).length;
+
+const pending = Math.max(
+  totalAssignedTrainings - completed,
+  0
+);
+
+const completionRate =
+  totalAssignedTrainings > 0
+    ? Math.min(
+        Math.round(
+          (completed / totalAssignedTrainings) * 100
+        ),
+        100
+      )
+    : 0;
+
+      const certificateRate =
+        completed > 0 ? Math.min(Math.round((certificates / completed) * 100), 100) : 0;
+
+      const deptMap = {};
+
+      usersArr.forEach((user) => {
+        const dept = user.department || "Not Assigned";
+        if (!deptMap[dept]) {
+          deptMap[dept] = {
+            department: dept,
+            users: 0,
+            completed: 0,
+            total: 0,
+          };
+        }
+
+       deptMap[dept].total += 0;
+        deptMap[dept].total += coursesArr.length;
+
+        const userCompleted = completedData[user.uid] || completedData[user.id] || {};
+        deptMap[dept].completed += Object.keys(userCompleted || {}).length;
+      });
+
+      const deptRows = Object.values(deptMap)
+        .map((item) => ({
+          ...item,
+          rate: item.total > 0 ? Math.round((item.completed / item.total) * 100) : 0,
+        }))
+        .sort((a, b) => b.rate - a.rate)
+        .slice(0, 5);
+
+      const trainingRows = coursesArr.slice(0, 5).map((course) => {
+        let courseCompleted = 0;
+
+        Object.values(completedData).forEach((userCourses) => {
+          if (userCourses && userCourses[course.id]) courseCompleted += 1;
+        });
+
+        const progress =
+          totalUsers > 0 ? Math.min(Math.round((courseCompleted / totalUsers) * 100), 100) : 0;
+
+        return {
+          id: course.id,
+          title: course.title || course.name || "Untitled Course",
+          department: course.department || "General",
+          enrolled: totalUsers,
+          completed: courseCompleted,
+          progress,
+          status: "Active",
+        };
+      });
 
       setStats({
-        users,
+        users: totalUsers,
+        activeUsers,
         admins,
-        departments: departmentsSet.size,
-        courses,
+        departments: departmentSet.size,
+        courses: coursesArr.length,
         completed,
         certificates,
+        pending,
+        completionRate,
+        certificateRate,
       });
+
+      setRecentTrainings(trainingRows);
+      setDepartmentRows(deptRows);
+
+     setAlerts([
+  {
+    label: "Pending Trainings",
+    value: pending,
+    type: "warning",
+  },
+  {
+    label: "Department Admins",
+    value: usersArr.filter(
+      (u) => u.role === "departmentAdmin"
+    ).length,
+    type: "info",
+  },
+  {
+    label: "Certificates Issued",
+    value: certificates,
+    type: "success",
+  },
+]);
+
+setActivity([
+  `${totalUsers} total employees`,
+  `${coursesArr.length} active courses`,
+  `${completed} completed trainings`,
+  `${certificates} certificates generated`,
+]);
     };
 
     fetchStats();
   }, []);
 
-  const totalPossibleCompletions = stats.users * stats.courses;
+  const chartPoints = useMemo(() => {
+    const completed = stats.completed || 0;
+    const pending = stats.pending || 0;
+    const certificates = stats.certificates || 0;
 
-  const completionRate =
-    totalPossibleCompletions > 0
-      ? Math.min(
-          Math.round((stats.completed / totalPossibleCompletions) * 100),
-          100
-        )
-      : 0;
-
-  const certificateRate =
-    stats.completed > 0
-      ? Math.min(Math.round((stats.certificates / stats.completed) * 100), 100)
-      : 0;
-
-  const adminCoverage =
-    stats.departments > 0
-      ? Math.min(Math.round((stats.admins / stats.departments) * 100), 100)
-      : 0;
+    return [
+      Math.max(Math.round(completed * 0.25), 1),
+      Math.max(Math.round(completed * 0.45), 1),
+      Math.max(Math.round(completed * 0.55), 1),
+      Math.max(Math.round(completed * 0.7), 1),
+      Math.max(Math.round(completed * 0.85), 1),
+      Math.max(completed, 1),
+      Math.max(completed + certificates, 1),
+    ].map((value, index) => ({
+      label: `W${index + 1}`,
+      completed: value,
+      pending: Math.max(Math.round(pending * (index + 1) * 0.08), 1),
+    }));
+  }, [stats]);
 
   return (
-    <>
-      <div className="super-topbar">
-        <div className="super-brand">
-          <div>
-            <h1>Super Admin Dashboard</h1>
-            <p>Overall company training control and analytics</p>
+    <div className="super-dashboard">
+      <section className="dash-header">
+        <div>
+          <h1>Welcome back, Super Admin!</h1>
+          <p>Here’s what’s happening with your training portal.</p>
+        </div>
+
+        <div className="date-pill">Training Overview</div>
+      </section>
+
+      <section className="metric-grid">
+        <MetricCard title="Total Users" value={stats.users} color="blue" />
+        <MetricCard title="Active Users" value={stats.activeUsers} color="green" />
+        <MetricCard title="Total Courses" value={stats.courses} color="purple" />
+        <MetricCard title="Completed Trainings" value={stats.completed} color="teal" />
+        <MetricCard title="Certificates Issued" value={stats.certificates} color="orange" />
+        <MetricCard title="Pending Trainings" value={stats.pending} color="red" />
+      </section>
+
+      <section className="dashboard-main-grid">
+        <div className="dash-card chart-card">
+          <div className="card-head">
+            <div>
+              <h2>Training Progress Overview</h2>
+              <p>Completed vs pending training progress</p>
+            </div>
+          </div>
+
+          <div className="line-chart">
+            <svg viewBox="0 0 640 260" preserveAspectRatio="none">
+              <polyline
+                points="20,210 120,180 220,145 320,125 420,105 520,85 620,55"
+                fill="none"
+                stroke="#34a853"
+                strokeWidth="6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <polyline
+                points="20,225 120,205 220,190 320,175 420,165 520,145 620,120"
+                fill="none"
+                stroke="#4285f4"
+                strokeWidth="6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+
+          <div className="chart-legend">
+            <span className="green-dot">Completed</span>
+            <span className="blue-dot">Pending</span>
           </div>
         </div>
 
-        <img src="/Logo.webp" alt="Logo" className="topbar-logo" />
-      </div>
+        <div className="dash-card circle-card">
+          <h2>Training Completion Rate</h2>
 
-      <div className="super-kpi-grid">
-        <div className="super-kpi">
-          <span>Total Users</span>
-          <h2>{stats.users}</h2>
-        </div>
-
-        <div className="super-kpi">
-          <span>Admins</span>
-          <h2>{stats.admins}</h2>
-        </div>
-
-        <div className="super-kpi">
-          <span>Departments</span>
-          <h2>{stats.departments}</h2>
-        </div>
-
-        <div className="super-kpi">
-          <span>Courses</span>
-          <h2>{stats.courses}</h2>
-        </div>
-
-        <div className="super-kpi">
-          <span>Completed</span>
-          <h2>{stats.completed}</h2>
-        </div>
-
-        <div className="super-kpi">
-          <span>Certificates</span>
-          <h2>{stats.certificates}</h2>
-        </div>
-      </div>
-
-      <div className="super-main-grid">
-        <div className="super-panel analytics-panel">
-          <div className="panel-head">
-            <span>Overall Analytics</span>
-            <h2>Training Snapshot</h2>
+          <div className="circle-progress">
+            <div>{stats.completionRate}%</div>
           </div>
 
-          <div className="analytics-mini-grid">
-            <div className="snapshot-box">
-              <strong>Zone Wise</strong>
-              <p>Track training by zone</p>
-              <div className="snapshot-percent">{completionRate}%</div>
-              <div className="snapshot-progress">
-                <span style={{ width: `${completionRate}%` }}></span>
+          <p>Overall Completion</p>
+        </div>
+
+        <div className="dash-card department-card">
+          <h2>Top Departments</h2>
+
+          {departmentRows.length === 0 ? (
+            <p className="empty-text">No department data yet.</p>
+          ) : (
+            departmentRows.map((item, index) => (
+              <div className="dept-row" key={item.department}>
+                <div>
+                  <span>{index + 1}. {item.department}</span>
+                  <strong>{item.rate}%</strong>
+                </div>
+                <div className="dept-track">
+                  <span style={{ width: `${item.rate}%` }}></span>
+                </div>
               </div>
-            </div>
+            ))
+          )}
 
-            <div className="snapshot-box">
-              <strong>State Wise</strong>
-              <p>Check state-level progress</p>
-              <div className="snapshot-percent">{certificateRate}%</div>
-              <div className="snapshot-progress">
-                <span style={{ width: `${certificateRate}%` }}></span>
-              </div>
-            </div>
+          <Link to="/super-admin/analytics" className="view-link">
+            View full analytics
+          </Link>
+        </div>
+      </section>
 
-            <div className="snapshot-box">
-              <strong>City / Area Wise</strong>
-              <p>Monitor local performance</p>
-              <div className="snapshot-percent">{completionRate}%</div>
-              <div className="snapshot-progress">
-                <span style={{ width: `${completionRate}%` }}></span>
-              </div>
-            </div>
-
-            <div className="snapshot-box">
-              <strong>End User Wise</strong>
-              <p>View user-wise reports</p>
-              <div className="snapshot-percent">{adminCoverage}%</div>
-              <div className="snapshot-progress">
-                <span style={{ width: `${adminCoverage}%` }}></span>
-              </div>
+      <section className="dashboard-lower-grid">
+        <div className="dash-card table-card">
+          <div className="card-head">
+            <div>
+              <h2>Recent Trainings</h2>
+              <p>Course-wise completion overview</p>
             </div>
           </div>
+
+          <div className="training-table-wrap">
+            <table className="training-table">
+              <thead>
+                <tr>
+                  <th>Training Name</th>
+                  <th>Department</th>
+                  <th>Enrolled</th>
+                  <th>Completed</th>
+                  <th>Progress</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {recentTrainings.length === 0 ? (
+                  <tr>
+                    <td colSpan="6">No courses available yet.</td>
+                  </tr>
+                ) : (
+                  recentTrainings.map((course) => (
+                    <tr key={course.id}>
+                      <td>{course.title}</td>
+                      <td>{course.department}</td>
+                      <td>{course.enrolled}</td>
+                      <td>{course.completed}</td>
+                      <td>
+                        <div className="mini-progress">
+                          <span style={{ width: `${course.progress}%` }}></span>
+                        </div>
+                        <b>{course.progress}%</b>
+                      </td>
+                      <td>
+                        <em>{course.status}</em>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <Link to="/super-admin/analytics" className="table-link">
+            View all trainings
+          </Link>
         </div>
 
-        <div className="super-panel quick-panel">
-          <div className="panel-head">
-            <span>Quick Actions</span>
-            <h2>Manage Portal</h2>
-          </div>
+        <div className="side-stack">
+          <div className="dash-card small-card">
+            <div className="card-title-row">
+              <h2>System Alerts</h2>
+              <Link to="/super-admin/analytics">View all</Link>
+            </div>
 
-          <div className="quick-actions">
-            <Link to="/super-admin/users">Users</Link>
-            <Link to="/super-admin/admins">Manage Admins</Link>
-            <Link to="/super-admin/departments">Departments</Link>
-            <Link to="/super-admin/analytics">View Reports</Link>
-          </div>
-
-          <div className="mini-graph-card">
-            <div className="mini-graph-head">
-              <div>
-                <h3>Monthly Training Progress</h3>
-                <p>Completion trend overview</p>
+            {alerts.map((alert) => (
+              <div className={`alert-row ${alert.type}`} key={alert.label}>
+                <span>{alert.label}</span>
+                <strong>{alert.value}</strong>
               </div>
-              <span>{completionRate}%</span>
+            ))}
+          </div>
+
+          <div className="dash-card small-card">
+            <div className="card-title-row">
+              <h2>Recent Activity</h2>
+              <Link to="/super-admin/analytics">View all</Link>
             </div>
 
-            <div className="line-graph">
-              <svg viewBox="0 0 320 150" preserveAspectRatio="none">
-                <polyline
-                  points="0,118 45,102 90,108 135,76 180,88 225,54 270,66 320,38"
-                  fill="none"
-                  stroke="#006ee6"
-                  strokeWidth="5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <polyline
-                  points="0,130 45,116 90,120 135,96 180,106 225,82 270,90 320,68"
-                  fill="none"
-                  stroke="#071d49"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  opacity="0.35"
-                />
-              </svg>
-            </div>
+            {activity.map((item) => (
+              <div className="activity-row" key={item}>
+                <span></span>
+                <p>{item}</p>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
+      </section>
+    </div>
+  );
+}
 
-      <div className="super-bottom-grid">
-        <div className="super-panel">
-          <h3>Important Checks</h3>
-
-          <div className="check-row">
-            <span>Admins Assigned</span>
-            <strong>{stats.admins}</strong>
-          </div>
-
-          <div className="check-row">
-            <span>Courses Available</span>
-            <strong>{stats.courses}</strong>
-          </div>
-
-          <div className="check-row">
-            <span>Certificates Generated</span>
-            <strong>{stats.certificates}</strong>
-          </div>
-        </div>
-
-        <div className="super-panel">
-          <h3>System Flow</h3>
-
-          <div className="flow-line">
-            Super Admin → Admin → Department Admin → User
-          </div>
-
-          <p className="flow-note">
-            Admin creates users and departments. Department Admin creates
-            courses, assigns training and tracks completion.
-          </p>
-        </div>
-      </div>
-    </>
+function MetricCard({ title, value, color }) {
+  return (
+    <div className={`metric-card ${color}`}>
+      <p>{title}</p>
+      <h2>{value}</h2>
+    </div>
   );
 }
 

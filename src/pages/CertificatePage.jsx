@@ -1,28 +1,65 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom"; // Added useNavigate for dashboard navigation
+import { useParams, useNavigate } from "react-router-dom";
 import { ref, get } from "firebase/database";
 import { database } from "../firebase";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import "../styles/certificatepage.css"; // Imported professional certificate stylesheet
+import "../styles/certificatepage.css";
 
 function CertificatePage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const certificateRef = useRef(null);
+
   const [result, setResult] = useState(null);
+  const [userData, setUserData] = useState(null);
+  const [course, setCourse] = useState(null);
 
   useEffect(() => {
-    const fetchResult = async () => {
-      const snapshot = await get(ref(database, `attempts/${id}`));
-
-      if (snapshot.exists()) {
-        setResult(snapshot.val());
-      }
-    };
-
-    fetchResult();
+    fetchCertificateData();
   }, [id]);
+
+  const fetchCertificateData = async () => {
+    const attemptSnap = await get(ref(database, `attempts/${id}`));
+
+    if (!attemptSnap.exists()) return;
+
+    const attemptData = attemptSnap.val();
+    setResult(attemptData);
+
+    const [userSnap, courseSnap] = await Promise.all([
+      attemptData.userId
+        ? get(ref(database, `users/${attemptData.userId}`))
+        : Promise.resolve(null),
+      attemptData.courseId
+        ? get(ref(database, `courses/${attemptData.courseId}`))
+        : Promise.resolve(null),
+    ]);
+
+    if (userSnap?.exists()) {
+      setUserData(userSnap.val());
+    }
+
+    if (courseSnap?.exists()) {
+      setCourse({
+        id: attemptData.courseId,
+        ...courseSnap.val(),
+      });
+    }
+  };
+
+  const studentName =
+    userData?.name ||
+    userData?.fullName ||
+    result?.userName ||
+    result?.studentName ||
+    "Student Name";
+
+  const courseName =
+    course?.title ||
+    course?.courseTitle ||
+    result?.courseTitle ||
+    "Training Course";
 
   const downloadCertificate = async () => {
     const canvas = await html2canvas(certificateRef.current, {
@@ -32,35 +69,42 @@ function CertificatePage() {
     });
 
     const imgData = canvas.toDataURL("image/png");
-
     const pdf = new jsPDF("landscape", "px", [1600, 1100]);
+
     pdf.addImage(imgData, "PNG", 0, 0, 1600, 1100);
-    pdf.save(`${result.userName || "certificate"}.pdf`);
+    pdf.save(`${studentName}-${courseName}-certificate.pdf`);
   };
 
-  if (!result) return <h2 className="cert-status-msg">Loading Certificate...</h2>;
+  if (!result) {
+    return <h2 className="cert-status-msg">Loading Certificate...</h2>;
+  }
 
-  const date = new Date(result.submittedAt).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const date = new Date(result.submittedAt || result.completedAt).toLocaleDateString(
+    "en-IN",
+    {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }
+  );
 
-  const certificateId = `CERT-${id.slice(-10)}`;
+  const certificateId = `CERT-${id.slice(-10).toUpperCase()}`;
 
   return (
     <div className="cert-page-container">
       <div className="cert-header-actions">
         <div>
           <h1 className="cert-main-title">Certificate Ready</h1>
-          <p className="cert-subtitle">Your achievement certificate has been generated successfully.</p>
+          <p className="cert-subtitle">
+            Your achievement certificate has been generated successfully.
+          </p>
         </div>
+
         <button onClick={() => navigate("/dashboard")} className="btn-cert-secondary">
           Back to Dashboard
         </button>
       </div>
 
-      {/* Frame Preview Wrapper to handle scale offset artifacting */}
       <div className="cert-canvas-preview-frame">
         <div
           ref={certificateRef}
@@ -77,7 +121,6 @@ function CertificatePage() {
             transformOrigin: "top center",
           }}
         >
-          {/* User Name - Absolute Positioning coordinates preserved for html2canvas tracking */}
           <div
             style={{
               position: "absolute",
@@ -93,10 +136,9 @@ function CertificatePage() {
               lineHeight: "1",
             }}
           >
-            {result.userName || "Student Name"}
+            {studentName}
           </div>
 
-          {/* Course Name - Absolute Positioning coordinates preserved for html2canvas tracking */}
           <div
             style={{
               position: "absolute",
@@ -111,10 +153,9 @@ function CertificatePage() {
               lineHeight: "1.2",
             }}
           >
-            {result.videoTitle || "Training Course"}
+            {courseName}
           </div>
 
-          {/* Date - Absolute Positioning coordinates preserved for html2canvas tracking */}
           <div
             style={{
               position: "absolute",
@@ -129,7 +170,6 @@ function CertificatePage() {
             {date}
           </div>
 
-          {/* Certificate ID - Absolute Positioning coordinates preserved for html2canvas tracking */}
           <div
             style={{
               position: "absolute",

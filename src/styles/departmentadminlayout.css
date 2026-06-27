@@ -1,0 +1,351 @@
+.department-admin-layout {
+  min-height: 100vh;
+  display: flex;
+  background: #f6f8fc;
+}
+
+.dept-admin-sidebar {
+  width: 260px;
+  min-width: 260px;
+  height: 100vh;
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  padding: 18px 14px;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+  z-index: 50;
+}
+
+.dept-sidebar-logo-box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.dept-sidebar-logo-box img {
+  width: 140px;
+  height: auto;
+  object-fit: contain;
+}
+
+.dept-sidebar-profile {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 16px 12px;
+  text-align: center;
+  margin-bottom: 18px;
+}
+
+.dept-profile-circle {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  margin: 0 auto 10px;
+  background: #eef4ff;
+  color: #4285f4;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  font-size: 0.95rem;
+}
+
+.dept-sidebar-profile h3 {
+  margin: 0;
+  color: #111827;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.dept-sidebar-profile p {
+  margin: 5px 0 0;
+  color: #6b7280;
+  font-size: 0.78rem;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.dept-sidebar-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.dept-sidebar-menu a,
+.dept-dropdown-toggle {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  border: none;
+  background: transparent;
+  color: #111827;
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 800;
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.22s ease;
+}
+
+.dept-sidebar-menu a:hover,
+.dept-dropdown-toggle:hover {
+  background: #eef4ff;
+  color: #4285f4;
+}
+
+.dept-sidebar-menu a.active {
+  background: #4285f4;
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(66, 133, 244, 0.22);
+}
+
+.dept-sidebar-dropdown {
+  width: 100%;
+}
+
+.dept-dropdown-toggle {
+  justify-content: space-between;
+}
+
+.dept-dropdown-toggle::after {
+  content: "⌄";
+  font-size: 0.95rem;
+  color: #6b7280;
+}
+
+.dept-dropdown-submenu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 0 6px 16px;
+  padding-left: 10px;
+  border-left: 2px solid #e5e7eb;
+}
+
+.dept-dropdown-submenu a {
+  min-height: 36px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #6b7280;
+  padding: 8px 10px;
+}
+
+.dept-dropdown-submenu a:hover,
+.dept-dropdown-submenu a.active {
+  color: #4285f4;
+  background: #eef4ff;
+  box-shadow: none;
+}
+
+.dept-sidebar-logout {
+  margin-top: 14px;
+  border: none;
+  background: #fff1f0;
+  color: #ea4335;
+  padding: 12px;
+  border-radius: 14px;
+  font-size: 0.95rem;
+  font-weight: 900;
+  cursor: pointer;
+  transition: all 0.22s ease;
+}
+
+.dept-sidebar-logout:hover {
+  background: #ea4335;
+  color: #ffffff;
+}
+
+.dept-admin-page {
+  flex: 1;
+  min-width: 0;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 18px 22px;
+  background: #f6f8fc;
+}
+
+.dept-mobile-menu-btn,
+.dept-sidebar-close,
+.dept-sidebar-overlay {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .dept-admin-sidebar {
+    width: 235px;
+    min-width: 235px;
+  }
+
+  .dept-admin-page {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .department-admin-layout {
+    display: block;
+    min-height: 100vh;
+  }
+
+  .dept-mobile-menu-btn {
+    height: 58px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 14px;
+    background: #ffffff;
+    border: none;
+    border-bottom: 1px solid #e5e7eb;
+    position: sticky;
+    top: 0;
+    z-index: 90;
+    color: #4285f4;
+    font-size: 1.4rem;
+    font-weight: 900;
+    cursor: pointer;
+  }
+
+  .dept-mobile-menu-btn::before {
+    content: "";
+    width: 115px;
+    height: 40px;
+    background-image: url("/Logo.webp");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: left center;
+    margin-right: auto;
+  }
+
+  .dept-admin-sidebar {
+    position: fixed;
+    top: 0;
+    left: -280px;
+    width: 260px;
+    min-width: 260px;
+    height: 100vh;
+    z-index: 100;
+    transition: 0.25s ease;
+    box-shadow: 12px 0 35px rgba(0, 0, 0, 0.16);
+  }
+
+  .dept-admin-sidebar.sidebar-open {
+    left: 0;
+  }
+
+  .dept-sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(17, 24, 39, 0.42);
+    z-index: 95;
+  }
+
+  .dept-sidebar-close {
+    display: grid;
+    place-items: center;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 50%;
+    background: #fff1f0;
+    color: #ea4335;
+    font-size: 1.25rem;
+    cursor: pointer;
+  }
+
+  .dept-sidebar-logo-box {
+    margin-top: 12px;
+  }
+
+  .dept-sidebar-profile {
+    padding: 14px 10px;
+  }
+
+  .dept-admin-page {
+    width: 100%;
+    height: auto;
+    min-height: calc(100vh - 58px);
+    padding: 12px;
+    overflow-x: hidden;
+  }
+}
+
+@media (max-width: 480px) {
+  .dept-admin-sidebar {
+    width: 78vw;
+    min-width: 78vw;
+    left: -82vw;
+  }
+
+  .dept-admin-sidebar.sidebar-open {
+    left: 0;
+  }
+
+  .dept-admin-page {
+    padding: 10px;
+  }
+}
+
+.dept-sidebar-profile small {
+  display: block;
+  margin-top: 6px;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.dept-sidebar-menu a,
+.dept-dropdown-toggle {
+  width: 100%;
+  min-height: 44px;
+  border: none;
+  border-radius: 14px;
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  color: #374151;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.dept-sidebar-menu a:hover,
+.dept-dropdown-toggle:hover {
+  background: #eef4ff;
+  color: #1a73e8;
+}
+
+.dept-sidebar-menu a.active,
+.dept-dropdown-toggle.active {
+  background: #4285f4;
+  color: #ffffff;
+}
+
+.dept-dropdown-submenu {
+  margin: 6px 0 8px 12px;
+  padding-left: 10px;
+  border-left: 2px solid #e5e7eb;
+  display: grid;
+  gap: 6px;
+}
+
+.dept-dropdown-submenu a {
+  min-height: 38px;
+  font-size: 13px;
+}

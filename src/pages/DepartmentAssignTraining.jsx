@@ -1,28 +1,51 @@
 import { useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { ref, get, push, update } from "firebase/database";
+import { get, ref, set } from "firebase/database";
+import { useSearchParams } from "react-router-dom";
 import { auth, database } from "../firebase";
 import "../styles/departmentassigntraining.css";
 
 function DepartmentAssignTraining() {
+  const [searchParams] = useSearchParams();
+  const preSelectedCourseId = searchParams.get("courseId");
+
   const [currentUser, setCurrentUser] = useState(null);
-  const [members, setMembers] = useState([]);
   const [courses, setCourses] = useState([]);
-  const [assignedMap, setAssignedMap] = useState({});
+  const [users, setUsers] = useState([]);
+  const [assignments, setAssignments] = useState({});
+  const [completedCourses, setCompletedCourses] = useState({});
+  const [progress, setProgress] = useState({});
 
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [selectedUsers, setSelectedUsers] = useState([]);
 
-  const [mode, setMode] = useState("assign");
-  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [zoneFilter, setZoneFilter] = useState("");
+  const [stateFilter, setStateFilter] = useState("");
+  const [cityFilter, setCityFilter] = useState("");
+  const [experienceFilter, setExperienceFilter] = useState("");
+  const [designationFilter, setDesignationFilter] = useState("");
 
-  const [filters, setFilters] = useState({
-    designation: "",
-    zone: "",
-    state: "",
-    cityArea: "",
-  });
+  const [loading, setLoading] = useState(true);
+  const [assigning, setAssigning] = useState(false);
+
+  const getField = (obj, keys) => {
+    for (const key of keys) {
+      const value = obj?.[key];
+      if (value !== undefined && value !== null && String(value).trim() !== "") {
+        return String(value).trim();
+      }
+    }
+    return "";
+  };
+
+  const fieldKeys = {
+    zone: ["zone", "Zone", "zoneName", "zone_name"],
+    state: ["state", "State", "stateName", "state_name"],
+    city: ["city", "City", "area", "Area", "cityArea", "city_area", "location", "Location", "hq", "HQ"],
+    experience: ["experience", "experienceLevel", "seniority", "level", "exp", "category"],
+    designation: ["designation", "userRole", "jobTitle", "roleTitle", "position", "title"],
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
@@ -33,619 +56,548 @@ function DepartmentAssignTraining() {
 
       const adminData = {
         id: loggedUser.uid,
+        email: loggedUser.email,
         ...userSnap.val(),
       };
 
       setCurrentUser(adminData);
 
-      const usersSnap = await get(ref(database, "users"));
-      const coursesSnap = await get(ref(database, "courses"));
+      const [coursesSnap, usersSnap, assignmentsSnap, completedSnap, progressSnap] =
+        await Promise.all([
+          get(ref(database, "courses")),
+          get(ref(database, "users")),
+          get(ref(database, "userAssignments")),
+          get(ref(database, "completedCourses")),
+          get(ref(database, "progress")),
+        ]);
 
-      if (usersSnap.exists()) {
-        const allNormalUsers = Object.entries(usersSnap.val())
-          .map(([id, user]) => ({ id, ...user }))
-          .filter(
-            (user) =>
-              user.role !== "departmentAdmin" &&
-              user.role !== "admin" &&
-              user.role !== "superAdmin"
-          );
+      const allCourses = coursesSnap.exists()
+        ? Object.entries(coursesSnap.val()).map(([id, course]) => ({ id, ...course }))
+        : [];
 
-        setMembers(allNormalUsers);
-      }
+      const myCourses = allCourses.filter((course) => {
+        return (
+          course.createdBy === adminData.id ||
+          course.createdByEmail === adminData.email ||
+          course.department === adminData.department
+        );
+      });
 
-      if (coursesSnap.exists()) {
-        const ownDepartmentCourses = Object.entries(coursesSnap.val())
-          .map(([id, course]) => ({ id, ...course }))
-          .filter((course) => course.department === adminData.department);
+      myCourses.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
-        setCourses(ownDepartmentCourses);
-      }
+      const allUsers = usersSnap.exists()
+        ? Object.entries(usersSnap.val()).map(([id, user]) => ({ id, ...user }))
+        : [];
+
+      const normalUsers = allUsers.filter((user) => {
+        const role = getField(user, ["role"]);
+        return role !== "departmentAdmin" && role !== "admin" && role !== "superAdmin";
+      });
+
+      setCourses(myCourses);
+      setUsers(normalUsers);
+      setAssignments(assignmentsSnap.exists() ? assignmentsSnap.val() : {});
+      setCompletedCourses(completedSnap.exists() ? completedSnap.val() : {});
+      setProgress(progressSnap.exists() ? progressSnap.val() : {});
+
+      if (preSelectedCourseId) setSelectedCourseId(preSelectedCourseId);
+      else if (myCourses.length > 0) setSelectedCourseId(myCourses[0].id);
+
+      setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [preSelectedCourseId]);
 
-  useEffect(() => {
-    fetchAssignedUsers();
+  const selectedCourse = useMemo(() => {
+    return courses.find((course) => course.id === selectedCourseId);
+  }, [courses, selectedCourseId]);
+
+  const zoneOptions = useMemo(() => {
+    return [...new Set(users.map((u) => getField(u, fieldKeys.zone)).filter(Boolean))];
+  }, [users]);
+
+  const stateOptions = useMemo(() => {
+    const base = zoneFilter
+      ? users.filter((u) => getField(u, fieldKeys.zone) === zoneFilter)
+      : users;
+
+    return [...new Set(base.map((u) => getField(u, fieldKeys.state)).filter(Boolean))];
+  }, [users, zoneFilter]);
+
+  const cityOptions = useMemo(() => {
+    const base = users.filter((u) => {
+      const zone = getField(u, fieldKeys.zone);
+      const state = getField(u, fieldKeys.state);
+      return (!zoneFilter || zone === zoneFilter) && (!stateFilter || state === stateFilter);
+    });
+
+    return [...new Set(base.map((u) => getField(u, fieldKeys.city)).filter(Boolean))];
+  }, [users, zoneFilter, stateFilter]);
+
+  const experienceOptions = useMemo(() => {
+    return [...new Set(users.map((u) => getField(u, fieldKeys.experience)).filter(Boolean))];
+  }, [users]);
+
+  const designationOptions = useMemo(() => {
+    return [...new Set(users.map((u) => getField(u, fieldKeys.designation)).filter(Boolean))];
+  }, [users]);
+
+  const handleZoneChange = (value) => {
+    setZoneFilter(value);
+    setStateFilter("");
+    setCityFilter("");
     setSelectedUsers([]);
-  }, [selectedCourseId]);
+  };
 
-  const fetchAssignedUsers = async () => {
-    if (!selectedCourseId) {
-      setAssignedMap({});
-      return;
+  const handleStateChange = (value) => {
+    setStateFilter(value);
+    setCityFilter("");
+    setSelectedUsers([]);
+  };
+
+  const handleCityChange = (value) => {
+    setCityFilter(value);
+    setSelectedUsers([]);
+
+    if (!value) return;
+
+    const matchedUser = users.find((user) => getField(user, fieldKeys.city) === value);
+
+    if (matchedUser) {
+      setZoneFilter(getField(matchedUser, fieldKeys.zone));
+      setStateFilter(getField(matchedUser, fieldKeys.state));
+    }
+  };
+
+  const getUserCourseStatus = (userId) => {
+    const currentVersion = Number(selectedCourse?.version || 1);
+    const assignment = assignments?.[userId]?.[selectedCourseId];
+    const completed = completedCourses?.[userId]?.[selectedCourseId];
+
+    if (!assignment?.assigned) return "notAssigned";
+
+    const assignedVersion = Number(
+      assignment.assignedCourseVersion || assignment.courseVersion || 1
+    );
+
+    const completedVersion = Number(
+      completed?.completedCourseVersion || completed?.courseVersion || assignedVersion || 1
+    );
+
+    if (completed?.passed || completed?.completed) {
+      if (completedVersion < currentVersion) return "updatedAfterCompletion";
+      return "completedLatest";
     }
 
-    const userAssignmentsSnap = await get(ref(database, "userAssignments"));
-    const map = {};
+    if (assignedVersion < currentVersion) return "latestNotAssigned";
 
-    if (userAssignmentsSnap.exists()) {
-      const data = userAssignmentsSnap.val();
-
-      Object.keys(data).forEach((uid) => {
-        if (data[uid]?.[selectedCourseId]?.assigned) {
-          map[uid] = true;
-        }
-      });
-    }
-
-    setAssignedMap(map);
+    return "assignedLatest";
   };
 
-  const selectedCourse = courses.find(
-    (course) => course.id === selectedCourseId
-  );
-
-  const getUserDesignation = (user) => {
-    return user.designation || user.roleName || user.userRole || "";
+  const getStatusLabel = (status) => {
+    if (status === "notAssigned") return "Not Assigned";
+    if (status === "latestNotAssigned") return "Latest Version Not Assigned";
+    if (status === "updatedAfterCompletion") return "Course Updated";
+    return "Already Assigned";
   };
 
-  const getUserCity = (user) => {
-    return user.cityArea || user.city || user.area || "";
-  };
+  const filteredUsers = useMemo(() => {
+    return users.filter((user) => {
+      const status = getUserCourseStatus(user.id);
 
-  const designations = useMemo(() => {
-    return [
-      ...new Set(
-        members.map((member) => getUserDesignation(member)).filter(Boolean)
-      ),
-    ];
-  }, [members]);
+      const shouldShow =
+        status === "notAssigned" ||
+        status === "latestNotAssigned" ||
+        status === "updatedAfterCompletion";
 
-  const zones = useMemo(() => {
-    return [
-      ...new Set(
-        members
-          .filter(
-            (member) =>
-              !filters.designation ||
-              getUserDesignation(member) === filters.designation
-          )
-          .map((member) => member.zone)
-          .filter(Boolean)
-      ),
-    ];
-  }, [members, filters.designation]);
+      if (!shouldShow) return false;
 
-  const states = useMemo(() => {
-    return [
-      ...new Set(
-        members
-          .filter(
-            (member) =>
-              !filters.designation ||
-              getUserDesignation(member) === filters.designation
-          )
-          .filter((member) => !filters.zone || member.zone === filters.zone)
-          .map((member) => member.state)
-          .filter(Boolean)
-      ),
-    ];
-  }, [members, filters.designation, filters.zone]);
+      const zone = getField(user, fieldKeys.zone);
+      const state = getField(user, fieldKeys.state);
+      const city = getField(user, fieldKeys.city);
+      const experience = getField(user, fieldKeys.experience);
+      const designation = getField(user, fieldKeys.designation);
 
-  const cities = useMemo(() => {
-    return [
-      ...new Set(
-        members
-          .filter(
-            (member) =>
-              !filters.designation ||
-              getUserDesignation(member) === filters.designation
-          )
-          .filter((member) => !filters.zone || member.zone === filters.zone)
-          .filter((member) => !filters.state || member.state === filters.state)
-          .map((member) => getUserCity(member))
-          .filter(Boolean)
-      ),
-    ];
-  }, [members, filters.designation, filters.zone, filters.state]);
+      const searchableText = [
+        user.name,
+        user.email,
+        user.phone,
+        user.role,
+        designation,
+        experience,
+        zone,
+        state,
+        city,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
 
-  const handleDesignationChange = (designation) => {
-    setFilters({
-      designation,
-      zone: "",
-      state: "",
-      cityArea: "",
-    });
-    setSelectedUsers([]);
-  };
-
-  const handleZoneChange = (zone) => {
-    setFilters({
-      ...filters,
-      zone,
-      state: "",
-      cityArea: "",
-    });
-    setSelectedUsers([]);
-  };
-
-  const handleStateChange = (state) => {
-    setFilters({
-      ...filters,
-      state,
-      cityArea: "",
-    });
-    setSelectedUsers([]);
-  };
-
-  const handleCityChange = (cityArea) => {
-    if (!cityArea) {
-      setFilters({
-        ...filters,
-        cityArea: "",
-      });
-      setSelectedUsers([]);
-      return;
-    }
-
-    const matchedUser = members.find((member) => {
-      return (
-        getUserCity(member) === cityArea &&
-        (!filters.designation ||
-          getUserDesignation(member) === filters.designation)
-      );
-    });
-
-    setFilters({
-      ...filters,
-      cityArea,
-      zone: matchedUser?.zone || filters.zone,
-      state: matchedUser?.state || filters.state,
-    });
-
-    setSelectedUsers([]);
-  };
-
-  const clearFilters = () => {
-    setFilters({
-      designation: "",
-      zone: "",
-      state: "",
-      cityArea: "",
-    });
-    setSearch("");
-    setSelectedUsers([]);
-  };
-
-  const filteredMembers = useMemo(() => {
-    return members.filter((member) => {
-      const designation = getUserDesignation(member);
-      const city = getUserCity(member);
-      const isAssigned = !!assignedMap[member.id];
-
-      const searchableText = `${member.name || ""} ${member.email || ""} ${
-        designation || ""
-      } ${member.zone || ""} ${member.state || ""} ${city || ""}`.toLowerCase();
+      const matchesSearch = searchableText.includes(search.toLowerCase());
+      const matchesZone = zoneFilter ? zone === zoneFilter : true;
+      const matchesState = stateFilter ? state === stateFilter : true;
+      const matchesCity = cityFilter ? city === cityFilter : true;
+      const matchesExperience = experienceFilter ? experience === experienceFilter : true;
+      const matchesDesignation = designationFilter ? designation === designationFilter : true;
 
       return (
-        (!filters.designation || designation === filters.designation) &&
-        (!filters.zone || member.zone === filters.zone) &&
-        (!filters.state || member.state === filters.state) &&
-        (!filters.cityArea || city === filters.cityArea) &&
-        (!search || searchableText.includes(search.toLowerCase())) &&
-        (mode === "assign" ? !isAssigned : isAssigned)
+        matchesSearch &&
+        matchesZone &&
+        matchesState &&
+        matchesCity &&
+        matchesExperience &&
+        matchesDesignation
       );
     });
-  }, [members, filters, search, assignedMap, mode]);
+  }, [
+    users,
+    search,
+    zoneFilter,
+    stateFilter,
+    cityFilter,
+    experienceFilter,
+    designationFilter,
+    selectedCourseId,
+    selectedCourse,
+    assignments,
+    completedCourses,
+  ]);
+
+  const allFilteredSelected =
+    filteredUsers.length > 0 && filteredUsers.every((user) => selectedUsers.includes(user.id));
 
   const toggleUser = (userId) => {
     setSelectedUsers((prev) =>
-      prev.includes(userId)
-        ? prev.filter((id) => id !== userId)
-        : [...prev, userId]
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
     );
   };
 
-  const selectAllUsers = () => {
-    setSelectedUsers(filteredMembers.map((member) => member.id));
+  const toggleFilteredUsers = () => {
+    const filteredIds = filteredUsers.map((user) => user.id);
+
+    if (allFilteredSelected) {
+      const filteredSet = new Set(filteredIds);
+      setSelectedUsers((prev) => prev.filter((id) => !filteredSet.has(id)));
+      return;
+    }
+
+    setSelectedUsers((prev) => Array.from(new Set([...prev, ...filteredIds])));
   };
 
-  const clearSelection = () => {
+  const resetFilters = () => {
+    setSearch("");
+    setZoneFilter("");
+    setStateFilter("");
+    setCityFilter("");
+    setExperienceFilter("");
+    setDesignationFilter("");
     setSelectedUsers([]);
   };
 
-  const handleBulkAction = async () => {
+  const assignCourse = async (assignAllFiltered = false) => {
     if (!selectedCourseId) {
-      alert("Please select course");
+      alert("Please select a course.");
       return;
     }
 
-    if (selectedUsers.length === 0) {
-      alert("Please select users");
+    const usersToAssign = assignAllFiltered ? filteredUsers.map((user) => user.id) : selectedUsers;
+
+    if (usersToAssign.length === 0) {
+      alert("Please select at least one user.");
       return;
     }
 
-    const actionText = mode === "assign" ? "assign" : "unassign";
+    const confirmAssign = window.confirm(
+      `Assign "${selectedCourse?.title}" to ${usersToAssign.length} user(s)?`
+    );
 
-    if (
-      !window.confirm(
-        `${actionText} "${selectedCourse?.title}" for ${selectedUsers.length} users?`
-      )
-    ) {
-      return;
-    }
-
-    setLoading(true);
+    if (!confirmAssign) return;
 
     try {
-      const updates = {};
-      const now = new Date().toISOString();
+      setAssigning(true);
 
-      if (mode === "assign") {
-        const assignmentRef = push(ref(database, "courseAssignments"));
-        const usersObject = {};
+      const courseVersion = Number(selectedCourse?.version || 1);
 
-        selectedUsers.forEach((uid) => {
-          usersObject[uid] = true;
-
-          updates[`userAssignments/${uid}/${selectedCourseId}`] = {
+      await Promise.all(
+        usersToAssign.map((userId) =>
+          set(ref(database, `userAssignments/${userId}/${selectedCourseId}`), {
             assigned: true,
-            assignmentId: assignmentRef.key,
             courseId: selectedCourseId,
-            courseTitle:
-              selectedCourse?.title || selectedCourse?.courseTitle || "",
-            courseDepartment:
-              selectedCourse?.department || currentUser?.department || "",
-            assignedByDepartment: currentUser?.department || "",
+            courseTitle: selectedCourse?.title || "",
+            courseThumbnail: selectedCourse?.thumbnailUrl || selectedCourse?.courseThumbnail || "",
+            department: selectedCourse?.department || currentUser?.department || "",
             assignedBy: currentUser?.id || "",
             assignedByName: currentUser?.name || "",
-            assignedAt: now,
-          };
-        });
-
-        updates[`courseAssignments/${assignmentRef.key}`] = {
-          courseId: selectedCourseId,
-          courseTitle:
-            selectedCourse?.title || selectedCourse?.courseTitle || "",
-          courseDepartment:
-            selectedCourse?.department || currentUser?.department || "",
-          assignedByDepartment: currentUser?.department || "",
-          assignedBy: currentUser?.id || "",
-          assignedByName: currentUser?.name || "",
-          assignedAt: now,
-          filtersUsed: filters,
-          users: usersObject,
-        };
-      } else {
-        selectedUsers.forEach((uid) => {
-          updates[`userAssignments/${uid}/${selectedCourseId}`] = null;
-
-          updates[`unassignedLogs/${selectedCourseId}/${uid}`] = {
-            courseId: selectedCourseId,
-            courseTitle:
-              selectedCourse?.title || selectedCourse?.courseTitle || "",
-            courseDepartment:
-              selectedCourse?.department || currentUser?.department || "",
-            userId: uid,
-            unassignedByDepartment: currentUser?.department || "",
-            unassignedBy: currentUser?.id || "",
-            unassignedByName: currentUser?.name || "",
-            unassignedAt: now,
-          };
-        });
-      }
-
-      await update(ref(database), updates);
-
-      alert(
-        `${selectedUsers.length} users ${
-          mode === "assign" ? "assigned" : "unassigned"
-        } successfully.`
+            assignedAt: new Date().toISOString(),
+            courseVersion,
+            assignedCourseVersion: courseVersion,
+            latestCourseVersion: courseVersion,
+            needsReassignment: false,
+            reassignReason: "",
+            status: "active",
+          })
+        )
       );
 
+      alert(`Course assigned to ${usersToAssign.length} user(s).`);
+
       setSelectedUsers([]);
-      await fetchAssignedUsers();
+
+      const newAssignmentsSnap = await get(ref(database, "userAssignments"));
+      setAssignments(newAssignmentsSnap.exists() ? newAssignmentsSnap.val() : {});
     } catch (error) {
       console.error(error);
-      alert(error.message);
+      alert("Failed to assign course.");
+    } finally {
+      setAssigning(false);
     }
-
-    setLoading(false);
   };
 
-  return (
-    <div className="dept-assign-page">
-      <div className="dept-assign-header">
-        <div>
-          <span>Department Assignment Center</span>
-          <h1>Assign / Unassign Training</h1>
-          <p>
-            Assign courses created by{" "}
-            <strong>{currentUser?.department || "your department"}</strong> to
-            any user in the portal.
-          </p>
-        </div>
+  if (loading) {
+    return <div className="assign-training-page">Loading...</div>;
+  }
 
-        <div className="assign-header-count">
-          <strong>{selectedUsers.length}</strong>
-          <span>Selected</span>
+  return (
+    <div className="assign-training-page">
+      <div className="assign-header-card">
+        <div>
+          <span>Assign Course</span>
+          <h1>Assign Training</h1>
+          <p>Only users who need this course/latest version are shown here.</p>
         </div>
       </div>
 
-      <div className="assign-layout">
-        <div className="assign-left">
-          <div className="assign-card">
-            <h2>Select Course</h2>
-
+      <div className="assign-main-card">
+        <div className="assign-course-box">
+          <div>
+            <label>Course to assign</label>
             <select
               value={selectedCourseId}
-              onChange={(e) => setSelectedCourseId(e.target.value)}
+              onChange={(e) => {
+                setSelectedCourseId(e.target.value);
+                setSelectedUsers([]);
+              }}
             >
               <option value="">Select Course</option>
-
               {courses.map((course) => (
                 <option key={course.id} value={course.id}>
-                  {course.title || course.courseTitle}
+                  {course.title}
                 </option>
               ))}
             </select>
           </div>
 
-          <div className="assign-card">
-            <h2>Action</h2>
+          {selectedCourse && (
+            <div className="selected-course-preview">
+              <div className="selected-course-thumb">
+                {selectedCourse.thumbnailUrl || selectedCourse.courseThumbnail ? (
+                  <img
+                    src={selectedCourse.thumbnailUrl || selectedCourse.courseThumbnail}
+                    alt={selectedCourse.title}
+                  />
+                ) : (
+                  <span>▶</span>
+                )}
+              </div>
 
-            <div className="assign-filter-grid">
-              <button
-                type="button"
-                className={mode === "assign" ? "active-filter-btn" : ""}
-                onClick={() => {
-                  setMode("assign");
-                  setSelectedUsers([]);
-                }}
-              >
-                Assign New Users
-              </button>
+              <div>
+                <h3>{selectedCourse.title}</h3>
+                <p>{selectedCourse.description || selectedCourse.overview}</p>
 
-              <button
-                type="button"
-                className={mode === "unassign" ? "active-filter-btn" : ""}
-                onClick={() => {
-                  setMode("unassign");
-                  setSelectedUsers([]);
-                }}
-              >
-                Unassign Existing Users
-              </button>
+                <div className="assign-meta-row">
+                  <span>{selectedCourse.totalVideos || 0} videos</span>
+                  <span>{selectedCourse.totalQuestions || 0} questions</span>
+                  <span>Pass {selectedCourse.passingScore || 70}%</span>
+                  <span>Version {selectedCourse.version || 1}</span>
+                </div>
+              </div>
             </div>
+          )}
+        </div>
+
+        <div className="assign-toolbar assign-toolbar-large">
+          <input
+            placeholder="Search name, email, designation, city..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setSelectedUsers([]);
+            }}
+          />
+
+          <select value={zoneFilter} onChange={(e) => handleZoneChange(e.target.value)}>
+            <option value="">All Zones</option>
+            {zoneOptions.map((zone) => (
+              <option key={zone} value={zone}>
+                {zone}
+              </option>
+            ))}
+          </select>
+
+          <select value={stateFilter} onChange={(e) => handleStateChange(e.target.value)}>
+            <option value="">All States</option>
+            {stateOptions.map((state) => (
+              <option key={state} value={state}>
+                {state}
+              </option>
+            ))}
+          </select>
+
+          <select value={cityFilter} onChange={(e) => handleCityChange(e.target.value)}>
+            <option value="">All Cities / Areas</option>
+            {cityOptions.map((city) => (
+              <option key={city} value={city}>
+                {city}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={experienceFilter}
+            onChange={(e) => {
+              setExperienceFilter(e.target.value);
+              setSelectedUsers([]);
+            }}
+          >
+            <option value="">All Experience</option>
+            {experienceOptions.map((exp) => (
+              <option key={exp} value={exp}>
+                {exp}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={designationFilter}
+            onChange={(e) => {
+              setDesignationFilter(e.target.value);
+              setSelectedUsers([]);
+            }}
+          >
+            <option value="">All Designations</option>
+            {designationOptions.map((desig) => (
+              <option key={desig} value={desig}>
+                {desig}
+              </option>
+            ))}
+          </select>
+
+          <button type="button" className="assign-reset-btn" onClick={resetFilters}>
+            Reset
+          </button>
+        </div>
+
+        <div className="assign-table-head">
+          <div>
+            <h2>Users to Assign</h2>
+            <p>
+              {filteredUsers.length} users showing • {selectedUsers.length} selected
+            </p>
           </div>
 
-          <div className="assign-card">
-            <div className="assign-card-head">
-              <div>
-                <h2>Filters</h2>
-                <p>
-                  Leave filters empty to show all users. City auto-fills state
-                  and zone, but you can still change them manually.
-                </p>
-              </div>
+          <div className="assign-head-actions">
+            <button type="button" onClick={toggleFilteredUsers}>
+              {allFilteredSelected ? "Unselect Filtered" : "Select Filtered"}
+            </button>
 
-              <button type="button" onClick={clearFilters}>
-                Clear All
-              </button>
-            </div>
+             <button type="button" onClick={() => assignCourse(false)} disabled={assigning}>
+            {assigning ? "Assigning..." : `Assign Selected (${selectedUsers.length})`}
+          </button> 
 
-            <div className="assign-filter-grid">
-              <select
-                value={filters.designation}
-                onChange={(e) => handleDesignationChange(e.target.value)}
-              >
-                <option value="">All Designations</option>
-
-                {designations.map((designation) => (
-                  <option key={designation} value={designation}>
-                    {designation}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={filters.zone}
-                onChange={(e) => handleZoneChange(e.target.value)}
-              >
-                <option value="">All Zones</option>
-
-                {zones.map((zone) => (
-                  <option key={zone} value={zone}>
-                    {zone}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={filters.state}
-                onChange={(e) => handleStateChange(e.target.value)}
-              >
-                <option value="">All States</option>
-
-                {states.map((state) => (
-                  <option key={state} value={state}>
-                    {state}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={filters.cityArea}
-                onChange={(e) => handleCityChange(e.target.value)}
-              >
-                <option value="">All Cities / Areas</option>
-
-                {cities.map((city) => (
-                  <option key={city} value={city}>
-                    {city}
-                  </option>
-                ))}
-              </select>
-
-              <input
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setSelectedUsers([]);
-                }}
-                placeholder="Search name, email, designation, city..."
-              />
-            </div>
-          </div>
-
-          <div className="assign-card">
-            <div className="assign-card-head">
-              <div>
-                <h2>
-                  {mode === "assign"
-                    ? "Users Available for Assignment"
-                    : "Already Assigned Users"}
-                </h2>
-
-                <p>
-                  {filteredMembers.length} users found from total{" "}
-                  {members.length} users.
-                </p>
-              </div>
-
-              <div className="table-actions">
-                <button type="button" onClick={selectAllUsers}>
-                  Select All Filtered
-                </button>
-
-                <button type="button" onClick={clearSelection}>
-                  Clear
-                </button>
-              </div>
-            </div>
-
-            <div className="assign-table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Select</th>
-                    <th>User</th>
-                    <th>Designation</th>
-                    <th>Zone</th>
-                    <th>State</th>
-                    <th>City</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {filteredMembers.map((member) => {
-                    const designation = getUserDesignation(member) || "-";
-                    const city = getUserCity(member) || "-";
-
-                    return (
-                      <tr key={member.id}>
-                        <td>
-                          <input
-                            type="checkbox"
-                            checked={selectedUsers.includes(member.id)}
-                            onChange={() => toggleUser(member.id)}
-                          />
-                        </td>
-
-                        <td>
-                          <strong>{member.name || "-"}</strong>
-                          <small>{member.email || "-"}</small>
-                        </td>
-
-                        <td>{designation}</td>
-                        <td>{member.zone || "-"}</td>
-                        <td>{member.state || "-"}</td>
-                        <td>{city}</td>
-
-                        <td>
-                          {assignedMap[member.id] ? (
-                            <span className="badge-metric accent-blue">
-                              Assigned
-                            </span>
-                          ) : (
-                            <span className="badge-metric accent-grey">
-                              Not Assigned
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-
-                  {filteredMembers.length === 0 && (
-                    <tr>
-                      <td colSpan="7">No users found.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+            {/* <button
+            //   type="button"
+            //   className="assign-all-btn"
+            //   onClick={() => assignCourse(true)}
+            //   disabled={assigning || filteredUsers.length === 0}
+            // >
+            //   Assign All Filtered
+            </button> */}
           </div>
         </div>
 
-        <div className="assign-summary-card">
-          <span>Assignment Summary</span>
+        <div className="assign-users-table-wrap">
+          <table className="assign-users-table">
+            <thead>
+              <tr>
+                <th>Select</th>
+                <th>User</th>
+                <th>Designation</th>
+                <th>Experience</th>
+                <th>Location</th>
+                <th>Reason</th>
+              </tr>
+            </thead>
 
-          <h2>
-            {selectedCourse
-              ? selectedCourse.title || selectedCourse.courseTitle
-              : "No Course Selected"}
-          </h2>
+            <tbody>
+              {filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="assign-empty">
+                    No users need this course/latest version.
+                  </td>
+                </tr>
+              ) : (
+                filteredUsers.map((user) => {
+                  const selected = selectedUsers.includes(user.id);
+                  const status = getUserCourseStatus(user.id);
 
-          <div className="summary-row">
-            <p>Course Department</p>
-            <strong>{selectedCourse?.department || "-"}</strong>
-          </div>
+                  const designation = getField(user, fieldKeys.designation) || "-";
+                  const experience = getField(user, fieldKeys.experience) || "-";
 
-          <div className="summary-row">
-            <p>Mode</p>
-            <strong>{mode === "assign" ? "Assign" : "Unassign"}</strong>
-          </div>
+                  const location =
+                    [
+                      getField(user, fieldKeys.city),
+                      getField(user, fieldKeys.state),
+                      getField(user, fieldKeys.zone),
+                    ]
+                      .filter(Boolean)
+                      .join(", ") || "-";
 
-          <div className="summary-row">
-            <p>Total Users</p>
-            <strong>{members.length}</strong>
-          </div>
+                  return (
+                    <tr
+                      key={user.id}
+                      className={selected ? "selected" : ""}
+                      onClick={() => toggleUser(user.id)}
+                    >
+                      <td>
+                        <input type="checkbox" checked={selected} readOnly />
+                      </td>
 
-          <div className="summary-row">
-            <p>Filtered Users</p>
-            <strong>{filteredMembers.length}</strong>
-          </div>
+                      <td>
+                        <strong>{user.name || "Unnamed User"}</strong>
+                        <small>{user.email}</small>
+                      </td>
 
-          <div className="summary-row">
-            <p>Selected Users</p>
-            <strong>{selectedUsers.length}</strong>
-          </div>
+                      <td>{designation}</td>
+                      <td>{experience}</td>
+                      <td>{location}</td>
 
-          <button
-            className="assign-main-btn"
-            onClick={handleBulkAction}
-            disabled={loading}
-          >
-            {loading
-              ? "Processing..."
-              : mode === "assign"
-              ? `Assign to ${selectedUsers.length} Users`
-              : `Unassign ${selectedUsers.length} Users`}
-          </button>
+                      <td>
+                        <span className={`assign-status ${status}`}>
+                          {getStatusLabel(status)}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="assign-footer">
+          <p>Already assigned latest-version users are hidden from this list.</p>
+
+                 <button
+              type="button"
+              className="assign-all-btn"
+              onClick={() => assignCourse(true)}
+              disabled={assigning || filteredUsers.length === 0}
+            >
+              Assign All Filtered
+            </button>
+
+          
         </div>
       </div>
     </div>

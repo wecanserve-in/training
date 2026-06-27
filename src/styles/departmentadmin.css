@@ -1,149 +1,239 @@
 .dept-dashboard-page {
   width: 100%;
-  padding: 28px;
-  background: #f7f9fb;
-  min-height: 100vh;
-  color: #101828;
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 10px;
+  color: #202124;
+  animation: pageFade 0.45s ease;
+}
+
+@keyframes pageFade {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dept-dashboard-header,
+.dept-kpi-card,
+.dept-large-card,
+.dept-small-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 22px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.07);
+  animation: cardUp 0.5s ease both;
+}
+
+@keyframes cardUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .dept-dashboard-header {
+  min-height: 130px;
+  padding: 24px;
+  margin-bottom: 12px;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 24px;
+  align-items: center;
+  gap: 14px;
+  background: linear-gradient(135deg, #ffffff 0%, #eef4ff 48%, #fff8df 100%);
 }
 
 .dept-dashboard-header h1 {
-  margin: 0 0 20px;
-  font-size: 26px;
-  font-weight: 900;
+  margin: 0 0 6px;
+  font-size: 2rem;
+  font-weight: 950;
+  letter-spacing: -0.04em;
+  color: #111827;
 }
 
 .dept-dashboard-header h2 {
   margin: 0;
-  font-size: 22px;
-  font-weight: 900;
+  font-size: 1.25rem;
+  font-weight: 950;
+  color: #111827;
 }
 
 .dept-dashboard-header p {
   margin: 6px 0 0;
-  color: #667085;
-  font-size: 14px;
+  color: #5f6368;
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.55;
 }
 
 .dept-header-actions button {
-  border: 1px solid #cfe8db;
-  background: #ffffff;
-  color: #06964f;
-  padding: 11px 18px;
-  border-radius: 6px;
-  font-weight: 800;
+  min-height: 48px;
+  border: none;
+  border-radius: 14px;
+  background: #4285f4;
+  color: #ffffff;
+  padding: 0 18px;
+  font-size: 0.95rem;
+  font-weight: 950;
   cursor: pointer;
+  transition: all 0.22s ease;
+  box-shadow: 0 10px 20px rgba(66, 133, 244, 0.2);
+  white-space: nowrap;
+}
+
+.dept-header-actions button:hover {
+  background: #1a73e8;
+  transform: translateY(-2px);
+  box-shadow: 0 14px 26px rgba(66, 133, 244, 0.28);
 }
 
 .dept-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 14px;
-  margin-bottom: 20px;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .dept-kpi-card {
-  background: #ffffff;
-  border: 1px solid #e6ebf0;
-  border-radius: 8px;
-  padding: 18px;
-  min-height: 118px;
+  padding: 20px;
+  min-height: 120px;
+  transition: all 0.22s ease;
+}
+
+.dept-kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.1);
 }
 
 .dept-kpi-card span {
-  color: #344054;
-  font-size: 13px;
-  font-weight: 800;
+  color: #5f6368;
+  font-size: 0.82rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .dept-kpi-card h3 {
-  margin: 10px 0 6px;
-  font-size: 28px;
-  font-weight: 900;
-  color: #101828;
+  margin: 12px 0 4px;
+  color: #111827;
+  font-size: 2.1rem;
+  font-weight: 950;
+  letter-spacing: -0.04em;
 }
 
 .dept-kpi-card p {
   margin: 0;
-  color: #667085;
-  font-size: 12px;
+  color: #5f6368;
+  font-size: 0.9rem;
+  font-weight: 650;
+  line-height: 1.4;
 }
 
 .dept-main-layout {
   display: grid;
-  grid-template-columns: 1.8fr 0.9fr;
-  gap: 18px;
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.75fr);
+  gap: 12px;
+  margin-bottom: 12px;
+  align-items: start;
 }
 
 .dept-large-card,
 .dept-small-card {
-  background: #ffffff;
-  border: 1px solid #e6ebf0;
-  border-radius: 8px;
-  padding: 20px;
+  padding: 24px;
+}
+
+.dept-side-column {
+  display: grid;
+  gap: 12px;
 }
 
 .dept-section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 14px;
   margin-bottom: 18px;
 }
 
 .dept-section-head h2,
-.dept-small-card h2 {
+.dept-small-card h2,
+.dept-large-card h2 {
   margin: 0;
-  font-size: 18px;
-  font-weight: 900;
-  color: #101828;
+  color: #111827;
+  font-size: 1.42rem;
+  font-weight: 950;
+  letter-spacing: -0.025em;
 }
 
 .dept-section-head a {
-  color: #06964f;
-  font-weight: 800;
+  color: #4285f4;
+  font-weight: 950;
   text-decoration: none;
-  font-size: 13px;
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+
+.dept-section-head a:hover {
+  color: #1a73e8;
 }
 
 .dept-table {
   width: 100%;
+  overflow-x: auto;
+  border-radius: 18px;
+  border: 1px solid #e5e7eb;
 }
 
 .dept-table-head,
 .dept-table-row {
   display: grid;
-  grid-template-columns: 1.5fr 0.7fr 0.8fr 0.7fr 1fr;
+  grid-template-columns: minmax(220px, 1.5fr) 0.7fr 0.8fr 0.7fr minmax(170px, 1fr);
   align-items: center;
   gap: 14px;
+  min-width: 760px;
 }
 
 .dept-table-head {
-  color: #667085;
-  font-size: 13px;
-  font-weight: 900;
-  padding: 12px 0;
-  border-bottom: 1px solid #e6ebf0;
+  background: #f8fafc;
+  color: #5f6368;
+  font-size: 0.82rem;
+  font-weight: 950;
+  padding: 16px 18px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .dept-table-row {
-  padding: 18px 0;
-  border-bottom: 1px solid #edf1f3;
-  font-size: 14px;
+  padding: 17px 18px;
+  border-top: 1px solid #e5e7eb;
+  color: #202124;
+  font-size: 1rem;
+  font-weight: 750;
+  transition: all 0.2s ease;
+}
+
+.dept-table-row:hover {
+  background: #fbfdff;
 }
 
 .dept-table-row strong {
-  color: #101828;
+  color: #111827;
+  font-weight: 950;
 }
 
 .dept-table-row span {
-  color: #344054;
-  font-weight: 700;
+  color: #202124;
+  font-weight: 750;
 }
 
 .dept-progress-line {
@@ -153,39 +243,48 @@
 }
 
 .dept-progress-line b {
-  font-size: 13px;
+  color: #111827;
+  font-size: 0.92rem;
+  font-weight: 950;
+  min-width: 42px;
 }
 
 .dept-progress-line div {
   flex: 1;
-  height: 7px;
-  background: #e8edf2;
-  border-radius: 20px;
+  height: 10px;
+  background: #e5eefc;
+  border-radius: 999px;
   overflow: hidden;
 }
 
 .dept-progress-line div span {
   display: block;
   height: 100%;
-  background: #06964f;
-  border-radius: 20px;
+  background: linear-gradient(90deg, #4285f4, #1a73e8);
+  border-radius: 999px;
+  transition: width 0.45s ease;
 }
 
 .dept-outline-btn {
-  display: inline-block;
-  margin-top: 20px;
-  border: 1px solid #cfe8db;
-  color: #101828;
-  background: #ffffff;
-  padding: 10px 18px;
-  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  margin-top: 18px;
+  border: 1px solid #dbe8ff;
+  color: #4285f4;
+  background: #eef4ff;
+  padding: 0 18px;
+  border-radius: 14px;
   text-decoration: none;
-  font-weight: 800;
+  font-weight: 950;
+  transition: all 0.22s ease;
 }
 
-.dept-side-column {
-  display: grid;
-  gap: 18px;
+.dept-outline-btn:hover {
+  background: #4285f4;
+  color: #ffffff;
+  transform: translateY(-2px);
 }
 
 .dept-quick-actions {
@@ -195,32 +294,107 @@
 }
 
 .dept-quick-actions a {
-  border: 1px solid #dceee4;
-  background: #f8fffb;
-  color: #06964f;
-  border-radius: 6px;
-  padding: 12px;
+  min-height: 76px;
+  border: 1px solid #eef2f7;
+  background: #f8fafc;
+  color: #4285f4;
+  border-radius: 16px;
+  padding: 14px;
   text-decoration: none;
-  font-size: 13px;
-  font-weight: 900;
+  font-size: 0.95rem;
+  font-weight: 950;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-align: center;
+  transition: all 0.22s ease;
+}
+
+.dept-quick-actions a:hover {
+  background: #ffffff;
+  border-color: #4285f4;
+  transform: translateY(-3px);
+  box-shadow: 0 12px 24px rgba(66, 133, 244, 0.12);
 }
 
 .dept-small-card p {
   margin: 10px 0;
-  color: #667085;
-  font-size: 14px;
-  line-height: 1.5;
+  color: #5f6368;
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.55;
 }
 
 .dept-small-card strong {
-  color: #06964f;
-  font-size: 16px;
+  color: #4285f4;
+  font-size: 1.05rem;
+  font-weight: 950;
 }
 
-@media (max-width: 1100px) {
+.dept-follow-list {
+  display: grid;
+  gap: 10px;
+}
+
+.dept-follow-row {
+  background: #f8fafc;
+  border: 1px solid #eef2f7;
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.22s ease;
+}
+
+.dept-follow-row:hover {
+  transform: translateY(-2px);
+  background: #ffffff;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.07);
+}
+
+.dept-follow-row strong {
+  display: block;
+  color: #111827;
+  font-size: 0.98rem;
+  font-weight: 950;
+}
+
+.dept-follow-row span {
+  display: block;
+  margin-top: 4px;
+  color: #5f6368;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.dept-follow-row b {
+  color: #4285f4;
+  font-size: 0.95rem;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.dept-empty-text,
+.dept-empty-row {
+  margin: 0;
+  background: #fff8df;
+  color: #9a6a00;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid #ffe8a3;
+  font-size: 0.95rem;
+  font-weight: 750;
+}
+
+.dept-empty-row {
+  margin: 14px;
+}
+
+@media (max-width: 1250px) {
   .dept-kpi-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 
   .dept-main-layout {
@@ -228,29 +402,57 @@
   }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 850px) {
   .dept-dashboard-page {
-    padding: 18px;
+    padding: 8px;
   }
 
   .dept-dashboard-header {
+    align-items: flex-start;
     flex-direction: column;
-    gap: 16px;
+    padding: 18px;
+    border-radius: 18px;
   }
 
-  .dept-kpi-grid {
-    grid-template-columns: 1fr;
+  .dept-dashboard-header h1 {
+    font-size: 1.65rem;
   }
 
-  .dept-table-head {
-    display: none;
+  .dept-dashboard-header h2 {
+    font-size: 1.1rem;
   }
 
-  .dept-table-row {
-    grid-template-columns: 1fr;
-  }
-
+  .dept-kpi-grid,
   .dept-quick-actions {
     grid-template-columns: 1fr;
+  }
+
+  .dept-large-card,
+  .dept-small-card,
+  .dept-kpi-card {
+    padding: 18px;
+    border-radius: 18px;
+  }
+
+  .dept-section-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dept-section-head h2,
+  .dept-small-card h2,
+  .dept-large-card h2 {
+    font-size: 1.2rem;
+  }
+
+  .dept-header-actions,
+  .dept-header-actions button,
+  .dept-outline-btn {
+    width: 100%;
+  }
+
+  .dept-table-head,
+  .dept-table-row {
+    min-width: 760px;
   }
 }

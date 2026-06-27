@@ -10,11 +10,10 @@ function SuperAdminAnalytics() {
   const [results, setResults] = useState({});
 
   const [filters, setFilters] = useState({
-        designation: "",
+    designation: "",
     zone: "",
     state: "",
     cityArea: "",
-
   });
 
   useEffect(() => {
@@ -32,6 +31,8 @@ function SuperAdminAnalytics() {
             ...user,
           }))
         );
+      } else {
+        setUsers([]);
       }
 
       if (coursesSnap.exists()) {
@@ -42,21 +43,129 @@ function SuperAdminAnalytics() {
             ...course,
           }))
         );
+      } else {
+        setCourses([]);
       }
 
       if (completedSnap.exists()) {
         setCompletedCourses(completedSnap.val());
+      } else {
+        setCompletedCourses({});
       }
 
       if (resultsSnap.exists()) {
         setResults(resultsSnap.val());
+      } else {
+        setResults({});
       }
     };
 
     fetchData();
   }, []);
 
-  const employeeUsers = users.filter((user) => user.role !== "superAdmin");
+  const employeeUsers = useMemo(() => {
+    return users.filter((user) => user.role !== "superAdmin");
+  }, [users]);
+
+  const locationMap = useMemo(() => {
+    const map = {};
+
+    employeeUsers.forEach((user) => {
+      if (user.cityArea) {
+        map[user.cityArea] = {
+          cityArea: user.cityArea,
+          state: user.state || "",
+          zone: user.zone || "",
+        };
+      }
+    });
+
+    return map;
+  }, [employeeUsers]);
+
+  const zones = useMemo(() => {
+    return [...new Set(employeeUsers.map((u) => u.zone).filter(Boolean))].sort();
+  }, [employeeUsers]);
+
+  const states = useMemo(() => {
+    return [
+      ...new Set(
+        employeeUsers
+          .filter((u) => !filters.zone || u.zone === filters.zone)
+          .map((u) => u.state)
+          .filter(Boolean)
+      ),
+    ].sort();
+  }, [employeeUsers, filters.zone]);
+
+  const cities = useMemo(() => {
+    return [
+      ...new Set(
+        employeeUsers
+          .filter((u) => !filters.zone || u.zone === filters.zone)
+          .filter((u) => !filters.state || u.state === filters.state)
+          .map((u) => u.cityArea)
+          .filter(Boolean)
+      ),
+    ].sort();
+  }, [employeeUsers, filters.zone, filters.state]);
+
+  const designations = useMemo(() => {
+    return [
+      ...new Set(
+        employeeUsers
+          .filter((u) => !filters.zone || u.zone === filters.zone)
+          .filter((u) => !filters.state || u.state === filters.state)
+          .filter((u) => !filters.cityArea || u.cityArea === filters.cityArea)
+          .map((u) => u.designation)
+          .filter(Boolean)
+      ),
+    ].sort();
+  }, [employeeUsers, filters.zone, filters.state, filters.cityArea]);
+
+  const handleZoneChange = (zone) => {
+    setFilters({
+      designation: "",
+      zone,
+      state: "",
+      cityArea: "",
+    });
+  };
+
+  const handleStateChange = (state) => {
+    const matchedUser = employeeUsers.find(
+      (user) =>
+        user.state === state &&
+        (!filters.zone || user.zone === filters.zone)
+    );
+
+    setFilters({
+      designation: "",
+      zone: matchedUser?.zone || filters.zone,
+      state,
+      cityArea: "",
+    });
+  };
+
+  const handleCityChange = (cityArea) => {
+    if (!cityArea) {
+      setFilters({
+        ...filters,
+        cityArea: "",
+        designation: "",
+      });
+      return;
+    }
+
+    const matchedLocation = locationMap[cityArea];
+
+    setFilters({
+      designation: "",
+      zone: matchedLocation?.zone || "",
+      state: matchedLocation?.state || "",
+      cityArea,
+    });
+  };
 
   const filteredUsers = useMemo(() => {
     return employeeUsers.filter((user) => {
@@ -69,13 +178,6 @@ function SuperAdminAnalytics() {
     });
   }, [employeeUsers, filters]);
 
-  const zones = [...new Set(employeeUsers.map((u) => u.zone).filter(Boolean))];
-  const states = [...new Set(employeeUsers.map((u) => u.state).filter(Boolean))];
-  const cities = [...new Set(employeeUsers.map((u) => u.cityArea).filter(Boolean))];
-  const designations = [
-    ...new Set(employeeUsers.map((u) => u.designation).filter(Boolean)),
-  ];
-
   const getCompletedCount = (userId) => {
     if (!completedCourses[userId]) return 0;
     return Object.keys(completedCourses[userId]).length;
@@ -86,6 +188,11 @@ function SuperAdminAnalytics() {
 
     return Object.values(results[userId]).filter((result) => result.passed)
       .length;
+  };
+
+  const getUserCompletion = (userId) => {
+    const completed = getCompletedCount(userId);
+    return courses.length > 0 ? Math.round((completed / courses.length) * 100) : 0;
   };
 
   const totalPossible = filteredUsers.length * courses.length;
@@ -133,13 +240,91 @@ function SuperAdminAnalytics() {
     };
   });
 
+  const downloadCompleteReport = () => {
+    const rows = filteredUsers.map((user) => {
+      const completed = getCompletedCount(user.id);
+      const certificates = getCertificateCount(user.id);
+      const completionPercent = getUserCompletion(user.id);
+
+      return {
+        Name: user.name || "",
+        Email: user.email || "",
+        Role: user.role || "",
+        Designation: user.designation || "",
+        Seniority: user.seniority || "",
+        Zone: user.zone || "",
+        State: user.state || "",
+        City: user.cityArea || "",
+        "Total Courses": courses.length,
+        "Completed Trainings": completed,
+        Certificates: certificates,
+        "Completion %": `${completionPercent}%`,
+      };
+    });
+
+    const headers = Object.keys(rows[0] || {
+      Name: "",
+      Email: "",
+      Role: "",
+      Designation: "",
+      Seniority: "",
+      Zone: "",
+      State: "",
+      City: "",
+      "Total Courses": "",
+      "Completed Trainings": "",
+      Certificates: "",
+      "Completion %": "",
+    });
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) =>
+        headers
+          .map((header) => `"${String(row[header] || "").replace(/"/g, '""')}"`)
+          .join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = `training-report-${new Date()
+      .toISOString()
+      .slice(0, 10)}.csv`;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      designation: "",
+      zone: "",
+      state: "",
+      cityArea: "",
+    });
+  };
+
   return (
     <div className="super-analytics-page">
       <div className="analytics-header">
         <div>
           <h1>Super Admin Analytics</h1>
-          <p>Track training performance by zone, state, city and designation.</p>
+          <p>Track real training performance by zone, state, city and designation.</p>
         </div>
+
+        <button className="download-report-btn" onClick={downloadCompleteReport}>
+          Download Complete Report
+        </button>
       </div>
 
       <div className="analytics-kpi-grid">
@@ -172,25 +357,14 @@ function SuperAdminAnalytics() {
       <div className="analytics-card">
         <div className="analytics-card-head">
           <h2>Filters</h2>
-          <button
-            onClick={() =>
-              setFilters({
-                    designation: "",
-                zone: "",
-                state: "",
-                cityArea: "",
-            
-              })
-            }
-          >
-            Clear Filters
-          </button>
+
+          <button onClick={clearFilters}>Clear Filters</button>
         </div>
 
         <div className="analytics-filter-grid">
           <select
             value={filters.zone}
-            onChange={(e) => setFilters({ ...filters, zone: e.target.value })}
+            onChange={(e) => handleZoneChange(e.target.value)}
           >
             <option value="">All Zones</option>
             {zones.map((zone) => (
@@ -202,7 +376,7 @@ function SuperAdminAnalytics() {
 
           <select
             value={filters.state}
-            onChange={(e) => setFilters({ ...filters, state: e.target.value })}
+            onChange={(e) => handleStateChange(e.target.value)}
           >
             <option value="">All States</option>
             {states.map((state) => (
@@ -214,9 +388,7 @@ function SuperAdminAnalytics() {
 
           <select
             value={filters.cityArea}
-            onChange={(e) =>
-              setFilters({ ...filters, cityArea: e.target.value })
-            }
+            onChange={(e) => handleCityChange(e.target.value)}
           >
             <option value="">All Cities / Areas</option>
             {cities.map((city) => (
@@ -259,6 +431,10 @@ function SuperAdminAnalytics() {
                 </div>
               </div>
             ))}
+
+            {zonePerformance.length === 0 && (
+              <p className="empty-help">No zone data available.</p>
+            )}
           </div>
         </div>
 
@@ -278,12 +454,20 @@ function SuperAdminAnalytics() {
                 </div>
               </div>
             ))}
+
+            {designationPerformance.length === 0 && (
+              <p className="empty-help">No designation data available.</p>
+            )}
           </div>
         </div>
       </div>
 
       <div className="analytics-card">
-        <h2>User Training Report</h2>
+        <div className="analytics-card-head">
+          <h2>User Training Report</h2>
+
+          <button onClick={downloadCompleteReport}>Download Report</button>
+        </div>
 
         <div className="analytics-table-wrap">
           <table>
@@ -292,6 +476,7 @@ function SuperAdminAnalytics() {
                 <th>Name</th>
                 <th>Email</th>
                 <th>Designation</th>
+                <th>Type</th>
                 <th>Zone</th>
                 <th>State</th>
                 <th>City</th>
@@ -305,20 +490,22 @@ function SuperAdminAnalytics() {
               {filteredUsers.map((user) => {
                 const completed = getCompletedCount(user.id);
                 const certificates = getCertificateCount(user.id);
-
-                const userCompletion =
-                  courses.length > 0
-                    ? Math.round((completed / courses.length) * 100)
-                    : 0;
+                const userCompletion = getUserCompletion(user.id);
 
                 return (
                   <tr key={user.id}>
-                    <td>{user.name}</td>
-                    <td>{user.email}</td>
-                    <td>{user.designation}</td>
-                    <td>{user.zone}</td>
-                    <td>{user.state}</td>
-                    <td>{user.cityArea}</td>
+                    <td>{user.name || "-"}</td>
+                    <td>{user.email || "-"}</td>
+                    <td>{user.designation || "-"}</td>
+                    <td>
+                      {user.seniority
+                        ? user.seniority.charAt(0).toUpperCase() +
+                          user.seniority.slice(1)
+                        : "-"}
+                    </td>
+                    <td>{user.zone || "-"}</td>
+                    <td>{user.state || "-"}</td>
+                    <td>{user.cityArea || "-"}</td>
                     <td>{completed}</td>
                     <td>{certificates}</td>
                     <td>
@@ -330,7 +517,7 @@ function SuperAdminAnalytics() {
 
               {filteredUsers.length === 0 && (
                 <tr>
-                  <td colSpan="9">No users found for selected filters.</td>
+                  <td colSpan="10">No users found for selected filters.</td>
                 </tr>
               )}
             </tbody>
