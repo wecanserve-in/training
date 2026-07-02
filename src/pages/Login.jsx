@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { FaEye, FaEyeSlash, FaEnvelope, FaLock } from "react-icons/fa";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../firebase";
+import { ref, get } from "firebase/database";
+import { auth, database } from "../firebase";
 import { useNavigate } from "react-router-dom";
 import "../styles/login.css";
 
@@ -27,13 +28,35 @@ function Login() {
       console.log("UID:", user.uid);
       console.log("Email:", user.email);
 
-      // Temporary Super Admin Access
-      if (user.email === "wemedialabs@gmail.com") {
-        navigate("/super-admin");
-      } else {
-        alert("Access Denied");
+      const snap = await get(ref(database, `users/${user.uid}`));
+
+      if (!snap.exists()) {
+        alert("User profile not found. Contact admin.");
+        return;
+      }
+
+      const userData = snap.val();
+
+      console.log("USER DATA:", userData);
+
+      switch (userData.role) {
+        case "superAdmin":
+          navigate("/super-admin");
+          break;
+
+        case "admin":
+          navigate("/admin");
+          break;
+
+        case "departmentAdmin":
+          navigate("/department-admin");
+          break;
+
+        default:
+          navigate("/dashboard");
       }
     } catch (error) {
+      console.error(error);
       alert(error.message);
     }
   };
@@ -81,8 +104,6 @@ function Login() {
               <FaEnvelope />
               <input
                 type="email"
-                name="zuvius_login_email"
-                autoComplete="off"
                 placeholder="Email Address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -95,8 +116,6 @@ function Login() {
 
               <input
                 type={showPassword ? "text" : "password"}
-                name="zuvius_login_password"
-                autoComplete="new-password"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
