@@ -23,7 +23,7 @@ function AdminRoute({ children }) {
   if (!user) return <Navigate to="/" />;
 
   if (user.email !== ADMIN_EMAIL) {
-    return <h2>Access Denied. Admin only.</h2>;
+    return <h2>Access Denied. Super Admin only.</h2>;
   }
 
   return children;

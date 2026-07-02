@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { FaEye, FaEyeSlash, FaEnvelope, FaLock } from "react-icons/fa";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { ref, get } from "firebase/database";
-import { auth, database } from "../firebase";
+import { auth } from "../firebase";
 import { useNavigate } from "react-router-dom";
 import "../styles/login.css";
 
@@ -24,23 +23,15 @@ function Login() {
       );
 
       const user = userCredential.user;
-      const userSnap = await get(ref(database, `users/${user.uid}`));
 
-      if (!userSnap.exists()) {
-        alert("User profile not found. Please contact admin.");
-        return;
-      }
+      console.log("UID:", user.uid);
+      console.log("Email:", user.email);
 
-      const userData = userSnap.val();
-
-      if (userData.role === "superAdmin") {
+      // Temporary Super Admin Access
+      if (user.email === "wemedialabs@gmail.com") {
         navigate("/super-admin");
-      } else if (userData.role === "admin") {
-        navigate("/admin");
-      } else if (userData.role === "departmentAdmin") {
-        navigate("/department-admin");
       } else {
-        navigate("/dashboard");
+        alert("Access Denied");
       }
     } catch (error) {
       alert(error.message);
@@ -70,9 +61,21 @@ function Login() {
           <h2>Login</h2>
           <div className="title-line"></div>
 
-          <form onSubmit={handleLogin} className="login-form" autoComplete="off">
-            <input type="text" name="fake-user" style={{ display: "none" }} />
-            <input type="password" name="fake-pass" style={{ display: "none" }} />
+          <form
+            onSubmit={handleLogin}
+            className="login-form"
+            autoComplete="off"
+          >
+            <input
+              type="text"
+              name="fake-user"
+              style={{ display: "none" }}
+            />
+            <input
+              type="password"
+              name="fake-pass"
+              style={{ display: "none" }}
+            />
 
             <div className="input-group">
               <FaEnvelope />
@@ -89,6 +92,7 @@ function Login() {
 
             <div className="input-group password-group">
               <FaLock />
+
               <input
                 type={showPassword ? "text" : "password"}
                 name="zuvius_login_password"
@@ -107,7 +111,9 @@ function Login() {
               </span>
             </div>
 
-            <div className="forgot-password">Forgot Password?</div>
+            <div className="forgot-password">
+              Forgot Password?
+            </div>
 
             <button type="submit">Login</button>
           </form>

@@ -20,7 +20,7 @@ function RoleRoute({ children, allowedRoles }) {
         }
 
         setIsLoggedIn(true);
-
+console.log("CURRENT UID:", currentUser.uid);
         const snap = await get(ref(database, `users/${currentUser.uid}`));
 
         if (snap.exists()) {
