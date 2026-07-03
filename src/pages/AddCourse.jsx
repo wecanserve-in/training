@@ -42,7 +42,8 @@ function AddCourse() {
 
   const [saving, setSaving] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
-
+const [showSuccessModal, setShowSuccessModal] = useState(false);
+const [successMessage, setSuccessMessage] = useState("");
   const steps = [
     { id: 1, label: "Course" },
     { id: 2, label: "Videos" },
@@ -282,60 +283,83 @@ if (userData.role === "departmentAdmin") {
     XLSX.writeFile(workbook, "Course_Quiz_Template.xlsx");
   };
 
-  const handleExcelUpload = () => {
-    if (!excelFile) {
-      alert("Please choose Excel file first.");
-      return;
-    }
+ const handleExcelUpload = (selectedFile = excelFile) => {
 
-    const reader = new FileReader();
+  if (!selectedFile) return;
 
-    reader.onload = (event) => {
-      try {
-        const data = new Uint8Array(event.target.result);
-        const workbook = XLSX.read(data, { type: "array" });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(worksheet);
+  const reader = new FileReader();
 
-        const uploadedQuestions = [];
+  reader.onload = (event) => {
 
-        rows.forEach((row) => {
-          const q = row.Question || row.question;
-          const a = row.OptionA || row.optionA;
-          const b = row.OptionB || row.optionB;
-          const c = row.OptionC || row.optionC;
-          const d = row.OptionD || row.optionD;
-          const correct = row.CorrectAnswer || row.correctAnswer;
+    try {
 
-          if (!q || !a || !b || !c || !d || !correct) return;
+      const data = new Uint8Array(event.target.result);
 
-          let finalCorrectAnswer = String(correct).trim();
-          const key = String(correct).trim().toUpperCase();
+      const workbook = XLSX.read(data, { type: "array" });
 
-          if (key === "A") finalCorrectAnswer = String(a).trim();
-          if (key === "B") finalCorrectAnswer = String(b).trim();
-          if (key === "C") finalCorrectAnswer = String(c).trim();
-          if (key === "D") finalCorrectAnswer = String(d).trim();
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
 
-          uploadedQuestions.push({
-            question: String(q).trim(),
-            options: [String(a).trim(), String(b).trim(), String(c).trim(), String(d).trim()],
-            correctAnswer: finalCorrectAnswer,
-            createdAt: new Date().toISOString(),
-            uploadedVia: "excel",
-          });
+      const rows = XLSX.utils.sheet_to_json(worksheet);
+
+      const uploadedQuestions = [];
+
+      rows.forEach((row) => {
+
+        const q = row.Question || row.question;
+        const a = row.OptionA || row.optionA;
+        const b = row.OptionB || row.optionB;
+        const c = row.OptionC || row.optionC;
+        const d = row.OptionD || row.optionD;
+        const correct = row.CorrectAnswer || row.correctAnswer;
+
+        if (!q || !a || !b || !c || !d || !correct) return;
+
+        let finalCorrectAnswer = String(correct).trim();
+        const key = String(correct).trim().toUpperCase();
+
+        if (key === "A") finalCorrectAnswer = String(a).trim();
+        if (key === "B") finalCorrectAnswer = String(b).trim();
+        if (key === "C") finalCorrectAnswer = String(c).trim();
+        if (key === "D") finalCorrectAnswer = String(d).trim();
+
+        uploadedQuestions.push({
+          question: String(q).trim(),
+          options: [
+            String(a).trim(),
+            String(b).trim(),
+            String(c).trim(),
+            String(d).trim(),
+          ],
+          correctAnswer: finalCorrectAnswer,
+          createdAt: new Date().toISOString(),
+          uploadedVia: "excel",
         });
 
-        setQuestions((prev) => [...prev, ...uploadedQuestions]);
-        setExcelFile(null);
-        alert(`${uploadedQuestions.length} questions added.`);
-      } catch (error) {
-        alert("Failed to read Excel file.");
-      }
-    };
+      });
 
-    reader.readAsArrayBuffer(excelFile);
+      setQuestions((prev) => [...prev, ...uploadedQuestions]);
+
+      setExcelFile(null);
+
+      setSuccessMessage(
+        `${uploadedQuestions.length} questions imported successfully.`
+      );
+
+      setShowSuccessModal(true);
+
+    } catch (error) {
+
+      setSuccessMessage("Unable to read Excel file.");
+
+      setShowSuccessModal(true);
+
+    }
+
   };
+
+  reader.readAsArrayBuffer(selectedFile);
+
+};
 
   const goNext = () => {
    if (step === 1 && (!department || !title.trim() || !overview.trim())) {
@@ -704,16 +728,24 @@ if (userData.role === "departmentAdmin") {
 
                 <label>
                   Choose Excel
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls,.csv"
-                    onChange={(e) => setExcelFile(e.target.files?.[0] || null)}
-                  />
+                <input
+  type="file"
+  accept=".xlsx,.xls,.csv"
+  onChange={(e) => {
+
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    setExcelFile(file);
+
+    handleExcelUpload(file);
+
+  }}
+/>
                 </label>
 
-                <button type="button" onClick={handleExcelUpload}>
-                  Add Questions
-                </button>
+           
               </div>
 
               {excelFile && <small>Selected: {excelFile.name}</small>}
@@ -820,6 +852,33 @@ if (userData.role === "departmentAdmin") {
           </div>
         )}
       </div>
+
+      {showSuccessModal && (
+
+<div className="success-modal-overlay">
+
+  <div className="success-modal">
+
+    <div className="success-check">
+      ✓
+    </div>
+
+    <h3>Done</h3>
+
+    <p>{successMessage}</p>
+
+    <button
+      type="button"
+      onClick={() => setShowSuccessModal(false)}
+    >
+      Okay
+    </button>
+
+  </div>
+
+</div>
+
+)}
     </div>
   );
 }

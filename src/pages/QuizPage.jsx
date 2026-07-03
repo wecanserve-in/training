@@ -122,18 +122,20 @@ function QuizPage() {
       return;
     }
 
-    const [
-      courseSnapshot,
-      videosSnapshot,
-      videoLibrarySnapshot,
-      courseVideosSnapshot,
-      questionsSnapshot,
-    ] = await Promise.all([
+const [
+  courseSnapshot,
+  videosSnapshot,
+  videoLibrarySnapshot,
+  courseVideosSnapshot,
+  questionsSnapshot,
+  videoQuestionsSnapshot,
+] = await Promise.all([
       get(ref(database, `courses/${activeCourseId}`)),
       get(ref(database, "videos")),
       get(ref(database, "videoLibrary")),
       get(ref(database, "courseVideos")),
       get(ref(database, "questions")),
+      get(ref(database, "videoQuizzes")),
     ]);
 
     if (!courseSnapshot.exists()) {
@@ -194,6 +196,10 @@ function QuizPage() {
     }
 
     const questionsData = questionsSnapshot.exists() ? questionsSnapshot.val() : {};
+    const videoQuestionsData = videoQuestionsSnapshot.exists()
+  ? videoQuestionsSnapshot.val()
+  : {};
+
     let allQuestions = [];
 
     if (isVideoQuiz) {
@@ -204,11 +210,11 @@ function QuizPage() {
 
       setVideo(currentVideo || null);
 
-      const videoQuestionSource =
-        questionsData?.[activeVideoId] ||
-        questionsData?.[currentVideo?.mappingId] ||
-        {};
-
+ const videoQuestionSource =
+  videoQuestionsData?.[activeVideoId] ||
+  videoQuestionsData?.[currentVideo?.mappingId] ||
+  {};
+  
       allQuestions = Object.entries(videoQuestionSource).map(
         ([questionId, question]) => ({
           id: `${activeVideoId}_${questionId}`,
@@ -218,27 +224,22 @@ function QuizPage() {
       );
 
       setTimeLeft(Number(currentVideo?.testDuration || currentVideo?.quizDuration || 60));
-    } else {
-      courseVideos.forEach((videoItem) => {
-        const videoQuestions =
-          questionsData?.[videoItem.id] || questionsData?.[videoItem.mappingId];
+   } else {
 
-        if (videoQuestions) {
-          const questionArray = Object.entries(videoQuestions).map(
-            ([questionId, question]) => ({
-              id: `${videoItem.id}_${questionId}`,
-              videoId: videoItem.id,
-              ...question,
-            })
-          );
+  const courseQuestionSource = questionsData?.[activeCourseId] || {};
 
-          allQuestions = [...allQuestions, ...questionArray];
-        }
-      });
+  allQuestions = Object.entries(courseQuestionSource).map(
+    ([questionId, question]) => ({
+      id: questionId,
+      courseId: activeCourseId,
+      ...question,
+    })
+  );
 
-      setTimeLeft(Number(courseData.testDuration || courseData.quizDuration || 60));
-    }
-
+  setTimeLeft(
+    Number(courseData.testDuration || courseData.quizDuration || 60)
+  );
+}
     setQuizQuestions(allQuestions);
     setLoading(false);
   };
