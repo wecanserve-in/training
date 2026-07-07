@@ -7,7 +7,7 @@ import {
   sendPasswordResetEmail,
   updateProfile,
 } from "firebase/auth";
-import { ref, set, get, update, remove, push } from "firebase/database";
+import { ref, set, get, update, remove } from "firebase/database";
 import { auth } from "../firebase";
 import * as XLSX from "xlsx";
 import { database, firebaseConfig } from "../firebase";
@@ -25,16 +25,16 @@ function ManageUsers() {
 
   const [designations, setDesignations] = useState([]);
   const [newDesignation, setNewDesignation] = useState("");
-
-  const [uploadModal, setUploadModal] = useState({
-    open: false,
-    current: 0,
-    total: 0,
-    success: 0,
-    failed: 0,
-    status: "idle",
-  });
-
+const [uploadModal, setUploadModal] = useState({
+  open: false,
+  current: 0,
+  total: 0,
+  success: 0,
+  skipped: 0,
+  failed: 0,
+  status: "idle",
+  errors: [],
+});
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -182,8 +182,35 @@ function ManageUsers() {
       await sendPasswordResetEmail(secondaryAuth, userData.email.trim());
       return { success: true };
     } catch (error) {
-      return { success: false, error: error.message };
-    } finally {
+  let message = "Unknown Error";
+
+  switch (error.code) {
+    case "auth/email-already-in-use":
+      message = "Email already exists.";
+      break;
+
+    case "auth/invalid-email":
+      message = "Invalid email address.";
+      break;
+
+    case "auth/weak-password":
+      message = "Weak password.";
+      break;
+
+    case "auth/network-request-failed":
+      message = "Network error.";
+      break;
+
+    default:
+      message = error.message;
+  }
+
+  return {
+    success: false,
+    error: message,
+  };
+}
+    finally {
       await deleteApp(secondaryApp);
     }
   };
@@ -303,8 +330,10 @@ function ManageUsers() {
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sheet);
 
-    let successCount = 0;
-    let failCount = 0;
+  let successCount = 0;
+let skippedCount = 0;
+let failCount = 0;
+    const uploadErrors = [];
 
     setUploadModal({
       open: true,
@@ -313,6 +342,7 @@ function ManageUsers() {
       success: 0,
       failed: 0,
       status: "processing",
+       errors: [], 
     });
 
     for (let i = 0; i < rows.length; i++) {
@@ -346,25 +376,46 @@ function ManageUsers() {
         state: matchedLocation?.state || "",
       });
 
-      if (result.success) successCount += 1;
-      else failCount += 1;
+   if (result.success) {
+  successCount++;
+} else if (result.error === "Email already exists.") {
+  skippedCount++;
 
-      setUploadModal((prev) => ({
-        ...prev,
-        success: successCount,
-        failed: failCount,
-      }));
+  uploadErrors.push({
+    row: i + 2,
+    name: row.name || "",
+    email: row.email || "",
+    type: "warning",
+    reason:
+      "User already exists. Use Reset Password if required.",
+  });
+} else {
+  failCount++;
+
+  uploadErrors.push({
+    row: i + 2,
+    name: row.name || "",
+    email: row.email || "",
+    type: "error",
+    reason: result.error,
+  });
+}
+
+   
     }
 
-    setBulkStatus(`${successCount} users created, ${failCount} failed.`);
+    setBulkStatus(
+  `${successCount} created, ${skippedCount} skipped, ${failCount} failed.`
+);
 
-    setUploadModal((prev) => ({
-      ...prev,
-      status: "done",
-      success: successCount,
-      failed: failCount,
-    }));
-
+setUploadModal((prev) => ({
+  ...prev,
+  status: "done",
+  success: successCount,
+  skipped: skippedCount,
+  failed: failCount,
+  errors: uploadErrors,
+}));
     setCreating(false);
     fetchUsers();
     e.target.value = "";
@@ -600,11 +651,37 @@ return (
             ></span>
           </div>
 
-          <div className="modal-counts">
-            <span>Success: {uploadModal.success}</span>
-            <span>Failed: {uploadModal.failed}</span>
-          </div>
+        <div className="modal-counts">
+ <span>✅ Created : {uploadModal.success}</span>
+<span>🟡 Skipped : {uploadModal.skipped}</span>
+<span>❌ Failed : {uploadModal.failed}</span>
+</div>
 
+{uploadModal.errors?.length > 0 && (
+  <div className="upload-errors">
+    <h3>Failed Records</h3>
+
+    {(uploadModal.errors || []).map((err, index) => (
+      <div key={index} className="error-item">
+        <strong>Row {err.row}</strong>
+
+        <div>{err.name}</div>
+
+        <div>{err.email}</div>
+
+     <div
+  style={{
+    color: err.type === "warning" ? "#d97706" : "#dc2626",
+    fontWeight: 600,
+  }}
+>
+  {err.type === "warning" ? "⚠ " : "✖ "}
+  {err.reason}
+</div>
+      </div>
+    ))}
+  </div>
+)}
           {uploadModal.status === "done" && (
             <button
               onClick={() =>
@@ -615,6 +692,7 @@ return (
                   success: 0,
                   failed: 0,
                   status: "idle",
+                   errors: [], 
                 })
               }
             >
