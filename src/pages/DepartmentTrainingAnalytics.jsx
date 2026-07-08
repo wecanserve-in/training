@@ -214,21 +214,31 @@ user.department,
           .join(" ")
           .toLowerCase();
 
-        const matchesSearch = text.includes(search.toLowerCase());
-        const matchesStatus = statusFilter ? user.status === statusFilter : true;
-        z
+       const matchesSearch = text.includes(search.toLowerCase());
+const matchesStatus = statusFilter ? user.status === statusFilter : true;
+const matchesRole = roleFilter ? user.role === roleFilter : true;
+const matchesDepartment = departmentFilter
+  ? user.department === departmentFilter
+  : true;
 
-        return matchesSearch && matchesStatus;
+return (
+  matchesSearch &&
+  matchesStatus &&
+  matchesRole &&
+  matchesDepartment
+);
       });
-  }, [
-    users,
-    selectedCourseId,
-    search,
-    statusFilter,
-    assignments,
-    completedCourses,
-    progress,
-  ]);
+  },[
+  users,
+  selectedCourseId,
+  search,
+  statusFilter,
+  roleFilter,
+  departmentFilter,
+  assignments,
+  completedCourses,
+  progress,
+]);
 
   const downloadDepartmentReport = () => {
     const reportRows = [];
