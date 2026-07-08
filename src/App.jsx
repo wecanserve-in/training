@@ -8,6 +8,7 @@ import ResultPage from "./pages/ResultPage";
 import CertificatePage from "./pages/CertificatePage";
 import MyResults from "./pages/MyResults";
 import CourseDetails from "./pages/CourseDetails";
+import CourseOverview from "./pages/CourseOverview"; // ✅ Added CourseOverview Import
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import RoleRoute from "./components/RoleRoute";
@@ -53,6 +54,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Login />} />
 
+        {/* ================= SUPER ADMIN ROUTES ================= */}
         <Route
           path="/super-admin"
           element={
@@ -85,12 +87,14 @@ function App() {
           <Route path="profile" element={<Profile />} />
 
           <Route path="course/:id" element={<CourseDetails />} />
+          <Route path="course-overview/:id" element={<CourseOverview />} /> {/* ✅ Added Route */}
           <Route path="video/:id" element={<VideoPage />} />
           <Route path="quiz/:id" element={<QuizPage />} />
           <Route path="result/:id" element={<ResultPage />} />
           <Route path="certificate/:id" element={<CertificatePage />} />
         </Route>
 
+        {/* ================= ADMIN ROUTES ================= */}
         <Route
           path="/admin"
           element={
@@ -128,12 +132,14 @@ function App() {
           <Route path="profile" element={<Profile />} />
 
           <Route path="course/:id" element={<CourseDetails />} />
+          <Route path="course-overview/:id" element={<CourseOverview />} /> {/* ✅ Added Route */}
           <Route path="video/:id" element={<VideoPage />} />
           <Route path="quiz/:id" element={<QuizPage />} />
           <Route path="result/:id" element={<ResultPage />} />
           <Route path="certificate/:id" element={<CertificatePage />} />
         </Route>
 
+        {/* ================= DEPARTMENT ADMIN ROUTES ================= */}
         <Route
           path="/department-admin"
           element={
@@ -167,12 +173,14 @@ function App() {
           <Route path="profile" element={<Profile />} />
 
           <Route path="course/:id" element={<CourseDetails />} />
+          <Route path="course-overview/:id" element={<CourseOverview />} /> {/* ✅ Added Route */}
           <Route path="video/:id" element={<VideoPage />} />
           <Route path="quiz/:id" element={<QuizPage />} />
           <Route path="result/:id" element={<ResultPage />} />
           <Route path="certificate/:id" element={<CertificatePage />} />
         </Route>
 
+        {/* ================= USER ROUTES ================= */}
         <Route
           element={
             <ProtectedRoute>
@@ -184,6 +192,7 @@ function App() {
           <Route path="/assigned-courses" element={<AssignedCourses />} />
           <Route path="/my-results" element={<MyResults />} />
           <Route path="/course/:id" element={<CourseDetails />} />
+          <Route path="/course-overview/:id" element={<CourseOverview />} /> {/* ✅ Added Route */}
           <Route path="/my-learnings" element={<MyLearnings />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/video/:id" element={<VideoPage />} />

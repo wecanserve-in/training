@@ -72,16 +72,16 @@ function AssignedCourses() {
 
         const oldVideos = videosSnap.exists()
           ? Object.entries(videosSnap.val()).map(([videoId, video]) => ({
-              id: videoId,
-              ...video,
-            }))
+            id: videoId,
+            ...video,
+          }))
           : [];
 
         const libraryVideos = videoLibrarySnap.exists()
           ? Object.entries(videoLibrarySnap.val()).map(([videoId, video]) => ({
-              id: videoId,
-              ...video,
-            }))
+            id: videoId,
+            ...video,
+          }))
           : [];
 
         const courseVideosData = courseVideosSnap.exists()
@@ -93,11 +93,11 @@ function AssignedCourses() {
         assignedCourses.forEach((course) => {
           const mappedVideos = courseVideosData?.[course.id]
             ? Object.entries(courseVideosData[course.id]).map(
-                ([videoId, video]) => ({
-                  id: videoId,
-                  ...video,
-                })
-              )
+              ([videoId, video]) => ({
+                id: videoId,
+                ...video,
+              })
+            )
             : [];
 
           if (mappedVideos.length > 0) {
@@ -164,17 +164,6 @@ function AssignedCourses() {
     if (progress >= 100) return "completed";
     if (progress > 0) return "inProgress";
     return "notStarted";
-  };
-
-  const getNextVideoId = (courseId) => {
-    const videos = courseVideosMap[courseId] || [];
-    if (videos.length === 0) return null;
-
-    const incompleteVideo = videos.find(
-      (video) => !progressMap?.[video.id]?.completed
-    );
-
-    return incompleteVideo?.id || videos[0]?.id || null;
   };
 
   const getCourseThumbnail = (course) => {
@@ -277,9 +266,8 @@ function AssignedCourses() {
         </button>
 
         <button
-          className={`assigned-stat-card yellow ${
-            activeFilter === "inProgress" ? "active" : ""
-          }`}
+          className={`assigned-stat-card yellow ${activeFilter === "inProgress" ? "active" : ""
+            }`}
           onClick={() => setActiveFilter("inProgress")}
         >
           <h3>{stats.inProgress}</h3>
@@ -287,9 +275,8 @@ function AssignedCourses() {
         </button>
 
         <button
-          className={`assigned-stat-card green ${
-            activeFilter === "completed" ? "active" : ""
-          }`}
+          className={`assigned-stat-card green ${activeFilter === "completed" ? "active" : ""
+            }`}
           onClick={() => setActiveFilter("completed")}
         >
           <h3>{stats.completed}</h3>
@@ -297,9 +284,8 @@ function AssignedCourses() {
         </button>
 
         <button
-          className={`assigned-stat-card red ${
-            activeFilter === "notStarted" ? "active" : ""
-          }`}
+          className={`assigned-stat-card red ${activeFilter === "notStarted" ? "active" : ""
+            }`}
           onClick={() => setActiveFilter("notStarted")}
         >
           <h3>{stats.notStarted}</h3>
@@ -353,8 +339,8 @@ function AssignedCourses() {
               status === "completed"
                 ? "Completed"
                 : status === "inProgress"
-                ? "In Progress"
-                : "Not Started";
+                  ? "In Progress"
+                  : "Not Started";
 
             return (
               <div className="assigned-course-row" key={course.id}>
@@ -391,15 +377,15 @@ function AssignedCourses() {
                     <strong>{progress}%</strong>
                   </div>
                 </div>
-<Link to={`/course/${course.id}`} className="assigned-action">
+                <Link to={`/course/${course.id}`} className="assigned-action">
                   <button className={status === "completed" ? "view" : "continue"}>
                     {status === "completed"
                       ? isPassed
                         ? "View"
                         : "Review"
                       : status === "notStarted"
-                      ? "Start Now"
-                      : "Continue"}
+                        ? "Start Now"
+                        : "Continue"}
                   </button>
                 </Link>
               </div>

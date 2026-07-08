@@ -14,7 +14,6 @@ function DepartmentAssignTraining() {
   const [users, setUsers] = useState([]);
   const [assignments, setAssignments] = useState({});
   const [completedCourses, setCompletedCourses] = useState({});
-  const [progress, setProgress] = useState({});
 
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [selectedUsers, setSelectedUsers] = useState([]);
@@ -24,8 +23,8 @@ function DepartmentAssignTraining() {
   const [stateFilter, setStateFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
   const [experienceFilter, setExperienceFilter] = useState("");
- const [designationFilter, setDesignationFilter] = useState("");
-const [roleFilter, setRoleFilter] = useState("");
+  const [designationFilter, setDesignationFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
@@ -45,7 +44,7 @@ const [roleFilter, setRoleFilter] = useState("");
     state: ["state", "State", "stateName", "state_name"],
     city: ["city", "City", "area", "Area", "cityArea", "city_area", "location", "Location", "hq", "HQ"],
     experience: ["experience", "experienceLevel", "seniority", "level", "exp", "category"],
-   designation: ["designation", "jobTitle", "roleTitle", "position", "title"],
+    designation: ["designation", "jobTitle", "roleTitle", "position", "title"],
   };
 
   useEffect(() => {
@@ -63,13 +62,12 @@ const [roleFilter, setRoleFilter] = useState("");
 
       setCurrentUser(adminData);
 
-      const [coursesSnap, usersSnap, assignmentsSnap, completedSnap, progressSnap] =
+      const [coursesSnap, usersSnap, assignmentsSnap, completedSnap] =
         await Promise.all([
           get(ref(database, "courses")),
           get(ref(database, "users")),
           get(ref(database, "userAssignments")),
           get(ref(database, "completedCourses")),
-          get(ref(database, "progress")),
         ]);
 
       const allCourses = coursesSnap.exists()
@@ -77,17 +75,17 @@ const [roleFilter, setRoleFilter] = useState("");
         : [];
 
       const canAssignAllCourses =
-  adminData.role === "superAdmin" || adminData.role === "admin";
+        adminData.role === "superAdmin" || adminData.role === "admin";
 
-const myCourses = canAssignAllCourses
-  ? allCourses
-  : allCourses.filter((course) => {
-      return (
-        course.createdBy === adminData.id ||
-        course.createdByEmail === adminData.email ||
-        course.department === adminData.department
-      );
-    });
+      const myCourses = canAssignAllCourses
+        ? allCourses
+        : allCourses.filter((course) => {
+          return (
+            course.createdBy === adminData.id ||
+            course.createdByEmail === adminData.email ||
+            course.department === adminData.department
+          );
+        });
 
       myCourses.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
@@ -95,35 +93,34 @@ const myCourses = canAssignAllCourses
         ? Object.entries(usersSnap.val()).map(([id, user]) => ({ id, ...user }))
         : [];
 
-   const visibleUsers = allUsers.filter((user) => {
-  const role = getField(user, ["role"]).toLowerCase();
+      const visibleUsers = allUsers.filter((user) => {
+        const role = getField(user, ["role"]).toLowerCase();
 
-  const isSuperAdmin = role === "superadmin";
-  const isAdmin = role === "admin";
-  const isDepartmentAdmin = role === "departmentadmin";
+        const isSuperAdmin = role === "superadmin";
+        const isAdmin = role === "admin";
+        const isDepartmentAdmin = role === "departmentadmin";
 
-  if (adminData.role === "superAdmin") {
-    return true;
-  }
+        if (adminData.role === "superAdmin") {
+          return true;
+        }
 
-  if (adminData.role === "admin") {
-    return !isSuperAdmin;
-  }
+        if (adminData.role === "admin") {
+          return !isSuperAdmin;
+        }
 
-  if (adminData.role === "departmentAdmin") {
-    // Department admin should only assign training to learners/staff,
-    // not admins or other department admins.
-    return !isSuperAdmin && !isAdmin && !isDepartmentAdmin;
-  }
+        if (adminData.role === "departmentAdmin") {
+          // Department admin should only assign training to learners/staff,
+          // not admins or other department admins.
+          return !isSuperAdmin && !isAdmin && !isDepartmentAdmin;
+        }
 
-  return false;
-});
+        return false;
+      });
 
       setCourses(myCourses);
       setUsers(visibleUsers);
       setAssignments(assignmentsSnap.exists() ? assignmentsSnap.val() : {});
       setCompletedCourses(completedSnap.exists() ? completedSnap.val() : {});
-      setProgress(progressSnap.exists() ? progressSnap.val() : {});
 
       if (preSelectedCourseId) setSelectedCourseId(preSelectedCourseId);
       else if (myCourses.length > 0) setSelectedCourseId(myCourses[0].id);
@@ -169,8 +166,8 @@ const myCourses = canAssignAllCourses
   }, [users]);
 
   const roleOptions = useMemo(() => {
-  return [...new Set(users.map((u) => getField(u, ["role"])).filter(Boolean))];
-}, [users]);
+    return [...new Set(users.map((u) => getField(u, ["role"])).filter(Boolean))];
+  }, [users]);
 
   const handleZoneChange = (value) => {
     setZoneFilter(value);
@@ -247,7 +244,7 @@ const myCourses = canAssignAllCourses
       const city = getField(user, fieldKeys.city);
       const experience = getField(user, fieldKeys.experience);
       const designation = getField(user, fieldKeys.designation);
-const role = getField(user, ["role"]);
+      const role = getField(user, ["role"]);
 
       const searchableText = [
         user.name,
@@ -270,7 +267,7 @@ const role = getField(user, ["role"]);
       const matchesCity = cityFilter ? city === cityFilter : true;
       const matchesExperience = experienceFilter ? experience === experienceFilter : true;
       const matchesDesignation = designationFilter ? designation === designationFilter : true;
-const matchesRole = roleFilter ? role === roleFilter : true;
+      const matchesRole = roleFilter ? role === roleFilter : true;
 
 
       return (
@@ -279,24 +276,24 @@ const matchesRole = roleFilter ? role === roleFilter : true;
         matchesState &&
         matchesCity &&
         matchesExperience &&
-      matchesDesignation &&
-matchesRole
+        matchesDesignation &&
+        matchesRole
       );
     });
-  },  [
-  users,
-  search,
-  zoneFilter,
-  stateFilter,
-  cityFilter,
-  experienceFilter,
-  designationFilter,
-  roleFilter,
-  selectedCourseId,
-  selectedCourse,
-  assignments,
-  completedCourses,
-]);
+  }, [
+    users,
+    search,
+    zoneFilter,
+    stateFilter,
+    cityFilter,
+    experienceFilter,
+    designationFilter,
+    roleFilter,
+    selectedCourseId,
+    selectedCourse,
+    assignments,
+    completedCourses,
+  ]);
 
   const allFilteredSelected =
     filteredUsers.length > 0 && filteredUsers.every((user) => selectedUsers.includes(user.id));
@@ -400,12 +397,12 @@ matchesRole
           <span>Assign Course</span>
           <h1>Assign Training</h1>
           <p>
-  {currentUser?.role === "superAdmin"
-    ? "Assign courses to Super Admins, Admins, Department Admins and users."
-    : currentUser?.role === "admin"
-    ? "Assign courses to yourself, Department Admins and users."
-    : "Assign courses to users in your department."}
-</p>
+            {currentUser?.role === "superAdmin"
+              ? "Assign courses to Super Admins, Admins, Department Admins and users."
+              : currentUser?.role === "admin"
+                ? "Assign courses to yourself, Department Admins and users."
+                : "Assign courses to users in your department."}
+          </p>
         </div>
       </div>
 
@@ -510,25 +507,25 @@ matchesRole
           </select>
 
           <select
-  value={roleFilter}
-  onChange={(e) => {
-    setRoleFilter(e.target.value);
-    setSelectedUsers([]);
-  }}
->
-  <option value="">All Roles</option>
-  {roleOptions.map((role) => (
-    <option key={role} value={role}>
-      {role === "superAdmin"
-        ? "Super Admin"
-        : role === "admin"
-        ? "Admin"
-        : role === "departmentAdmin"
-        ? "Department Admin"
-        : role}
-    </option>
-  ))}
-</select>
+            value={roleFilter}
+            onChange={(e) => {
+              setRoleFilter(e.target.value);
+              setSelectedUsers([]);
+            }}
+          >
+            <option value="">All Roles</option>
+            {roleOptions.map((role) => (
+              <option key={role} value={role}>
+                {role === "superAdmin"
+                  ? "Super Admin"
+                  : role === "admin"
+                    ? "Admin"
+                    : role === "departmentAdmin"
+                      ? "Department Admin"
+                      : role}
+              </option>
+            ))}
+          </select>
 
           <select
             value={designationFilter}
@@ -563,9 +560,9 @@ matchesRole
               {allFilteredSelected ? "Unselect Filtered" : "Select Filtered"}
             </button>
 
-             <button type="button" onClick={() => assignCourse(false)} disabled={assigning}>
-            {assigning ? "Assigning..." : `Assign Selected (${selectedUsers.length})`}
-          </button> 
+            <button type="button" onClick={() => assignCourse(false)} disabled={assigning}>
+              {assigning ? "Assigning..." : `Assign Selected (${selectedUsers.length})`}
+            </button>
 
 
           </div>
@@ -577,10 +574,10 @@ matchesRole
               <tr>
                 <th>Select</th>
                 <th>User</th>
-              <th>Role</th>
-<th>Designation</th>
-<th>Experience</th>
-<th>Location</th>
+                <th>Role</th>
+                <th>Designation</th>
+                <th>Experience</th>
+                <th>Location</th>
                 <th>Reason</th>
               </tr>
             </thead>
@@ -599,7 +596,7 @@ matchesRole
 
                   const designation = getField(user, fieldKeys.designation) || "-";
                   const experience = getField(user, fieldKeys.experience) || "-";
-const role = getField(user, ["role"]) || "-";
+                  const role = getField(user, ["role"]) || "-";
                   const location =
                     [
                       getField(user, fieldKeys.city),
@@ -624,10 +621,10 @@ const role = getField(user, ["role"]) || "-";
                         <small>{user.email}</small>
                       </td>
 
-               <td>{role}</td>
-<td>{designation}</td>
-<td>{experience}</td>
-<td>{location}</td>
+                      <td>{role}</td>
+                      <td>{designation}</td>
+                      <td>{experience}</td>
+                      <td>{location}</td>
 
                       <td>
                         <span className={`assign-status ${status}`}>
@@ -645,16 +642,16 @@ const role = getField(user, ["role"]) || "-";
         <div className="assign-footer">
           <p>Already assigned latest-version users are hidden from this list.</p>
 
-                 <button
-              type="button"
-              className="assign-all-btn"
-              onClick={() => assignCourse(true)}
-              disabled={assigning || filteredUsers.length === 0}
-            >
-              Assign All Filtered
-            </button>
+          <button
+            type="button"
+            className="assign-all-btn"
+            onClick={() => assignCourse(true)}
+            disabled={assigning || filteredUsers.length === 0}
+          >
+            Assign All Filtered
+          </button>
 
-          
+
         </div>
       </div>
     </div>

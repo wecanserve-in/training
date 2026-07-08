@@ -92,16 +92,16 @@ function Dashboard() {
 
         const oldVideos = videosSnapshot.exists()
           ? Object.entries(videosSnapshot.val()).map(([videoId, video]) => ({
-              id: videoId,
-              ...video,
-            }))
+            id: videoId,
+            ...video,
+          }))
           : [];
 
         const libraryVideos = videoLibrarySnapshot.exists()
           ? Object.entries(videoLibrarySnapshot.val()).map(([videoId, video]) => ({
-              id: videoId,
-              ...video,
-            }))
+            id: videoId,
+            ...video,
+          }))
           : [];
 
         const courseVideosData = courseVideosSnapshot.exists()
@@ -113,9 +113,9 @@ function Dashboard() {
         courseArray.forEach((course) => {
           const mappedVideos = courseVideosData?.[course.id]
             ? Object.entries(courseVideosData[course.id]).map(([videoId, video]) => ({
-                id: videoId,
-                ...video,
-              }))
+              id: videoId,
+              ...video,
+            }))
             : [];
 
           if (mappedVideos.length > 0) {
@@ -185,17 +185,6 @@ function Dashboard() {
     return "notStarted";
   };
 
-  const getNextVideoId = (courseId) => {
-    const courseVideos = courseVideosMap[courseId] || [];
-    if (courseVideos.length === 0) return null;
-
-    const nextVideo = courseVideos.find(
-      (video) => !progressMap?.[video.id]?.completed
-    );
-
-    return nextVideo?.id || courseVideos[0]?.id || null;
-  };
-
   const getCourseThumbnail = (course) => {
     if (course.thumbnailUrl) return course.thumbnailUrl;
     if (course.courseThumbnail) return course.courseThumbnail;
@@ -219,8 +208,6 @@ function Dashboard() {
       return progress > 0 && progress < 100;
     }).length;
   }, [courses, courseVideosMap, progressMap, completedCourses]);
-
-  const notStartedCount = Math.max(totalCourses - completedCount - inProgressCount, 0);
 
   const passedCount = useMemo(() => {
     return courses.filter((course) => {
@@ -279,11 +266,7 @@ function Dashboard() {
     };
   }, [allVideosFlat, progressMap, courses, courseVideosMap]);
 
-  const quickVideos = useMemo(() => {
-    return allVideosFlat
-      .filter((video) => !progressMap?.[video.id]?.completed)
-      .slice(0, 5);
-  }, [allVideosFlat, progressMap]);
+
 
   const newlyAssignedCourses = useMemo(() => {
     return [...courses]
@@ -299,205 +282,399 @@ function Dashboard() {
     return <h2 className="dashboard-loading">Loading Dashboard...</h2>;
   }
 
-  return (
-    <div className="learner-dashboard-page">
-      <div className="learner-topbar enhanced-dashboard-top">
+ return (
+  <div className="learner-dashboard-page">
+
+    {/* HERO */}
+
+    <section className="dashboard-hero">
+
+      <div className="hero-left">
+
+        <span className="hero-badge">
+          👋 Welcome Back
+        </span>
+
+        <h1>
+          Hi, {userData?.name || "Learner"}
+        </h1>
+
+        <p>
+          Continue your assigned learning and keep your progress moving.
+        </p>
+
+        {continueVideo && (
+          <Link
+            to={`/course/${continueVideo.courseId}`}
+            className="hero-button"
+          >
+            Continue Learning
+          </Link>
+        )}
+
+      </div>
+
+      <div className="hero-right">
+
+        <div className="hero-progress-card">
+
+          <span>Overall Progress</span>
+
+          <h2>{progressPercent}%</h2>
+
+          <div className="hero-progress">
+
+            <span
+              style={{
+                width: `${progressPercent}%`,
+              }}
+            />
+
+          </div>
+
+          <small>
+            {completedCount} of {totalCourses} courses completed
+          </small>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    
+    {/* CONTINUE LEARNING */}
+
+    <section className="continue-section">
+
+      <div className="section-header">
+
         <div>
-          <span>My Dashboard</span>
-          <h1>Welcome back, {userData?.name || "Learner"}</h1>
-          <p>Your learning progress and next training are ready.</p>
+
+          <h2>Continue Learning</h2>
+
+          <p>
+            Resume where you left off.
+          </p>
+
         </div>
 
-        <div className="learner-avatar">
-          {(userData?.name || "U").charAt(0).toUpperCase()}
-        </div>
+        <Link to="/assigned-courses">
+
+          View All
+
+        </Link>
+
       </div>
 
-      <div className="performance-section">
-        <div className="performance-head">
-          <div>
-            <h2>My Performance</h2>
-            <p>Only important learning numbers.</p>
-          </div>
+      {continueVideo ? (
 
-          <div className="overall-pill">{progressPercent}% Overall</div>
-        </div>
+        <div className="continue-card">
 
-        <div className="learner-stat-grid performance-grid">
-          <div className="learner-stat-card">
-            <div className="stat-icon blue">
-              <FaBookOpen />
-            </div>
-            <div>
-              <span>Assigned</span>
-              <h2>{totalCourses}</h2>
-            </div>
-          </div>
+          <div className="continue-image">
 
-          <div className="learner-stat-card">
-            <div className="stat-icon yellow">
-              <FaClock />
-            </div>
-            <div>
-              <span>In Progress</span>
-              <h2>{inProgressCount}</h2>
-            </div>
-          </div>
+            {continueVideo.thumbnailUrl ||
+            continueVideo.courseThumbnail ? (
 
-          <div className="learner-stat-card">
-            <div className="stat-icon green">
-              <FaCheckCircle />
-            </div>
-            <div>
-              <span>Completed</span>
-              <h2>{completedCount}</h2>
-            </div>
-          </div>
+              <img
+                src={
+                  continueVideo.thumbnailUrl ||
+                  continueVideo.courseThumbnail
+                }
+                alt={continueVideo.title}
+              />
 
-          <div className="learner-stat-card">
-            <div className="stat-icon red">
-              <FaCertificate />
-            </div>
-            <div>
-              <span>Certificates</span>
-              <h2>{passedCount}</h2>
-            </div>
-          </div>
-        </div>
-      </div>
+            ) : (
 
-      <div className="continue-learning-section">
-        <div className="panel-head-row">
-          <div>
-            <h2>Continue Learning</h2>
-            <p>Resume your latest video.</p>
-          </div>
+              <div>
 
-          <Link to="/assigned-courses">View All Courses</Link>
-        </div>
+                <FaPlay />
 
-        {continueVideo ? (
-          <div className="featured-video-card">
-            <div className="featured-video-thumb">
-              {continueVideo.thumbnailUrl || continueVideo.courseThumbnail ? (
-                <img
-                  src={continueVideo.thumbnailUrl || continueVideo.courseThumbnail}
-                  alt={continueVideo.title}
-                />
-              ) : (
-                <div>
-                  <FaPlay />
-                </div>
-              )}
-            </div>
-
-            <div className="featured-video-info">
-              <span>{continueVideo.courseTitle}</span>
-              <h3>{continueVideo.title}</h3>
-              <p>{continueVideo.description || "Continue your training video."}</p>
-
-              <div className="featured-progress">
-                <div>
-                  <span style={{ width: `${continueVideo.watchedPercent || 0}%` }}></span>
-                </div>
-                <strong>{continueVideo.watchedPercent || 0}%</strong>
               </div>
+
+            )}
+
+          </div>
+
+          <div className="continue-content">
+
+            <span>
+              {continueVideo.courseTitle}
+            </span>
+
+            <h3>
+              {continueVideo.title}
+            </h3>
+
+            <div className="continue-progress">
+
+              <div>
+
+                <span
+                  style={{
+                    width: `${continueVideo.watchedPercent || 0}%`,
+                  }}
+                />
+
+              </div>
+
+              <strong>
+                {continueVideo.watchedPercent || 0}%
+              </strong>
+
             </div>
 
-<Link to={`/course/${continueVideo.courseId}`}>
-              <button>Continue</button>
-            </Link>
-          </div>
-        ) : (
-          <div className="empty-dashboard-card">
-            <h3>No video to continue</h3>
-            <p>Newly assigned courses will appear below.</p>
-          </div>
-        )}
-
-        {quickVideos.length > 0 && (
-          <div className="quick-video-row">
-            {quickVideos.map((video) => (
-              <Link to={`/video/${video.id}`} className="quick-video-card" key={video.id}>
-                <div>
-                  {video.thumbnailUrl || video.courseThumbnail ? (
-                    <img
-                      src={video.thumbnailUrl || video.courseThumbnail}
-                      alt={video.title}
-                    />
-                  ) : (
-                    <span>
-                      <FaPlay />
-                    </span>
-                  )}
-                </div>
-
-                <h4>{video.title}</h4>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="new-courses-section">
-        <div className="panel-head-row">
-          <div>
-            <h2>Newly Assigned Courses</h2>
-            <p>Latest courses assigned to you.</p>
           </div>
 
-          <Link to="/assigned-courses">View All</Link>
+          <Link
+            to={`/course/${continueVideo.courseId}`}
+          >
+
+            <button>
+
+              Continue
+
+            </button>
+
+          </Link>
+
         </div>
 
-        {newlyAssignedCourses.length === 0 ? (
-          <div className="empty-dashboard-card">
-            <h3>No courses assigned yet</h3>
-            <p>Your assigned courses will appear here.</p>
+      ) : (
+
+        <div className="empty-dashboard-card">
+
+          <h3>No course to continue</h3>
+
+          <p>
+            Your newly assigned courses will appear below.
+          </p>
+
+        </div>
+
+      )}
+
+    </section>
+
+    {/* STATS */}
+
+    <section className="stats-section">
+
+      <div className="stats-grid">
+
+        <div className="stat-card">
+
+          <div className="stat-icon blue">
+            <FaBookOpen />
           </div>
-        ) : (
-          <div className="new-course-grid">
-            {newlyAssignedCourses.map((course) => {
-              const progress = getCourseProgress(course.id);
-              const status = getCourseStatus(course.id);
 
-              const thumbnail = getCourseThumbnail(course);
+          <div>
 
-              return (
-                <div className="new-course-card" key={course.id}>
-                  <div className="new-course-thumb">
-                    {thumbnail ? (
-                      <img src={thumbnail} alt={course.title || course.courseTitle} />
-                    ) : (
-                      <div>{(course.title || course.courseTitle || "C").charAt(0)}</div>
-                    )}
-                  </div>
+            <span>Assigned</span>
 
-                  <div className="new-course-body">
-                    <span>{course.department || "Training"}</span>
-                    <h3>{course.title || course.courseTitle}</h3>
-                    <p>{course.description || course.overview || "Assigned training course."}</p>
+            <h3>{totalCourses}</h3>
 
-                    <div className="new-course-progress">
-                      <div>
-                        <span style={{ width: `${progress}%` }}></span>
-                      </div>
-                      <strong>{progress}%</strong>
+          </div>
+
+        </div>
+
+        <div className="stat-card">
+
+          <div className="stat-icon yellow">
+            <FaClock />
+          </div>
+
+          <div>
+
+            <span>In Progress</span>
+
+            <h3>{inProgressCount}</h3>
+
+          </div>
+
+        </div>
+
+        <div className="stat-card">
+
+          <div className="stat-icon green">
+            <FaCheckCircle />
+          </div>
+
+          <div>
+
+            <span>Completed</span>
+
+            <h3>{completedCount}</h3>
+
+          </div>
+
+        </div>
+
+        <div className="stat-card">
+
+          <div className="stat-icon red">
+            <FaCertificate />
+          </div>
+
+          <div>
+
+            <span>Certificates</span>
+
+            <h3>{passedCount}</h3>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+        {/* YOUR COURSES */}
+
+    <section className="courses-section">
+
+      <div className="section-header">
+
+        <div>
+
+          <h2>Your Courses</h2>
+
+          <p>
+            Pick up where you left off.
+          </p>
+
+        </div>
+
+        <Link to="/assigned-courses">
+
+          View All Courses
+
+        </Link>
+
+      </div>
+
+      {newlyAssignedCourses.length === 0 ? (
+
+        <div className="empty-dashboard-card">
+
+          <h3>No Courses Assigned</h3>
+
+          <p>
+            Courses assigned by your administrator will appear here.
+          </p>
+
+        </div>
+
+      ) : (
+
+        <div className="courses-grid">
+
+          {newlyAssignedCourses.map((course) => {
+
+            const progress = getCourseProgress(course.id);
+
+            const status = getCourseStatus(course.id);
+
+            const thumbnail = getCourseThumbnail(course);
+
+            return (
+
+              <div
+                className="course-card"
+                key={course.id}
+              >
+
+                <div className="course-image">
+
+                  {thumbnail ? (
+
+                    <img
+                      src={thumbnail}
+                      alt={course.title || course.courseTitle}
+                    />
+
+                  ) : (
+
+                    <div className="course-placeholder">
+
+                      {(course.title ||
+                        course.courseTitle ||
+                        "C").charAt(0)}
+
                     </div>
 
-                   <Link to={`/course/${course.id}`}>
-  <button>
-    {status === "completed" ? "Review Course" : "Start Course"}
-  </button>
-</Link>
-                  </div>
+                  )}
+
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+
+                <div className="course-content">
+
+                  <span className="course-tag">
+
+                    {course.department || "Training"}
+
+                  </span>
+
+                  <h3>
+
+                    {course.title ||
+                      course.courseTitle}
+
+                  </h3>
+
+                  <div className="course-progress">
+
+                    <div className="progress-bar">
+
+                      <span
+                        style={{
+                          width: `${progress}%`,
+                        }}
+                      />
+
+                    </div>
+
+                    <strong>
+
+                      {progress}%
+
+                    </strong>
+
+                  </div>
+
+                  <Link
+                    to={`/course/${course.id}`}
+                  >
+
+                    <button className="course-btn">
+
+                      {status === "completed"
+                        ? "Review"
+                        : "Start Learning"}
+
+                    </button>
+
+                  </Link>
+
+                </div>
+
+              </div>
+
+            );
+
+          })}
+
+        </div>
+
+      )}
+
+    </section>
+
+  </div>
+
+);
 }
 
 export default Dashboard;

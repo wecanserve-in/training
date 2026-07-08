@@ -1,9 +1,14 @@
 import { useState } from "react";
-import { FaEye, FaEyeSlash, FaEnvelope, FaLock } from "react-icons/fa";
+import {
+  FaEye,
+  FaEyeSlash,
+  FaEnvelope,
+  FaLock,
+} from "react-icons/fa";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { ref, get } from "firebase/database";
-import { auth, database } from "../firebase";
+import { auth } from "../firebase";
 import { useNavigate } from "react-router-dom";
+import { getRoleHomePath, loadUserProfile } from "../lib/userAccess";
 import "../styles/login.css";
 
 function Login() {
@@ -12,9 +17,14 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setErrorMessage("");
+    setIsSubmitting(true);
 
     try {
       const userCredential = await signInWithEmailAndPassword(
@@ -25,118 +35,189 @@ function Login() {
 
       const user = userCredential.user;
 
-      console.log("UID:", user.uid);
-      console.log("Email:", user.email);
+      const userData = await loadUserProfile(user);
 
-      const snap = await get(ref(database, `users/${user.uid}`));
-
-      if (!snap.exists()) {
-        alert("User profile not found. Contact admin.");
+      if (!userData) {
+        setErrorMessage(
+          "Unable to load your profile. Contact administrator."
+        );
         return;
       }
 
-      const userData = snap.val();
-
-      console.log("USER DATA:", userData);
-
-      switch (userData.role) {
-        case "superAdmin":
-          navigate("/super-admin");
-          break;
-
-        case "admin":
-          navigate("/admin");
-          break;
-
-        case "departmentAdmin":
-          navigate("/department-admin");
-          break;
-
-        default:
-          navigate("/dashboard");
-      }
+      navigate(getRoleHomePath(userData.role), {
+        replace: true,
+      });
     } catch (error) {
       console.error(error);
-      alert(error.message);
+      setErrorMessage("Invalid email or password.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
     <div className="login-page">
       <div className="login-box">
-        <div className="login-panel">
-          <div className="brand-area">
-            <img
-              src="/Logo.webp"
-              alt="Zuvius Lifesciences"
-              className="brand-logo"
-            />
+
+        {/* LEFT */}
+
+        <div className="left-panel">
+
+          <img
+            src="/Logo.webp"
+            alt="Logo"
+            className="brand-logo"
+          />
+
+          <div className="hero-content">
+
+            <h1>
+              Learn.<br />
+              <span>Grow.</span><br />
+              Succeed.
+            </h1>
+
+            <p>
+              Access expert training and enhance your
+              professional skills anytime, anywhere.
+            </p>
+
           </div>
 
-          <h1>
-            Welcome <span>Back!</span>
-          </h1>
-
-          <p>Log in to continue your training journey.</p>
         </div>
 
-        <div className="form-panel">
-          <h2>Login</h2>
-          <div className="title-line"></div>
+        {/* RIGHT */}
+
+        <div className="right-panel">
+
+          <h2>Welcome Back!</h2>
+
+          <p className="subtitle">
+            Login to continue your training journey.
+          </p>
 
           <form
-            onSubmit={handleLogin}
             className="login-form"
+            onSubmit={handleLogin}
             autoComplete="off"
           >
+
             <input
               type="text"
-              name="fake-user"
+              autoComplete="username"
               style={{ display: "none" }}
             />
+
             <input
               type="password"
-              name="fake-pass"
+              autoComplete="new-password"
               style={{ display: "none" }}
             />
 
-            <div className="input-group">
-              <FaEnvelope />
-              <input
-                type="email"
-                placeholder="Email Address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+            <div className="field">
+
+              <label>Email Address</label>
+
+              <div className="input-group">
+                <FaEnvelope />
+
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) =>
+                    setEmail(e.target.value)
+                  }
+                  required
+                />
+              </div>
+
             </div>
 
-            <div className="input-group password-group">
-              <FaLock />
+            <div className="field">
 
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <label>Password</label>
 
-              <span
-                className="password-toggle"
-                onClick={() => setShowPassword(!showPassword)}
+              <div className="input-group password-group">
+
+                <FaLock />
+
+                <input
+                  type={
+                    showPassword
+                      ? "text"
+                      : "password"
+                  }
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) =>
+                    setPassword(e.target.value)
+                  }
+                  required
+                />
+
+               <span
+  className="password-toggle"
+  onClick={() => setShowPassword(!showPassword)}
+  role="button"
+  tabIndex={0}
+>
+                  {showPassword ? (
+                    <FaEyeSlash />
+                  ) : (
+                    <FaEye />
+                  )}
+                </span>
+
+              </div>
+
+            </div>
+
+            <div className="login-options">
+
+              <label className="remember">
+
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={() =>
+                    setRememberMe(!rememberMe)
+                  }
+                />
+
+                Remember me
+
+              </label>
+
+              <button
+                type="button"
+                className="forgot-password"
               >
-                {showPassword ? <FaEyeSlash /> : <FaEye />}
-              </span>
+                Forgot Password?
+              </button>
+
             </div>
 
-            <div className="forgot-password">
-              Forgot Password?
-            </div>
+            {errorMessage && (
+              <div className="login-error">
+                {errorMessage}
+              </div>
+            )}
 
-            <button type="submit">Login</button>
+            <button
+              className="login-btn"
+              type="submit"
+              disabled={isSubmitting}
+            >
+              {isSubmitting
+                ? "Signing In..."
+                : "Sign In"}
+            </button>
+
           </form>
+
         </div>
+
       </div>
     </div>
   );

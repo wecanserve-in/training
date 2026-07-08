@@ -1,8 +1,8 @@
 import { Link, Outlet, useNavigate } from "react-router-dom";
 import { signOut, onAuthStateChanged } from "firebase/auth";
-import { auth, database } from "../firebase";
+import { auth } from "../firebase";
 import { useEffect, useState } from "react";
-import { ref, get } from "firebase/database";
+import { loadUserProfile } from "../lib/userAccess";
 import "../styles/superadminlayout.css";
 
 function AdminLayout() {
@@ -27,31 +27,10 @@ function AdminLayout() {
       }
 
       try {
-        const snap = await get(ref(database, `users/${firebaseUser.uid}`));
-
-        if (snap.exists()) {
-          setCurrentUser({
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            ...snap.val(),
-          });
-        } else {
-          setCurrentUser({
-            uid: firebaseUser.uid,
-            name: firebaseUser.displayName || firebaseUser.email,
-            email: firebaseUser.email,
-            role: "admin",
-          });
-        }
+        setCurrentUser(await loadUserProfile(firebaseUser));
       } catch (error) {
-        console.error("User profile fetch error:", error);
-
-        setCurrentUser({
-          uid: firebaseUser.uid,
-          name: firebaseUser.displayName || firebaseUser.email,
-          email: firebaseUser.email,
-          role: "admin",
-        });
+        console.error("Failed to load admin profile:", error);
+        setCurrentUser(null);
       }
     });
 
@@ -97,8 +76,8 @@ function AdminLayout() {
               (currentUser?.role === "admin"
                 ? "Admin"
                 : currentUser?.role === "superAdmin"
-                ? "Super Admin"
-                : "User")}
+                  ? "Super Admin"
+                  : "User")}
           </p>
         </div>
 

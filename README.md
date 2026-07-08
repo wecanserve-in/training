@@ -177,6 +177,23 @@ npm run build
 
 Create a Firebase project and configure:
 
+Create a local environment file from the template and fill in the Firebase values before running the app.
+
+```bash
+cp .env.example .env.local
+```
+
+Required variables:
+
+* `VITE_FIREBASE_API_KEY`
+* `VITE_FIREBASE_AUTH_DOMAIN`
+* `VITE_FIREBASE_DATABASE_URL`
+* `VITE_FIREBASE_PROJECT_ID`
+* `VITE_FIREBASE_STORAGE_BUCKET`
+* `VITE_FIREBASE_MESSAGING_SENDER_ID`
+* `VITE_FIREBASE_APP_ID`
+* `VITE_FIREBASE_MEASUREMENT_ID`
+
 ### Authentication
 
 Enable:
@@ -195,6 +212,8 @@ attempts/
 progress/
 completedCourses/
 ```
+
+The Cloud Function for deleting users now requires a Firebase ID token in the `Authorization: Bearer <token>` header and only allows requests from a `superAdmin` account.
 
 ---
 

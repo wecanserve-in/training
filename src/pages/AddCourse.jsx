@@ -42,8 +42,8 @@ function AddCourse() {
 
   const [saving, setSaving] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
-const [showSuccessModal, setShowSuccessModal] = useState(false);
-const [successMessage, setSuccessMessage] = useState("");
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
   const steps = [
     { id: 1, label: "Course" },
     { id: 2, label: "Videos" },
@@ -73,13 +73,13 @@ const [successMessage, setSuccessMessage] = useState("");
       };
 
       setCurrentUser(userData);
-if (userData.role === "departmentAdmin") {
-  setDepartment(userData.department || "");
-  setDepartmentType(userData.departmentType || "");
-} else {
-  setDepartment("");
-  setDepartmentType("");
-}
+      if (userData.role === "departmentAdmin") {
+        setDepartment(userData.department || "");
+        setDepartmentType(userData.departmentType || "");
+      } else {
+        setDepartment("");
+        setDepartmentType("");
+      }
       await loadVideoLibrary(userData);
       setLoadingUser(false);
     });
@@ -283,86 +283,86 @@ if (userData.role === "departmentAdmin") {
     XLSX.writeFile(workbook, "Course_Quiz_Template.xlsx");
   };
 
- const handleExcelUpload = (selectedFile = excelFile) => {
+  const handleExcelUpload = (selectedFile = excelFile) => {
 
-  if (!selectedFile) return;
+    if (!selectedFile) return;
 
-  const reader = new FileReader();
+    const reader = new FileReader();
 
-  reader.onload = (event) => {
+    reader.onload = (event) => {
 
-    try {
+      try {
 
-      const data = new Uint8Array(event.target.result);
+        const data = new Uint8Array(event.target.result);
 
-      const workbook = XLSX.read(data, { type: "array" });
+        const workbook = XLSX.read(data, { type: "array" });
 
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
 
-      const rows = XLSX.utils.sheet_to_json(worksheet);
+        const rows = XLSX.utils.sheet_to_json(worksheet);
 
-      const uploadedQuestions = [];
+        const uploadedQuestions = [];
 
-      rows.forEach((row) => {
+        rows.forEach((row) => {
 
-        const q = row.Question || row.question;
-        const a = row.OptionA || row.optionA;
-        const b = row.OptionB || row.optionB;
-        const c = row.OptionC || row.optionC;
-        const d = row.OptionD || row.optionD;
-        const correct = row.CorrectAnswer || row.correctAnswer;
+          const q = row.Question || row.question;
+          const a = row.OptionA || row.optionA;
+          const b = row.OptionB || row.optionB;
+          const c = row.OptionC || row.optionC;
+          const d = row.OptionD || row.optionD;
+          const correct = row.CorrectAnswer || row.correctAnswer;
 
-        if (!q || !a || !b || !c || !d || !correct) return;
+          if (!q || !a || !b || !c || !d || !correct) return;
 
-        let finalCorrectAnswer = String(correct).trim();
-        const key = String(correct).trim().toUpperCase();
+          let finalCorrectAnswer = String(correct).trim();
+          const key = String(correct).trim().toUpperCase();
 
-        if (key === "A") finalCorrectAnswer = String(a).trim();
-        if (key === "B") finalCorrectAnswer = String(b).trim();
-        if (key === "C") finalCorrectAnswer = String(c).trim();
-        if (key === "D") finalCorrectAnswer = String(d).trim();
+          if (key === "A") finalCorrectAnswer = String(a).trim();
+          if (key === "B") finalCorrectAnswer = String(b).trim();
+          if (key === "C") finalCorrectAnswer = String(c).trim();
+          if (key === "D") finalCorrectAnswer = String(d).trim();
 
-        uploadedQuestions.push({
-          question: String(q).trim(),
-          options: [
-            String(a).trim(),
-            String(b).trim(),
-            String(c).trim(),
-            String(d).trim(),
-          ],
-          correctAnswer: finalCorrectAnswer,
-          createdAt: new Date().toISOString(),
-          uploadedVia: "excel",
+          uploadedQuestions.push({
+            question: String(q).trim(),
+            options: [
+              String(a).trim(),
+              String(b).trim(),
+              String(c).trim(),
+              String(d).trim(),
+            ],
+            correctAnswer: finalCorrectAnswer,
+            createdAt: new Date().toISOString(),
+            uploadedVia: "excel",
+          });
+
         });
 
-      });
+        setQuestions((prev) => [...prev, ...uploadedQuestions]);
 
-      setQuestions((prev) => [...prev, ...uploadedQuestions]);
+        setExcelFile(null);
 
-      setExcelFile(null);
+        setSuccessMessage(
+          `${uploadedQuestions.length} questions imported successfully.`
+        );
 
-      setSuccessMessage(
-        `${uploadedQuestions.length} questions imported successfully.`
-      );
+        setShowSuccessModal(true);
 
-      setShowSuccessModal(true);
+      } catch {
 
-    } catch (error) {
+        setSuccessMessage("Unable to read Excel file.");
 
-      setSuccessMessage("Unable to read Excel file.");
+        setShowSuccessModal(true);
 
-      setShowSuccessModal(true);
+      }
 
-    }
+    };
+
+    reader.readAsArrayBuffer(selectedFile);
 
   };
 
-  reader.readAsArrayBuffer(selectedFile);
-
-};
-
   const goNext = () => {
-   if (step === 1 && (!department || !title.trim() || !overview.trim())) {
+    if (step === 1 && (!department || !title.trim() || !overview.trim())) {
       alert("Please add course title and overview.");
       return;
     }
@@ -427,7 +427,7 @@ if (userData.role === "departmentAdmin") {
         createdBy: currentUser?.id || "",
         createdByName: currentUser?.name || "",
         createdByEmail: currentUser?.email || "",
-     createdByRole: currentUser?.role || "",
+        createdByRole: currentUser?.role || "",
 
         status: "active",
         createdAt: new Date().toISOString(),
@@ -497,9 +497,8 @@ if (userData.role === "departmentAdmin") {
             <button
               key={item.id}
               type="button"
-              className={`wizard-step-circle ${step === item.id ? "active" : ""} ${
-                step > item.id ? "completed" : ""
-              }`}
+              className={`wizard-step-circle ${step === item.id ? "active" : ""} ${step > item.id ? "completed" : ""
+                }`}
               onClick={() => item.id < step && setStep(item.id)}
             >
               <span className="circle-number">{step > item.id ? "✓" : item.id}</span>
@@ -517,22 +516,22 @@ if (userData.role === "departmentAdmin") {
 
             <div className="admin-input-group">
               <label className="admin-field-label">Department</label>
-          {currentUser?.role === "departmentAdmin" ? (
-  <input value={department} className="admin-form-input" disabled />
-) : (
-  <select
-    value={department}
-    onChange={(e) => setDepartment(e.target.value)}
-    className="admin-form-input"
-  >
-    <option value="">Select Department</option>
-    <option value="Sales">Sales</option>
-    <option value="Marketing">Marketing</option>
-    <option value="HR">HR</option>
-    <option value="Production">Production</option>
-    <option value="Accounts">Accounts</option>
-  </select>
-)}
+              {currentUser?.role === "departmentAdmin" ? (
+                <input value={department} className="admin-form-input" disabled />
+              ) : (
+                <select
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  className="admin-form-input"
+                >
+                  <option value="">Select Department</option>
+                  <option value="Sales">Sales</option>
+                  <option value="Marketing">Marketing</option>
+                  <option value="HR">HR</option>
+                  <option value="Production">Production</option>
+                  <option value="Accounts">Accounts</option>
+                </select>
+              )}
             </div>
 
             <div className="admin-input-group">
@@ -728,24 +727,24 @@ if (userData.role === "departmentAdmin") {
 
                 <label>
                   Choose Excel
-                <input
-  type="file"
-  accept=".xlsx,.xls,.csv"
-  onChange={(e) => {
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={(e) => {
 
-    const file = e.target.files?.[0];
+                      const file = e.target.files?.[0];
 
-    if (!file) return;
+                      if (!file) return;
 
-    setExcelFile(file);
+                      setExcelFile(file);
 
-    handleExcelUpload(file);
+                      handleExcelUpload(file);
 
-  }}
-/>
+                    }}
+                  />
                 </label>
 
-           
+
               </div>
 
               {excelFile && <small>Selected: {excelFile.name}</small>}
@@ -855,30 +854,30 @@ if (userData.role === "departmentAdmin") {
 
       {showSuccessModal && (
 
-<div className="success-modal-overlay">
+        <div className="success-modal-overlay">
 
-  <div className="success-modal">
+          <div className="success-modal">
 
-    <div className="success-check">
-      ✓
-    </div>
+            <div className="success-check">
+              ✓
+            </div>
 
-    <h3>Done</h3>
+            <h3>Done</h3>
 
-    <p>{successMessage}</p>
+            <p>{successMessage}</p>
 
-    <button
-      type="button"
-      onClick={() => setShowSuccessModal(false)}
-    >
-      Okay
-    </button>
+            <button
+              type="button"
+              onClick={() => setShowSuccessModal(false)}
+            >
+              Okay
+            </button>
 
-  </div>
+          </div>
 
-</div>
+        </div>
 
-)}
+      )}
     </div>
   );
 }

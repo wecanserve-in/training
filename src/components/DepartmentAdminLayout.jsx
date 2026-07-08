@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { signOut, onAuthStateChanged } from "firebase/auth";
-import { get, ref } from "firebase/database";
-import { auth, database } from "../firebase";
+import { auth } from "../firebase";
+import { loadUserProfile } from "../lib/userAccess";
 import "../styles/departmentadminlayout.css";
 
 function DepartmentAdminLayout() {
@@ -17,21 +17,11 @@ function DepartmentAdminLayout() {
     const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
       if (!loggedUser) return;
 
-      const snap = await get(ref(database, `users/${loggedUser.uid}`));
-
-      if (snap.exists()) {
-        setProfile({
-          id: loggedUser.uid,
-          email: loggedUser.email,
-          ...snap.val(),
-        });
-      } else {
-        setProfile({
-          id: loggedUser.uid,
-          email: loggedUser.email,
-          name: loggedUser.email?.split("@")[0] || "Department Admin",
-          role: "departmentAdmin",
-        });
+      try {
+        setProfile(await loadUserProfile(loggedUser));
+      } catch (error) {
+        console.error("Failed to load department admin profile:", error);
+        setProfile(null);
       }
     });
 
@@ -53,14 +43,14 @@ function DepartmentAdminLayout() {
       .toUpperCase();
   }, [profile]);
 
-const menuItems = [
-  { label: "Dashboard", path: "/department-admin" },
-  { label: "Course Library", path: "/department-admin/courses" },
-  { label: "Video Library", path: "/department-admin/video-library" },
+  const menuItems = [
+    { label: "Dashboard", path: "/department-admin" },
+    { label: "Course Library", path: "/department-admin/courses" },
+    { label: "Video Library", path: "/department-admin/video-library" },
     { label: "Assigned Users", path: "/department-admin/members" },
-  { label: "Assign Course", path: "/department-admin/assignments" },
-  { label: "Reports", path: "/department-admin/analytics" },
-];
+    { label: "Assign Course", path: "/department-admin/assignments" },
+    { label: "Reports", path: "/department-admin/analytics" },
+  ];
 
   const learningItems = [
     { label: "My Learnings", path: "/department-admin/my-learnings" },
@@ -70,13 +60,13 @@ const menuItems = [
     { label: "Profile", path: "/department-admin/profile" },
   ];
 
-const isActive = (path) => {
-  if (path === "/department-admin") {
-    return location.pathname === "/department-admin";
-  }
+  const isActive = (path) => {
+    if (path === "/department-admin") {
+      return location.pathname === "/department-admin";
+    }
 
-  return location.pathname === path;
-};
+    return location.pathname === path;
+  };
 
   const closeSidebar = () => setSidebarOpen(false);
 

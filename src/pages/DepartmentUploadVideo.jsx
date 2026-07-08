@@ -35,22 +35,22 @@ function DepartmentUploadVideo() {
 
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-const [successMessage, setSuccessMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
-const [modalMessage, setModalMessage] = useState("Preparing upload...");
+  const [modalMessage, setModalMessage] = useState("Preparing upload...");
 
-const defaultConfig = {
-  label: "Training Filters",
-  fields: [
-    {
-      key: "trainingType",
-      label: "Training Type",
-      required: true,
-      options: ["SOP", "Product Training", "Process Training", "Policy", "Software", "Other"],
-    },
-  ],
-  tagOptions: ["SOP", "Product", "Process", "Policy", "Internal Training"],
-};
+  const defaultConfig = {
+    label: "Training Filters",
+    fields: [
+      {
+        key: "trainingType",
+        label: "Training Type",
+        required: true,
+        options: ["SOP", "Product Training", "Process Training", "Policy", "Software", "Other"],
+      },
+    ],
+    tagOptions: ["SOP", "Product", "Process", "Policy", "Internal Training"],
+  };
 
   const departmentFieldConfig = {
     "Production & Manufacturing": {
@@ -150,7 +150,7 @@ const defaultConfig = {
           required: true,
           options: ["Product Training", "Doctor Pitch", "Objection Handling", "Market Training", "Other"],
         },
-        
+
       ],
       tagOptions: ["Sales", "Marketing", "Product", "Doctor Pitch", "Objection Handling"],
     },
@@ -164,7 +164,7 @@ const defaultConfig = {
           required: true,
           options: ["QA", "QC", "Documentation", "Audit", "SOP", "Other"],
         },
-       
+
       ],
       tagOptions: ["QA", "QC", "SOP", "Audit", "Compliance"],
     },
@@ -178,7 +178,7 @@ const defaultConfig = {
           required: true,
           options: ["Research", "Formulation", "Clinical", "Product Science", "Other"],
         },
-   
+
       ],
       tagOptions: ["Research", "Formulation", "Clinical", "Innovation"],
     },
@@ -252,54 +252,54 @@ const defaultConfig = {
     formData.append("folder", folderName);
 
     console.log("Cloud Name:", cloudName);
-console.log("Upload Preset:", uploadPreset);
-console.log("Resource Type:", resourceType);
-console.log("Folder:", folderName);
-console.log("File:", file);
-console.log(
-  `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`
-);
+    console.log("Upload Preset:", uploadPreset);
+    console.log("Resource Type:", resourceType);
+    console.log("Folder:", folderName);
+    console.log("File:", file);
+    console.log(
+      `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`
+    );
 
-const response = await fetch(
-  `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`,
-  {
-    method: "POST",
-    body: formData,
-  }
-);
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`,
+      {
+        method: "POST",
+        body: formData,
+      }
+    );
 
-const responseText = await response.text();
+    const responseText = await response.text();
 
-console.log("Raw Cloudinary Response:", responseText);
+    console.log("Raw Cloudinary Response:", responseText);
 
-let data = {};
+    let data = {};
 
-try {
-  data = JSON.parse(responseText);
-} catch (e) {
-  console.error(e);
-  throw new Error("Cloudinary did not return valid JSON.");
-}
+    try {
+      data = JSON.parse(responseText);
+    } catch (e) {
+      console.error(e);
+      throw new Error("Cloudinary did not return valid JSON.");
+    }
 
-console.log("Cloudinary Response:", data);
-console.log("HTTP Status:", response.status);
+    console.log("Cloudinary Response:", data);
+    console.log("HTTP Status:", response.status);
 
-if (!response.ok || !data.secure_url) {
-  console.error(data);
+    if (!response.ok || !data.secure_url) {
+      console.error(data);
 
-  throw new Error(
-    data?.error?.message ||
-    `Upload failed (${response.status})`
-  );
-}
+      throw new Error(
+        data?.error?.message ||
+        `Upload failed (${response.status})`
+      );
+    }
 
-return data;
-   
+    return data;
+
   };
 
   const uploadAssets = async () => {
-  setUploadStatus("Uploading video...");
-setModalMessage("Uploading video...");
+    setUploadStatus("Uploading video...");
+    setModalMessage("Uploading video...");
 
     const videoData = await uploadFileToCloudinary(
       videoFile,
@@ -312,7 +312,7 @@ setModalMessage("Uploading video...");
 
     if (thumbnailFile) {
       setUploadStatus("Uploading thumbnail...");
-setModalMessage("Uploading thumbnail...");
+      setModalMessage("Uploading thumbnail...");
 
       const thumbnailData = await uploadFileToCloudinary(
         thumbnailFile,
@@ -326,22 +326,22 @@ setModalMessage("Uploading thumbnail...");
 
     const durationSeconds = await getVideoDuration(videoFile);
 
-return {
-  storageProvider: "cloudinary",
-  provider: "cloudinary",
-  assetType: "video",
-  videoUrl: videoData.secure_url,
-  playbackUrl: videoData.secure_url,
-  providerPublicId: videoData.public_id || "",
-  cloudinaryPublicId: videoData.public_id || "",
-  thumbnailUrl,
-  thumbnailProviderPublicId: thumbnailPublicId,
-  durationSeconds,
-  fileSizeBytes: videoFile?.size || 0,
-  videoFileName: videoFile?.name || "",
-  thumbnailFileName: thumbnailFile?.name || "",
-  migrationReady: true,
-};
+    return {
+      storageProvider: "cloudinary",
+      provider: "cloudinary",
+      assetType: "video",
+      videoUrl: videoData.secure_url,
+      playbackUrl: videoData.secure_url,
+      providerPublicId: videoData.public_id || "",
+      cloudinaryPublicId: videoData.public_id || "",
+      thumbnailUrl,
+      thumbnailProviderPublicId: thumbnailPublicId,
+      durationSeconds,
+      fileSizeBytes: videoFile?.size || 0,
+      videoFileName: videoFile?.name || "",
+      thumbnailFileName: thumbnailFile?.name || "",
+      migrationReady: true,
+    };
   };
   const updateMetadata = (key, value) => {
     setMetadata((prev) => ({
@@ -409,8 +409,8 @@ return {
     XLSX.writeFile(workbook, "Quiz_Template.xlsx");
   };
 
-const uploadQuizExcel = (selectedFile = excelFile) => {
-if (!selectedFile) {
+  const uploadQuizExcel = (selectedFile = excelFile) => {
+    if (!selectedFile) {
       alert("Please select Excel file first.");
       return;
 
@@ -457,21 +457,21 @@ if (!selectedFile) {
         setQuizQuestions((prev) => [...prev, ...uploadedQuestions]);
         setExcelFile(null);
 
-      setSuccessMessage(
- `${uploadedQuestions.length} questions imported successfully.`
-);
+        setSuccessMessage(
+          `${uploadedQuestions.length} questions imported successfully.`
+        );
 
-setShowSuccessModal(true);
-      } catch (error) {
-       setSuccessMessage(
- "Unable to read Excel file."
-);
+        setShowSuccessModal(true);
+      } catch {
+        setSuccessMessage(
+          "Unable to read Excel file."
+        );
 
-setShowSuccessModal(true);
+        setShowSuccessModal(true);
       }
     };
 
-   reader.readAsArrayBuffer(selectedFile);
+    reader.readAsArrayBuffer(selectedFile);
   };
 
   const validateMetadata = () => {
@@ -506,15 +506,15 @@ setShowSuccessModal(true);
     }
 
     try {
-     setUploading(true);
-setShowUploadModal(true);
-setUploadStatus("Preparing upload...");
-setModalMessage("Preparing upload...");
+      setUploading(true);
+      setShowUploadModal(true);
+      setUploadStatus("Preparing upload...");
+      setModalMessage("Preparing upload...");
 
       const uploaded = await uploadAssets();
 
-     setUploadStatus("Saving details...");
-setModalMessage("Saving details...");
+      setUploadStatus("Saving details...");
+      setModalMessage("Saving details...");
 
       const videoRef = push(ref(database, "videoLibrary"));
       const videoId = videoRef.key;
@@ -564,7 +564,7 @@ setModalMessage("Saving details...");
       }
 
       alert("Training video saved successfully.");
-    
+
 
       setTitle("");
       setDescription("");
@@ -577,11 +577,11 @@ setModalMessage("Saving details...");
       setUploadStatus("");
       resetQuestionForm();
     } catch (error) {
-  alert(error.message);
-} finally {
-  setUploading(false);
-  setShowUploadModal(false);
-}
+      alert(error.message);
+    } finally {
+      setUploading(false);
+      setShowUploadModal(false);
+    }
   };
 
   const selectedTags = useMemo(() => tags.join(", "), [tags]);
@@ -595,18 +595,18 @@ setModalMessage("Saving details...");
           <p>Simple flow: details, filters, files, quiz, then save.</p>
         </div>
 
-<Link
-  to={
-    currentUser?.role === "superAdmin"
-      ? "/super-admin/video-library"
-      : currentUser?.role === "admin"
-      ? "/admin/video-library"
-      : "/department-admin/video-library"
-  }
-  className="view-library-btn"
->
-  View Library
-</Link>
+        <Link
+          to={
+            currentUser?.role === "superAdmin"
+              ? "/super-admin/video-library"
+              : currentUser?.role === "admin"
+                ? "/admin/video-library"
+                : "/department-admin/video-library"
+          }
+          className="view-library-btn"
+        >
+          View Library
+        </Link>
       </div>
 
       <form className="video-upload-layout" onSubmit={saveVideo}>
@@ -694,80 +694,80 @@ setModalMessage("Saving details...");
             </div>
           </div>
 
-     <div className="upload-flow">
+          <div className="upload-flow">
 
-  <div className="upload-flow-item">
+            <div className="upload-flow-item">
 
-    <div className="upload-step-no">1</div>
+              <div className="upload-step-no">1</div>
 
-    <div className="upload-flow-content">
-      <h3>Upload Training Video *</h3>
-      <p>Select the main training video file.</p>
+              <div className="upload-flow-content">
+                <h3>Upload Training Video *</h3>
+                <p>Select the main training video file.</p>
 
-      <label className="vertical-upload-box">
-        <input
-          type="file"
-          accept="video/*"
-          onChange={(e) =>
-            setVideoFile(e.target.files?.[0] || null)
-          }
-        />
+                <label className="vertical-upload-box">
+                  <input
+                    type="file"
+                    accept="video/*"
+                    onChange={(e) =>
+                      setVideoFile(e.target.files?.[0] || null)
+                    }
+                  />
 
-        <div className="upload-placeholder">
-          <FaVideo />
+                  <div className="upload-placeholder">
+                    <FaVideo />
 
-          <span>
-            {videoFile
-              ? videoFile.name
-              : "Click to upload video"}
-          </span>
+                    <span>
+                      {videoFile
+                        ? videoFile.name
+                        : "Click to upload video"}
+                    </span>
 
-          <small>MP4, MOV supported</small>
-        </div>
-      </label>
-    </div>
+                    <small>MP4, MOV supported</small>
+                  </div>
+                </label>
+              </div>
 
-  </div>
+            </div>
 
-  <div className="upload-divider"></div>
+            <div className="upload-divider"></div>
 
-  <div className="upload-flow-item">
+            <div className="upload-flow-item">
 
-    <div className="upload-step-no">2</div>
+              <div className="upload-step-no">2</div>
 
-    <div className="upload-flow-content">
+              <div className="upload-flow-content">
 
-      <h3>Upload Thumbnail</h3>
+                <h3>Upload Thumbnail</h3>
 
-      <p>Optional. System can auto-generate one.</p>
+                <p>Optional. System can auto-generate one.</p>
 
-      <label className="vertical-upload-box">
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) =>
-            setThumbnailFile(e.target.files?.[0] || null)
-          }
-        />
+                <label className="vertical-upload-box">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) =>
+                      setThumbnailFile(e.target.files?.[0] || null)
+                    }
+                  />
 
-        <div className="upload-placeholder">
-          <FaImage />
+                  <div className="upload-placeholder">
+                    <FaImage />
 
-          <span>
-            {thumbnailFile
-              ? thumbnailFile.name
-              : "Click to upload thumbnail"}
-          </span>
+                    <span>
+                      {thumbnailFile
+                        ? thumbnailFile.name
+                        : "Click to upload thumbnail"}
+                    </span>
 
-          <small>PNG, JPG supported</small>
-        </div>
-      </label>
+                    <small>PNG, JPG supported</small>
+                  </div>
+                </label>
 
-    </div>
+              </div>
 
-  </div>
+            </div>
 
-</div>
+          </div>
           {uploadStatus && <p className="upload-status">{uploadStatus}</p>}
         </div>
 
@@ -780,66 +780,66 @@ setModalMessage("Saving details...");
             </div>
           </div>
 
-     <div className="quiz-flow-container">
+          <div className="quiz-flow-container">
 
-  <div className="quiz-step-card">
+            <div className="quiz-step-card">
 
-    <div className="step-badge">1</div>
+              <div className="step-badge">1</div>
 
-    <div className="step-info">
-      <h4>Download Sample</h4>
-      <p>Download the sample Excel format.</p>
+              <div className="step-info">
+                <h4>Download Sample</h4>
+                <p>Download the sample Excel format.</p>
 
-      <button
-        type="button"
-        className="outline-action-btn"
-        onClick={downloadQuizTemplate}
-      >
-        Download Sample
-      </button>
-    </div>
+                <button
+                  type="button"
+                  className="outline-action-btn"
+                  onClick={downloadQuizTemplate}
+                >
+                  Download Sample
+                </button>
+              </div>
 
-  </div>
+            </div>
 
-  <div className="quiz-step-card">
+            <div className="quiz-step-card">
 
-    <div className="step-badge">2</div>
+              <div className="step-badge">2</div>
 
-    <div className="step-info">
+              <div className="step-info">
 
-      <h4>Upload Filled Excel</h4>
+                <h4>Upload Filled Excel</h4>
 
-      <label className="excel-upload-box">
+                <label className="excel-upload-box">
 
-      <input
-  type="file"
-  accept=".xlsx,.xls,.csv"
-  onChange={(e) => {
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={(e) => {
 
-    const file = e.target.files?.[0];
+                      const file = e.target.files?.[0];
 
-    if (!file) return;
+                      if (!file) return;
 
-    setExcelFile(file);
+                      setExcelFile(file);
 
-    uploadQuizExcel(file);
+                      uploadQuizExcel(file);
 
-  }}
-/>
-        <span>
-          {excelFile
-            ? excelFile.name
-            : "Click here to choose Excel file"}
-        </span>
+                    }}
+                  />
+                  <span>
+                    {excelFile
+                      ? excelFile.name
+                      : "Click here to choose Excel file"}
+                  </span>
 
-      </label>
+                </label>
 
-    </div>
+              </div>
 
-  </div>
+            </div>
 
- 
-</div>
+
+          </div>
 
           <textarea
             placeholder="Question"
@@ -896,7 +896,7 @@ setModalMessage("Saving details...");
         </div>
       </form>
 
-       {showUploadModal && (
+      {showUploadModal && (
         <div className="upload-modal-overlay">
 
           <div className="upload-modal-card">

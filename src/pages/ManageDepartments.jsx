@@ -4,12 +4,15 @@ import { database } from "../firebase";
 import "../styles/managedepartments.css";
 
 function ManageDepartments() {
-  const [departments, setDepartments] = useState([]);
-  const [members, setMembers] = useState([]);
+ const [departments, setDepartments] = useState([]);
+const [members, setMembers] = useState([]);
 
-  const [departmentName, setDepartmentName] = useState("");
-  const [departmentType, setDepartmentType] = useState("");
-  const [selectedMember, setSelectedMember] = useState("");
+const [departmentName, setDepartmentName] = useState("");
+const [departmentType, setDepartmentType] = useState("");
+const [selectedMember, setSelectedMember] = useState("");
+
+const [showModal, setShowModal] = useState(false);
+const [editingDepartment, setEditingDepartment] = useState(null);
   const [adminSearch, setAdminSearch] = useState("");
 
   const departmentTypes = [
@@ -53,39 +56,7 @@ function ManageDepartments() {
     );
   };
 
-  const loadData = async () => {
-    const deptSnap = await get(ref(database, "departments"));
-    const userSnap = await get(ref(database, "users"));
-
-    setDepartments(
-      deptSnap.exists()
-        ? Object.entries(deptSnap.val()).map(([id, data]) => ({
-            id,
-            ...data,
-          }))
-        : []
-    );
-
-    if (userSnap.exists()) {
-      const memberList = Object.entries(userSnap.val())
-        .filter(([_, user]) => user.role === "user")
-        .map(([id, user]) => ({
-          id,
-          ...user,
-        }))
-        .sort((a, b) => {
-          const aSenior = isHigherPost(a) ? 1 : 0;
-          const bSenior = isHigherPost(b) ? 1 : 0;
-
-          if (bSenior !== aSenior) return bSenior - aSenior;
-          return String(a.name || "").localeCompare(String(b.name || ""));
-        });
-
-      setMembers(memberList);
-    } else {
-      setMembers([]);
-    }
-  };
+ 
 
   useEffect(() => {
     loadData();
@@ -140,218 +111,570 @@ function ManageDepartments() {
   const selectAdmin = (member) => {
     setSelectedMember(member.id);
     setAdminSearch(member.name || "");
-  };
+  };// =======================
+// STATES
+// =======================
 
-  const resetForm = () => {
-    setDepartmentName("");
-    setDepartmentType("");
-    setSelectedMember("");
-    setAdminSearch("");
-  };
 
-  const createDepartment = async (e) => {
-    e.preventDefault();
 
-    if (!departmentName || !departmentType || !selectedMember) {
-      alert("Please fill department name, type and department admin.");
-      return;
-    }
 
-    const member = members.find((m) => m.id === selectedMember);
+// =======================
+// LOAD DATA
+// =======================
 
-    if (!member) {
-      alert("Selected user not found.");
-      return;
-    }
+const loadData = async () => {
 
-    const deptRef = push(ref(database, "departments"));
+  const deptSnap = await get(ref(database, "departments"));
+  const userSnap = await get(ref(database, "users"));
+
+  if (deptSnap.exists()) {
+
+    setDepartments(
+      Object.entries(deptSnap.val()).map(([id, item]) => ({
+        id,
+        ...item,
+      }))
+    );
+
+  } else {
+
+    setDepartments([]);
+
+  }
+
+  if (userSnap.exists()) {
+
+    const users = Object.entries(userSnap.val())
+      .map(([id, item]) => ({
+        id,
+        ...item,
+      }))
+      .filter(
+        (user) =>
+          user.role === "user" ||
+          user.role === "departmentAdmin"
+      )
+      .sort((a, b) =>
+        String(a.name || "").localeCompare(
+          String(b.name || "")
+        )
+      );
+
+    setMembers(users);
+
+  } else {
+
+    setMembers([]);
+
+  }
+
+};
+
+useEffect(() => {
+
+  loadData();
+
+}, []);
+
+
+// =======================
+// OPEN MODALS
+// =======================
+
+const openCreateModal = () => {
+
+  setEditingDepartment(null);
+
+  setDepartmentName("");
+
+  setDepartmentType("");
+
+  setSelectedMember("");
+
+  setShowModal(true);
+
+};
+
+const openEditModal = (dept) => {
+
+  setEditingDepartment(dept);
+
+  setDepartmentName(dept.departmentName || "");
+
+  setDepartmentType(dept.departmentType || "");
+
+  setSelectedMember(
+    dept.departmentAdminId || ""
+  );
+
+  setShowModal(true);
+
+};
+
+
+// =======================
+// SAVE
+// =======================
+
+const saveDepartment = async (e) => {
+
+  e.preventDefault();
+
+  if (
+    !departmentName ||
+    !departmentType ||
+    !selectedMember
+  ) {
+
+    alert("Please fill all fields.");
+
+    return;
+
+  }
+
+  const admin = members.find(
+    (m) => m.id === selectedMember
+  );
+
+  if (!admin) {
+
+    alert("Select Department Admin");
+
+    return;
+
+  }
+
+  if (editingDepartment) {
+
+    await update(
+      ref(
+        database,
+        `departments/${editingDepartment.id}`
+      ),
+      {
+
+        departmentName,
+
+        departmentType,
+
+        departmentAdminId: admin.id,
+
+        departmentAdminName: admin.name,
+
+        departmentAdminEmail: admin.email,
+
+        departmentAdminDesignation:
+          admin.designation || "",
+
+        departmentAdminSeniority:
+          admin.seniority || "",
+
+      }
+    );
+
+  } else {
+
+    const deptRef = push(
+      ref(database, "departments")
+    );
 
     await set(deptRef, {
-      departmentName: departmentName.trim(),
+
+      departmentName,
+
       departmentType,
-      departmentAdminId: member.id,
-      departmentAdminName: member.name,
-      departmentAdminEmail: member.email,
-      departmentAdminDesignation: member.designation || "",
-      departmentAdminSeniority: member.seniority || "",
+
+      departmentAdminId: admin.id,
+
+      departmentAdminName: admin.name,
+
+      departmentAdminEmail: admin.email,
+
+      departmentAdminDesignation:
+        admin.designation || "",
+
+      departmentAdminSeniority:
+        admin.seniority || "",
+
       createdAt: new Date().toISOString(),
+
     });
 
-    await update(ref(database, `users/${member.id}`), {
-      role: "departmentAdmin",
-      department: departmentName.trim(),
-      departmentType,
-      promotedToDepartmentAdminAt: new Date().toISOString(),
-    });
+  }
 
-    resetForm();
-    loadData();
-  };
+  setShowModal(false);
 
-  const deleteDepartment = async (dept) => {
-    if (!window.confirm("Delete department and remove department admin access?")) {
-      return;
-    }
+  setEditingDepartment(null);
 
-    await remove(ref(database, `departments/${dept.id}`));
+  setDepartmentName("");
 
-    if (dept.departmentAdminId) {
-      await update(ref(database, `users/${dept.departmentAdminId}`), {
-        role: "user",
-        department: "",
-        departmentType: "",
-        removedDepartmentAdminAt: new Date().toISOString(),
-      });
-    }
+  setDepartmentType("");
 
-    loadData();
-  };
+  setSelectedMember("");
 
-  return (
-    <div className="manage-dept-page">
-      <div className="dept-header">
-        <h1>Departments</h1>
-        <p>Create departments and quickly assign eligible department admins.</p>
-      </div>
+  loadData();
 
-      <div className="dept-card create-dept-full">
-        <div className="card-title-row">
-          <div>
-            <h2>Create Department</h2>
-            <p>Search by name or choose from top eligible users.</p>
-          </div>
-        </div>
+};
 
-        <form className="dept-form clean-dept-form" onSubmit={createDepartment}>
-          <input
-            placeholder="Department Name"
-            value={departmentName}
-            onChange={(e) => setDepartmentName(e.target.value)}
-            required
-          />
 
-          <select
-            value={departmentType}
-            onChange={(e) => setDepartmentType(e.target.value)}
-            required
-          >
-            <option value="">Select Department Type</option>
-            {departmentTypes.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
+// =======================
+// DELETE
+// =======================
 
-          <input
-            placeholder="Search admin by name"
-            value={adminSearch}
-            onChange={(e) => setAdminSearch(e.target.value)}
-          />
+const deleteDepartment = async (dept) => {
 
-          <button type="submit">Create Department</button>
-        </form>
+  if (
+    !window.confirm(
+      "Delete this department?"
+    )
+  )
+    return;
 
-        {selectedMemberData && (
-          <div className="selected-admin-strip">
-            <span>Selected Department Admin</span>
-            <strong>{selectedMemberData.name}</strong>
-            <p>
-              {selectedMemberData.designation || "No designation"} •{" "}
-              {selectedMemberData.seniority || "No type"} •{" "}
-              {selectedMemberData.cityArea || "No city"}
-            </p>
-          </div>
-        )}
-      </div>
-
-      <div className="dept-card quick-admin-card">
-        <div className="card-title-row">
-          <div>
-            <h2>{adminSearch ? "Search Results" : "Top Eligible Users"}</h2>
-            <p>
-              {adminSearch
-                ? "Best matching users are shown below."
-                : "Senior / higher-post users are shown first."}
-            </p>
-          </div>
-        </div>
-
-        <div className="quick-admin-list">
-          {searchedMembers.map((member) => (
-            <button
-              type="button"
-              key={member.id}
-              className={`quick-admin-chip ${
-                selectedMember === member.id ? "active" : ""
-              }`}
-              onClick={() => selectAdmin(member)}
-            >
-              <strong>{member.name}</strong>
-              <span>
-                {member.designation || "No designation"} •{" "}
-                {member.cityArea || "No city"}
-              </span>
-            </button>
-          ))}
-
-          {searchedMembers.length === 0 && (
-            <p className="empty-help">No user found with this name.</p>
-          )}
-        </div>
-      </div>
-
-      <div className="dept-card">
-        <div className="card-title-row">
-          <div>
-            <h2>Department List</h2>
-            <p>{departments.length} departments created</p>
-          </div>
-        </div>
-
-        <div className="dept-table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Department</th>
-                <th>Department Type</th>
-                <th>Department Admin</th>
-                <th>Designation</th>
-                <th>Type</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {departments.map((dept) => (
-                <tr key={dept.id}>
-                  <td>{dept.departmentName}</td>
-                  <td>{dept.departmentType || "-"}</td>
-                  <td>{dept.departmentAdminName || "-"}</td>
-                  <td>{dept.departmentAdminDesignation || "-"}</td>
-                  <td>
-                    {dept.departmentAdminSeniority
-                      ? dept.departmentAdminSeniority.charAt(0).toUpperCase() +
-                        dept.departmentAdminSeniority.slice(1)
-                      : "-"}
-                  </td>
-                  <td>
-                    <button onClick={() => deleteDepartment(dept)}>Delete</button>
-                  </td>
-                </tr>
-              ))}
-
-              {departments.length === 0 && (
-                <tr>
-                  <td colSpan="6">No departments created.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+  await remove(
+    ref(
+      database,
+      `departments/${dept.id}`
+    )
   );
+
+  if (dept.departmentAdminId) {
+
+    await update(
+      ref(
+        database,
+        `users/${dept.departmentAdminId}`
+      ),
+      {
+
+        role: "user",
+
+        department: "",
+
+        departmentType: "",
+
+      }
+    );
+
+  }
+
+  loadData();
+
+};
+ return (
+  <div className="manage-dept-page">
+
+    <div className="dept-page-header">
+
+      <div>
+
+        <h1>Departments</h1>
+
+        <p>
+          Manage all departments and their department admins.
+        </p>
+
+      </div>
+
+      <button
+        className="new-dept-btn"
+        onClick={openCreateModal}
+      >
+        + New Department
+      </button>
+
+    </div>
+
+
+
+    <div className="department-table-card">
+
+      <table className="department-table">
+
+        <thead>
+
+          <tr>
+
+            <th>Department</th>
+
+            <th>Department Type</th>
+
+            <th>Department Admin</th>
+
+            <th>Designation</th>
+
+            <th>Actions</th>
+
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          {departments.length === 0 ? (
+
+            <tr>
+
+              <td
+                colSpan="5"
+                className="empty-table"
+              >
+                No departments created.
+              </td>
+
+            </tr>
+
+          ) : (
+
+            departments.map((dept) => (
+
+              <tr key={dept.id}>
+
+                <td>
+
+                  <strong>
+                    {dept.departmentName}
+                  </strong>
+
+                </td>
+
+                <td>
+
+                  {dept.departmentType}
+
+                </td>
+
+                <td>
+
+                  <div className="dept-admin-cell">
+
+                    <div className="dept-admin-avatar">
+
+                      {(dept.departmentAdminName || "A")
+                        .charAt(0)
+                        .toUpperCase()}
+
+                    </div>
+
+                    <div>
+
+                      <strong>
+
+                        {dept.departmentAdminName}
+
+                      </strong>
+
+                      <span>
+
+                        {dept.departmentAdminEmail}
+
+                      </span>
+
+                    </div>
+
+                  </div>
+
+                </td>
+
+                <td>
+
+                  {dept.departmentAdminDesignation ||
+                    "-"}
+
+                </td>
+
+                <td>
+
+                  <div className="table-actions">
+
+                    <button
+                      className="edit-btn"
+                      onClick={() =>
+                        openEditModal(dept)
+                      }
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      className="delete-btn"
+                      onClick={() =>
+                        deleteDepartment(dept)
+                      }
+                    >
+                      Delete
+                    </button>
+
+                  </div>
+
+                </td>
+
+              </tr>
+
+            ))
+
+          )}
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+
+
+    {showModal && (
+
+      <div className="modal-backdrop">
+
+        <div className="department-modal"> 
+                    <h2>
+            {editingDepartment
+              ? "Edit Department"
+              : "Create Department"}
+          </h2>
+
+          <form
+            className="department-form"
+            onSubmit={saveDepartment}
+          >
+
+            <div className="form-group">
+
+              <label>
+                Department Name
+              </label>
+
+              <input
+                type="text"
+                placeholder="Department Name"
+                value={departmentName}
+                onChange={(e) =>
+                  setDepartmentName(e.target.value)
+                }
+                required
+              />
+
+            </div>
+
+            <div className="form-group">
+
+              <label>
+                Department Type
+              </label>
+
+              <select
+                value={departmentType}
+                onChange={(e) =>
+                  setDepartmentType(e.target.value)
+                }
+                required
+              >
+
+                <option value="">
+                  Select Department Type
+                </option>
+
+                {departmentTypes.map((type) => (
+
+                  <option
+                    key={type}
+                    value={type}
+                  >
+                    {type}
+                  </option>
+
+                ))}
+
+              </select>
+
+            </div>
+
+            <div className="form-group">
+
+              <label>
+                Department Admin
+              </label>
+
+              <select
+                value={selectedMember}
+                onChange={(e) =>
+                  setSelectedMember(e.target.value)
+                }
+                required
+              >
+
+                <option value="">
+                  Select Department Admin
+                </option>
+
+                {members.map((member) => (
+
+                  <option
+                    key={member.id}
+                    value={member.id}
+                  >
+
+                    {member.name}
+
+                    {member.designation
+                      ? `- ${member.designation}`
+                      : ""}
+
+                  </option>
+
+                ))}
+
+              </select>
+
+            </div>
+
+            <div className="modal-actions">
+
+              <button
+                type="button"
+                className="cancel-btn"
+                onClick={() => {
+
+                  setShowModal(false);
+
+                  setEditingDepartment(null);
+
+                  setDepartmentName("");
+
+                  setDepartmentType("");
+
+                  setSelectedMember("");
+
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                className="save-btn"
+              >
+
+                {editingDepartment
+                  ? "Save Changes"
+                  : "Create Department"}
+
+              </button>
+
+            </div>
+
+          </form>
+
+        </div>
+
+      </div>
+
+    )}
+
+  </div>
+
+);
+
 }
 
-export default ManageDepartments;
+export default ManageDepartments;  

@@ -17,8 +17,8 @@ function DepartmentCourses() {
   const [filterType, setFilterType] = useState("");
   const [filterOrgan, setFilterOrgan] = useState("");
   const [filterQuiz, setFilterQuiz] = useState("");
-const [filterVideoCount, setFilterVideoCount] = useState("");
-const [filterDepartment, setFilterDepartment] = useState("");
+  const [filterVideoCount, setFilterVideoCount] = useState("");
+  const [filterDepartment, setFilterDepartment] = useState("");
 
   const [loading, setLoading] = useState(true);
 
@@ -34,18 +34,11 @@ const [filterDepartment, setFilterDepartment] = useState("");
         }))
       : [];
 
-const canSeeAllCourses =
-  user.role === "admin" || user.role === "superAdmin";
+    const canSeeAllCourses = user.role === "admin" || user.role === "superAdmin";
 
-const ownCourses = canSeeAllCourses
-  ? allCourses
-  : allCourses.filter((course) => {
-      return (
-        course.createdBy === user.id ||
-        course.createdByEmail === user.email ||
-        course.department === user.department
-      );
-    });
+    const ownCourses = canSeeAllCourses
+      ? allCourses
+      : allCourses.filter((course) => course.department === user.department);
 
     ownCourses.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
@@ -124,35 +117,27 @@ const ownCourses = canSeeAllCourses
 
   const organOptions = useMemo(() => {
     const organs = [];
-
     courses.forEach((course) => {
       getCourseVideos(course).forEach((video) => {
         if (video.metadata?.organName) organs.push(video.metadata.organName);
       });
     });
-
     return [...new Set(organs)];
   }, [courses, courseVideos, videoLibrary]);
 
-    const departmentOptions = useMemo(() => {
-  return [
-    ...new Set(
-      courses
-        .map((course) => course.department)
-        .filter(Boolean)
-    ),
-  ];
-}, [courses]);
+  const departmentOptions = useMemo(() => {
+    return [
+      ...new Set(courses.map((course) => course.department).filter(Boolean)),
+    ];
+  }, [courses]);
 
   const filteredCourses = useMemo(() => {
     const searchValue = search.toLowerCase();
 
     return courses.filter((course) => {
       const videos = getCourseVideos(course);
-
       const courseOrgans = videos.map((video) => video.metadata?.organName).filter(Boolean);
       const courseTypes = videos.map((video) => video.metadata?.videoType).filter(Boolean);
-
 
       const combinedText = [
         course.title,
@@ -175,83 +160,57 @@ const ownCourses = canSeeAllCourses
       const videoCount = videos.length || Number(course.totalVideos || 0);
 
       const matchesSearch = combinedText.includes(searchValue);
-      const matchesDepartment =
-  filterDepartment
-    ? course.department === filterDepartment
-    : true;
+      const matchesDepartment = filterDepartment ? course.department === filterDepartment : true;
       const matchesType = filterType ? courseTypes.includes(filterType) : true;
       const matchesOrgan = filterOrgan ? courseOrgans.includes(filterOrgan) : true;
-
       const matchesQuiz =
         filterQuiz === "withQuiz"
           ? questionCount > 0
           : filterQuiz === "withoutQuiz"
           ? questionCount === 0
           : true;
-
-        
-
       const matchesVideoCount =
         filterVideoCount === "single"
           ? videoCount === 1
           : filterVideoCount === "multi"
           ? videoCount > 1
           : true;
-return matchesSearch &&
-       matchesDepartment &&
-       matchesType &&
-       matchesOrgan &&
-       matchesQuiz &&
-      matchesVideoCount;
+
+      return (
+        matchesSearch &&
+        matchesDepartment &&
+        matchesType &&
+        matchesOrgan &&
+        matchesQuiz &&
+        matchesVideoCount
+      );
     });
-  }, [
-    courses,
-    courseVideos,
-    videoLibrary,
-    search,
-    filterType,
-    filterOrgan,
-  filterQuiz,
-filterVideoCount,
-filterDepartment,
-]);
+  }, [courses, courseVideos, videoLibrary, search, filterType, filterOrgan, filterQuiz, filterVideoCount, filterDepartment]);
+
   if (loading) {
     return <div className="department-courses-page">Loading courses...</div>;
   }
 
+  // ✅ Get Base Path to keep sidebar active
+  let basePath = "";
+  if (currentUser?.role === "superAdmin") basePath = "/super-admin";
+  else if (currentUser?.role === "admin") basePath = "/admin";
+  else if (currentUser?.role === "departmentAdmin") basePath = "/department-admin";
+
+  const createCourseLink = `${basePath}/courses/create`; // Adjust to your specific create route if needed
+
   return (
     <div className="department-courses-page">
-      <div className="courses-header-card">
-        <div>
-          <span>Courses</span>
-          <h1>Course Library</h1>
-         <p>
-  {currentUser?.role === "admin" || currentUser?.role === "superAdmin"
-    ? "Showing all courses. Use filters to narrow the list."
-    : `Showing courses created for ${currentUser?.department || "your department"}.`}
-</p>
-        </div>
-
-<Link
-  to={
-    currentUser?.role === "admin" || currentUser?.role === "superAdmin"
-      ? "/admin/add-course"
-      : "/department-admin/courses/create"
-  }
-  className="create-course-btn"
->
-  + Create New Course
-</Link>
-      </div>
-
       <div className="courses-list-card">
+        
         <div className="courses-list-head">
           <div>
-            <h2>My Created Courses</h2>
-            <p>
-              {filteredCourses.length} of {courses.length} courses showing
-            </p>
+            <h2>Course Library</h2>
+            <p>{filteredCourses.length} of {courses.length} courses showing</p>
           </div>
+          <Link to={currentUser?.role === 'admin' || currentUser?.role === 'superAdmin' ? `${basePath}/add-course` : `${basePath}/courses/create`} className="create-course-btn">
+            + Create New Course
+          </Link>
         </div>
 
         <div className="course-toolbar course-toolbar-wide">
@@ -261,6 +220,15 @@ filterDepartment,
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+          
+          {(currentUser?.role === "admin" || currentUser?.role === "superAdmin") && (
+            <select value={filterDepartment} onChange={(e) => setFilterDepartment(e.target.value)}>
+              <option value="">All Departments</option>
+              {departmentOptions.map((dept) => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
+            </select>
+          )}
 
           <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
             <option value="">All Types</option>
@@ -269,41 +237,17 @@ filterDepartment,
             <option value="Product">Product</option>
             <option value="Other">Other</option>
           </select>
-
           <select value={filterOrgan} onChange={(e) => setFilterOrgan(e.target.value)}>
             <option value="">All Organs</option>
             {organOptions.map((organ) => (
-              <option key={organ} value={organ}>
-                {organ}
-              </option>
+              <option key={organ} value={organ}>{organ}</option>
             ))}
           </select>
-
           <select value={filterQuiz} onChange={(e) => setFilterQuiz(e.target.value)}>
             <option value="">Quiz: All</option>
             <option value="withQuiz">With Quiz</option>
             <option value="withoutQuiz">Without Quiz</option>
           </select>
-
-          <select value={filterVideoCount} onChange={(e) => setFilterVideoCount(e.target.value)}>
-            <option value="">Videos: All</option>
-            <option value="single">Single Video</option>
-            <option value="multi">Multiple Videos</option>
-          </select>
-
-          <select
-  value={filterDepartment}
-  onChange={(e) => setFilterDepartment(e.target.value)}
->
-  <option value="">All Departments</option>
-
-  {departmentOptions.map((dept) => (
-    <option key={dept} value={dept}>
-      {dept}
-    </option>
-  ))}
-</select>
-
         </div>
 
         {filteredCourses.length === 0 ? (
@@ -312,81 +256,53 @@ filterDepartment,
             <p>Create your first course or change search/filter.</p>
           </div>
         ) : (
-          <div className="course-list-grid">
+          <div className="clean-course-list">
             {filteredCourses.map((course) => {
-              const videos = getCourseVideos(course);
-              const thumbnail = getCourseThumbnail(course);
-           
-              const questionCount = Number(course.totalQuestions || 0);
+              const thumbnail = getCourseThumbnail(course); 
+              
+              // ✅ Role-aware links
+              const overviewLink = `${basePath}/course-overview/${course.id}`;
+              const editLink = `${basePath}/courses/edit/${course.id}`;
+              const assignLink = `${basePath}/assignments?courseId=${course.id}`;
 
               return (
-                <div className="course-list-card" key={course.id}>
-                  <div className="course-thumb">
+                <div
+                  className="clean-course-card"
+                  key={course.id}
+                  onClick={() => navigate(overviewLink)} // Using Role-Aware link
+                >
+                  <div className="clean-course-thumb">
                     {thumbnail ? (
-                      <img src={thumbnail} alt={course.title || "Course"} />
+                      <img src={thumbnail} alt={course.title} />
                     ) : (
-                      <div className="course-thumb-fallback">
-                        <span>▶</span>
-                        <p>No Thumbnail</p>
-                      </div>
+                      <div className="clean-thumb-fallback">▶</div>
                     )}
                   </div>
 
-                  <div className="course-list-content">
-                    <div className="course-title-row">
-                      <h3>{course.title}</h3>
-                      <span className="course-status active">
-                        {questionCount > 0 ? "Quiz Added" : "No Quiz"}
-                      </span>
-                    </div>
-
-                    <p>{course.description || course.overview || "No description added."}</p>
-
-                    <div className="course-meta-row">
-                      <span>{course.department || "No Department"}</span>
-                      <span>{videos.length || course.totalVideos || 0} videos</span>
-                      <span>{questionCount} questions</span>
-                      <span>Pass {course.passingScore || 70}%</span>
-                      <span>{course.testDuration || 60}s quiz</span>
-                    </div>
-
-                    {videos.length > 0 && (
-                      <div className="course-video-preview">
-                        {videos.slice(0, 3).map((video, index) => (
-                          <span key={video.id}>
-                            {index + 1}. {video.title}
-                          </span>
-                        ))}
-                        {videos.length > 3 && <span>+{videos.length - 3} more</span>}
-                      </div>
-                    )}
+                  <div className="clean-course-info">
+                    <h3>{course.title}</h3>
+                    <p className="clean-course-desc">
+                      {course.description || course.overview || "No description provided."}
+                    </p>
+                    <span className="clean-course-dept-badge">{course.department || "General"}</span>
                   </div>
 
-                  <div className="course-actions">
+                  <div className="clean-course-actions">
                     <button
-                      type="button"
-                      className="course-edit-btn"
-                      onClick={() =>
-  navigate(
-    currentUser?.role === "admin" || currentUser?.role === "superAdmin"
-      ? `/admin/courses/edit/${course.id}`
-      : `/department-admin/courses/edit/${course.id}`
-  )
-}
+                      className="clean-btn-edit"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(editLink);
+                      }}
                     >
                       Edit
                     </button>
-
                     <button
-                      type="button"
-                      className="course-assign-btn"
-                    onClick={() =>
-  navigate(
-    currentUser?.role === "admin" || currentUser?.role === "superAdmin"
-      ? `/admin/assignments?courseId=${course.id}`
-      : `/department-admin/assignments?courseId=${course.id}`
-  )
-}
+                      className="clean-btn-assign"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(assignLink);
+                      }}
                     >
                       Assign
                     </button>

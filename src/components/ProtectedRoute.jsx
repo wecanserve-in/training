@@ -17,11 +17,11 @@ function ProtectedRoute({ children }) {
   }, []);
 
   if (checking) {
-    return <h2>Checking login...</h2>;
+    return <h2 style={{ padding: "32px" }}>Checking login...</h2>;
   }
 
   if (!user) {
-    return <Navigate to="/" />;
+    return <Navigate to="/" replace />;
   }
 
   return children;

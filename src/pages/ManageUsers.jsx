@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState, useRef } from "react";
 import { initializeApp, deleteApp } from "firebase/app";
 import {
   getAuth,
@@ -7,7 +6,7 @@ import {
   sendPasswordResetEmail,
   updateProfile,
 } from "firebase/auth";
-import { ref, set, get, update, remove } from "firebase/database";
+import { ref, set, get, update, remove, push } from "firebase/database";
 import { auth } from "../firebase";
 import * as XLSX from "xlsx";
 import { database, firebaseConfig } from "../firebase";
@@ -18,23 +17,29 @@ const DEFAULT_PASSWORD = "portal@123";
 
 function ManageUsers() {
   const [users, setUsers] = useState([]);
-  const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkStatus, setBulkStatus] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [creating, setCreating] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
 
+  // Drag & Drop State
+  const [dragActive, setDragActive] = useState(false);
+
+  // Modals State
+  const [isDesignationModalOpen, setIsDesignationModalOpen] = useState(false);
   const [designations, setDesignations] = useState([]);
   const [newDesignation, setNewDesignation] = useState("");
-const [uploadModal, setUploadModal] = useState({
-  open: false,
-  current: 0,
-  total: 0,
-  success: 0,
-  skipped: 0,
-  failed: 0,
-  status: "idle",
-  errors: [],
-});
+
+  const [uploadModal, setUploadModal] = useState({
+    open: false,
+    current: 0,
+    total: 0,
+    success: 0,
+    skipped: 0,
+    failed: 0,
+    status: "idle",
+    errors: [],
+  });
+
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -45,7 +50,16 @@ const [uploadModal, setUploadModal] = useState({
     cityArea: "",
   });
 
-  const allCities = locations.flatMap((location) => location.cities);
+  // Strict Cascading Logic
+  const availableZones = [...new Set(locations.map((loc) => loc.zone))].filter(Boolean);
+  
+  const availableStates = [...new Set(
+    locations.filter((loc) => loc.zone === form.zone).map((loc) => loc.state)
+  )].filter(Boolean);
+  
+  const availableCities = locations
+    .filter((loc) => loc.zone === form.zone && loc.state === form.state)
+    .flatMap((loc) => loc.cities || []);
 
   useEffect(() => {
     fetchMasterData();
@@ -54,10 +68,8 @@ const [uploadModal, setUploadModal] = useState({
 
   const fetchMasterData = async () => {
     const snap = await get(ref(database, "master/designations"));
-
     if (snap.exists()) {
       const data = snap.val();
-
       setDesignations(
         Object.entries(data).map(([id, item]) => ({
           id,
@@ -74,7 +86,6 @@ const [uploadModal, setUploadModal] = useState({
     if (!snap.exists()) return setUsers([]);
 
     const data = snap.val();
-
     const userList = Object.entries(data)
       .filter(([_, user]) => user.role === "user")
       .map(([id, user]) => ({ id, ...user }));
@@ -82,6 +93,7 @@ const [uploadModal, setUploadModal] = useState({
     setUsers(userList);
   };
 
+  // Designation Functions
   const addDesignation = async () => {
     const name = newDesignation.trim();
     if (!name) return;
@@ -96,7 +108,6 @@ const [uploadModal, setUploadModal] = useState({
     }
 
     const newRef = push(ref(database, "master/designations"));
-
     await set(newRef, {
       name,
       createdAt: new Date().toISOString(),
@@ -108,22 +119,8 @@ const [uploadModal, setUploadModal] = useState({
 
   const removeDesignation = async (id) => {
     if (!window.confirm("Remove this designation?")) return;
-
     await remove(ref(database, `master/designations/${id}`));
     fetchMasterData();
-  };
-
-  const handleCityChange = (city) => {
-    const matchedLocation = locations.find((location) =>
-      location.cities.includes(city)
-    );
-
-    setForm({
-      ...form,
-      cityArea: city,
-      zone: matchedLocation?.zone || "",
-      state: matchedLocation?.state || "",
-    });
   };
 
   const resetForm = () => {
@@ -182,35 +179,8 @@ const [uploadModal, setUploadModal] = useState({
       await sendPasswordResetEmail(secondaryAuth, userData.email.trim());
       return { success: true };
     } catch (error) {
-  let message = "Unknown Error";
-
-  switch (error.code) {
-    case "auth/email-already-in-use":
-      message = "Email already exists.";
-      break;
-
-    case "auth/invalid-email":
-      message = "Invalid email address.";
-      break;
-
-    case "auth/weak-password":
-      message = "Weak password.";
-      break;
-
-    case "auth/network-request-failed":
-      message = "Network error.";
-      break;
-
-    default:
-      message = error.message;
-  }
-
-  return {
-    success: false,
-    error: message,
-  };
-}
-    finally {
+      return { success: false, error: error.message };
+    } finally {
       await deleteApp(secondaryApp);
     }
   };
@@ -218,9 +188,7 @@ const [uploadModal, setUploadModal] = useState({
   const createSingleUser = async (e) => {
     e.preventDefault();
     setCreating(true);
-
     const result = await createUserRecord(form);
-
     if (result.success) {
       alert("User created successfully. Password reset email sent.");
       resetForm();
@@ -228,14 +196,12 @@ const [uploadModal, setUploadModal] = useState({
     } else {
       alert(result.error);
     }
-
     setCreating(false);
   };
 
   const updateExistingUser = async (e) => {
     e.preventDefault();
     if (!editingUserId) return;
-
     try {
       await update(ref(database, `users/${editingUserId}`), {
         name: form.name.trim(),
@@ -246,7 +212,6 @@ const [uploadModal, setUploadModal] = useState({
         cityArea: form.cityArea.trim(),
         updatedAt: new Date().toISOString(),
       });
-
       alert("User updated successfully.");
       setEditingUserId(null);
       resetForm();
@@ -258,7 +223,6 @@ const [uploadModal, setUploadModal] = useState({
 
   const startEditUser = (user) => {
     setEditingUserId(user.id);
-
     setForm({
       name: user.name || "",
       email: user.email || "",
@@ -268,7 +232,6 @@ const [uploadModal, setUploadModal] = useState({
       state: user.state || "",
       cityArea: user.cityArea || "",
     });
-
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -279,10 +242,8 @@ const [uploadModal, setUploadModal] = useState({
 
   const deleteUser = async (uid) => {
     if (!window.confirm("Remove this user from database?")) return;
-
     try {
       await remove(ref(database, `users/${uid}`));
-      alert("User removed from database.");
       fetchUsers();
     } catch (error) {
       alert(error.message);
@@ -291,7 +252,6 @@ const [uploadModal, setUploadModal] = useState({
 
   const resetUserPassword = async (email) => {
     if (!window.confirm(`Send password reset email to ${email}?`)) return;
-
     try {
       await sendPasswordResetEmail(auth, email);
       alert("Password reset email sent successfully.");
@@ -300,29 +260,9 @@ const [uploadModal, setUploadModal] = useState({
     }
   };
 
-  const downloadTemplate = () => {
-    const templateData = [
-      {
-        name: "Rahul Sharma",
-        email: "rahul@example.com",
-        designation: "Sales Executive",
-        seniority: "senior",
-        cityArea: "Mumbai",
-      },
-    ];
-
-    const worksheet = XLSX.utils.json_to_sheet(templateData);
-    const workbook = XLSX.utils.book_new();
-
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Users Template");
-    XLSX.writeFile(workbook, "user-upload-template.xlsx");
-  };
-
-  const handleBulkUpload = async (e) => {
-    const file = e.target.files[0];
+  // Bulk Upload Logic
+  const processFile = async (file) => {
     if (!file) return;
-
-    setBulkStatus("");
     setCreating(true);
 
     const data = await file.arrayBuffer();
@@ -330,9 +270,9 @@ const [uploadModal, setUploadModal] = useState({
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sheet);
 
-  let successCount = 0;
-let skippedCount = 0;
-let failCount = 0;
+    let successCount = 0;
+    let skippedCount = 0;
+    let failCount = 0;
     const uploadErrors = [];
 
     setUploadModal({
@@ -342,19 +282,14 @@ let failCount = 0;
       success: 0,
       failed: 0,
       status: "processing",
-       errors: [], 
+      errors: [],
     });
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-
-      setUploadModal((prev) => ({
-        ...prev,
-        current: i + 1,
-      }));
+      setUploadModal((prev) => ({ ...prev, current: i + 1 }));
 
       const city = row.cityArea || row.CityArea || row.City || row.city || "";
-
       const matchedLocation = locations.find((location) =>
         location.cities.includes(city)
       );
@@ -363,347 +298,254 @@ let failCount = 0;
         name: row.name || row.Name || "",
         email: row.email || row.Email || "",
         designation: row.designation || row.Designation || "",
-        seniority:
-          row.seniority ||
-          row.Seniority ||
-          row.type ||
-          row.Type ||
-          row.category ||
-          row.Category ||
-          "",
+        seniority: row.seniority || row.Seniority || row.type || row.Type || "",
         cityArea: city,
         zone: matchedLocation?.zone || "",
         state: matchedLocation?.state || "",
       });
 
-   if (result.success) {
-  successCount++;
-} else if (result.error === "Email already exists.") {
-  skippedCount++;
-
-  uploadErrors.push({
-    row: i + 2,
-    name: row.name || "",
-    email: row.email || "",
-    type: "warning",
-    reason:
-      "User already exists. Use Reset Password if required.",
-  });
-} else {
-  failCount++;
-
-  uploadErrors.push({
-    row: i + 2,
-    name: row.name || "",
-    email: row.email || "",
-    type: "error",
-    reason: result.error,
-  });
-}
-
-   
+      if (result.success) {
+        successCount++;
+      } else if (result.error.includes("already-in-use")) {
+        skippedCount++;
+        uploadErrors.push({ row: i + 2, name: row.name || "", email: row.email || "", type: "warning", reason: "User exists." });
+      } else {
+        failCount++;
+        uploadErrors.push({ row: i + 2, name: row.name || "", email: row.email || "", type: "error", reason: result.error });
+      }
     }
 
-    setBulkStatus(
-  `${successCount} created, ${skippedCount} skipped, ${failCount} failed.`
-);
-
-setUploadModal((prev) => ({
-  ...prev,
-  status: "done",
-  success: successCount,
-  skipped: skippedCount,
-  failed: failCount,
-  errors: uploadErrors,
-}));
+    setUploadModal((prev) => ({
+      ...prev,
+      status: "done",
+      success: successCount,
+      skipped: skippedCount,
+      failed: failCount,
+      errors: uploadErrors,
+    }));
     setCreating(false);
     fetchUsers();
-    e.target.value = "";
   };
-return (
-  <div className="manage-users-page">
-    <div className="users-header">
-      <div>
-        <h1>Users</h1>
-        <p>Create users, bulk upload employees, manage designations and view all users.</p>
-      </div>
-    </div>
 
-    <div className="users-card full-user-form-card">
-      <div className="card-title-row">
-        <div>
-          <h2>{editingUserId ? "Edit User" : "Add New User"}</h2>
-          <p>
-            {editingUserId
-              ? "Update employee details below."
-              : "Create one employee account with designation, seniority and location."}
-          </p>
-        </div>
+  // Drag Events
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
 
-        <span className="password-pill">Default Password: {DEFAULT_PASSWORD}</span>
-      </div>
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      processFile(e.dataTransfer.files[0]);
+    }
+  };
 
-      <form
-        onSubmit={editingUserId ? updateExistingUser : createSingleUser}
-        className="users-form-grid clean-horizontal-form"
-      >
-        <input
-          placeholder="Full Name"
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-          required
-        />
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      processFile(e.target.files[0]);
+    }
+    e.target.value = ""; // reset input
+  };
 
-        <input
-          placeholder="Email Address"
-          type="email"
-          value={form.email}
-          disabled={!!editingUserId}
-          onChange={(e) => setForm({ ...form, email: e.target.value })}
-          required
-        />
+  const downloadTemplate = () => {
+    const templateData = [{ name: "Rahul Sharma", email: "rahul@example.com", designation: "Sales Executive", seniority: "senior", cityArea: "Mumbai" }];
+    const worksheet = XLSX.utils.json_to_sheet(templateData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
+    XLSX.writeFile(workbook, "user-template.xlsx");
+  };
 
-        <select
-          value={form.designation}
-          onChange={(e) => setForm({ ...form, designation: e.target.value })}
-          required
-        >
-          <option value="">Designation</option>
-          {designations.map((item) => (
-            <option key={item.id} value={item.name}>
-              {item.name}
-            </option>
-          ))}
-        </select>
+  const filteredUsers = users.filter((user) =>
+    (user.name + user.email + user.cityArea).toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-        <select
-          value={form.seniority}
-          onChange={(e) => setForm({ ...form, seniority: e.target.value })}
-          required
-        >
-          <option value="">Type</option>
-          <option value="senior">Senior</option>
-          <option value="junior">Junior</option>
-          <option value="intern">Intern</option>
-        </select>
-
-        <select
-          value={form.cityArea}
-          onChange={(e) => handleCityChange(e.target.value)}
-          required
-        >
-          <option value="">City / Area</option>
-          {allCities.map((city) => (
-            <option key={city} value={city}>
-              {city}
-            </option>
-          ))}
-        </select>
-
-        <input placeholder="State" value={form.state} readOnly required />
-        <input placeholder="Zone" value={form.zone} readOnly required />
-
-        <button type="submit" disabled={creating}>
-          {editingUserId ? "Update User" : creating ? "Creating..." : "Create User"}
-        </button>
-
-        {editingUserId && (
-          <button type="button" className="cancel-edit-btn" onClick={cancelEdit}>
-            Cancel
-          </button>
-        )}
-      </form>
-    </div>
-
-    <div className="users-card bulk-horizontal-card">
-      <div>
-        <h2>Bulk Upload Users</h2>
-        <p>Upload Excel with: name, email, designation, seniority, cityArea.</p>
-      </div>
-
-      <div className="bulk-horizontal-actions">
-        <button className="template-btn" onClick={downloadTemplate}>
-          Download Template
-        </button>
-
-        <label className="upload-btn-clean">
-          <input type="file" accept=".xlsx,.xls,.csv" onChange={handleBulkUpload} />
-          Upload Excel
-        </label>
-      </div>
-
-      {bulkStatus && <p className="bulk-status">{bulkStatus}</p>}
-    </div>
-
-    <div className="users-card designation-clean-card">
-      <div className="card-title-row">
-        <div>
-          <h2>Designations</h2>
-          <p>Add roles like Sales Executive, Manager, Web Developer etc.</p>
-        </div>
-      </div>
-
-      <div className="designation-clean-row">
-        <input
-          placeholder="Add new designation"
-          value={newDesignation}
-          onChange={(e) => setNewDesignation(e.target.value)}
-        />
-
-        <button onClick={addDesignation}>Add Designation</button>
-      </div>
-
-      <div className="designation-chip-list">
-        {designations.map((item) => (
-          <span key={item.id} className="designation-chip">
-            {item.name}
-            <button onClick={() => removeDesignation(item.id)}>×</button>
-          </span>
-        ))}
-
-        {designations.length === 0 && (
-          <p className="empty-text">No designations added yet.</p>
-        )}
-      </div>
-    </div>
-
-    <div className="users-card users-table-card-clean">
-      <div className="card-title-row">
-        <div>
-          <h2>Existing Users</h2>
-          <p>{users.length} users found</p>
-        </div>
-      </div>
-
-      <div className="users-table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Designation</th>
-              <th>Type</th>
-              <th>Zone</th>
-              <th>State</th>
-              <th>City / Area</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {users.map((user) => (
-              <tr key={user.id}>
-                <td>{user.name}</td>
-                <td>{user.email}</td>
-                <td>{user.designation}</td>
-                <td>
-                  {user.seniority
-                    ? user.seniority.charAt(0).toUpperCase() + user.seniority.slice(1)
-                    : "-"}
-                </td>
-                <td>{user.zone}</td>
-                <td>{user.state}</td>
-                <td>{user.cityArea}</td>
-                <td>
-                  <div className="user-actions">
-                    <button onClick={() => startEditUser(user)}>Edit</button>
-                    <button onClick={() => resetUserPassword(user.email)}>Reset</button>
-                    <button className="danger" onClick={() => deleteUser(user.id)}>
-                      Remove
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-
-            {users.length === 0 && (
-              <tr>
-                <td colSpan="8">No users created yet.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    {uploadModal.open && (
-      <div className="upload-modal-overlay">
-        <div className="upload-modal">
-          <div className="modal-loader"></div>
-
-          <h2>{uploadModal.status === "done" ? "Upload Completed" : "Adding Users"}</h2>
-
-          <p>
-            {uploadModal.status === "done"
-              ? `${uploadModal.success} users added, ${uploadModal.failed} failed.`
-              : `Adding ${uploadModal.current}/${uploadModal.total}`}
-          </p>
-
-          <div className="modal-progress">
-            <span
-              style={{
-                width: `${
-                  uploadModal.total > 0
-                    ? Math.round((uploadModal.current / uploadModal.total) * 100)
-                    : 0
-                }%`,
-              }}
-            ></span>
+  return (
+    <div className="manage-users-page">
+      
+      {/* 1. USER CREATION FORM */}
+      <div className="users-card full-user-form-card">
+        <div className="card-title-row">
+          <div>
+            <h2>{editingUserId ? "Edit User" : "Add New User"}</h2>
+            <p>Select Zone first, then State, then City to ensure correct mapping.</p>
           </div>
-
-        <div className="modal-counts">
- <span>✅ Created : {uploadModal.success}</span>
-<span>🟡 Skipped : {uploadModal.skipped}</span>
-<span>❌ Failed : {uploadModal.failed}</span>
-</div>
-
-{uploadModal.errors?.length > 0 && (
-  <div className="upload-errors">
-    <h3>Failed Records</h3>
-
-    {(uploadModal.errors || []).map((err, index) => (
-      <div key={index} className="error-item">
-        <strong>Row {err.row}</strong>
-
-        <div>{err.name}</div>
-
-        <div>{err.email}</div>
-
-     <div
-  style={{
-    color: err.type === "warning" ? "#d97706" : "#dc2626",
-    fontWeight: 600,
-  }}
->
-  {err.type === "warning" ? "⚠ " : "✖ "}
-  {err.reason}
-</div>
-      </div>
-    ))}
-  </div>
-)}
-          {uploadModal.status === "done" && (
-            <button
-              onClick={() =>
-                setUploadModal({
-                  open: false,
-                  current: 0,
-                  total: 0,
-                  success: 0,
-                  failed: 0,
-                  status: "idle",
-                   errors: [], 
-                })
-              }
-            >
-              Done
+          <div className="title-actions">
+            <button type="button" className="outline-btn green" onClick={() => setIsDesignationModalOpen(true)}>
+              + Manage Designations
             </button>
+            <span className="password-pill">Default Password: {DEFAULT_PASSWORD}</span>
+          </div>
+        </div>
+
+        <form onSubmit={editingUserId ? updateExistingUser : createSingleUser} className="users-form-grid">
+          <input placeholder="Full Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+          <input placeholder="Email Address" type="email" value={form.email} disabled={!!editingUserId} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+          
+          <select className="nice-select" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} required>
+            <option value="" disabled>Select Designation</option>
+            {designations.map((item) => (
+              <option key={item.id} value={item.name}>{item.name}</option>
+            ))}
+          </select>
+
+          <select className="nice-select" value={form.seniority} onChange={(e) => setForm({ ...form, seniority: e.target.value })} required>
+            <option value="" disabled>Select Seniority</option>
+            <option value="senior">Senior</option>
+            <option value="junior">Junior</option>
+            <option value="intern">Intern</option>
+          </select>
+
+          {/* STRICT CASCADING LOCATIONS */}
+          <select className="nice-select" value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value, state: "", cityArea: "" })} required>
+            <option value="" disabled>1. Select Zone</option>
+            {availableZones.map((z) => <option key={z} value={z}>{z}</option>)}
+          </select>
+
+          <select className="nice-select" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value, cityArea: "" })} disabled={!form.zone} required>
+            <option value="" disabled>{form.zone ? "2. Select State" : "Select Zone First"}</option>
+            {availableStates.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+
+          <select className="nice-select" value={form.cityArea} onChange={(e) => setForm({ ...form, cityArea: e.target.value })} disabled={!form.state} required>
+            <option value="" disabled>{form.state ? "3. Select City" : "Select State First"}</option>
+            {availableCities.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+
+          <button type="submit" className="primary-btn" disabled={creating}>
+            {editingUserId ? "Update User" : creating ? "Creating..." : "Create User"}
+          </button>
+          
+          {editingUserId && (
+            <button type="button" className="cancel-btn" onClick={cancelEdit}>Cancel</button>
           )}
+        </form>
+      </div>
+
+      {/* 2. DRAG & DROP BULK UPLOAD */}
+      <div 
+        className={`users-card bulk-drag-card ${dragActive ? "drag-active" : ""}`}
+        onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
+      >
+        <div className="bulk-drag-content">
+          <div className="drag-icon">📁</div>
+          <h2>Drag & Drop Excel File Here</h2>
+          <p>or click the button below to browse files</p>
+          
+          <div className="bulk-actions">
+            <label className="primary-btn upload-label">
+              <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileChange} style={{ display: "none" }} />
+              Browse File
+            </label>
+            <button className="outline-btn" onClick={downloadTemplate}>Download Template</button>
+          </div>
         </div>
       </div>
-    )}
-  </div>
-);
+
+      {/* 3. USERS TABLE */}
+      <div className="users-card">
+        <div className="card-title-row">
+          <div>
+            <h2>Existing Users</h2>
+            <p>{filteredUsers.length} users found</p>
+          </div>
+          <input type="text" className="search-input" placeholder="Search by name, email or city..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+        </div>
+
+        <div className="users-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Designation</th>
+                <th>Zone</th>
+                <th>State</th>
+                <th>City</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredUsers.map((user) => (
+                <tr key={user.id}>
+                  <td>{user.name}</td>
+                  <td>{user.email}</td>
+                  <td>{user.designation}</td>
+                  <td>{user.zone}</td>
+                  <td>{user.state}</td>
+                  <td>{user.cityArea}</td>
+                  <td>
+                    <div className="action-buttons">
+                      <button className="text-btn" onClick={() => startEditUser(user)}>Edit</button>
+                      <button className="text-btn" onClick={() => resetUserPassword(user.email)}>Reset Pwd</button>
+                      <button className="text-btn danger" onClick={() => deleteUser(user.id)}>Delete</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filteredUsers.length === 0 && (
+                <tr><td colSpan="7" className="text-center">No users found.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* 4. DESIGNATION MODAL */}
+      {isDesignationModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsDesignationModalOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Manage Designations</h2>
+              <button className="close-btn" onClick={() => setIsDesignationModalOpen(false)}>×</button>
+            </div>
+            
+            <div className="designation-input-row">
+              <input placeholder="Type new designation..." value={newDesignation} onChange={(e) => setNewDesignation(e.target.value)} />
+              <button className="primary-btn" onClick={addDesignation}>Add</button>
+            </div>
+
+            <div className="designations-list">
+              {designations.length === 0 ? <p className="text-muted">No designations added.</p> : null}
+              {designations.map((item) => (
+                <div key={item.id} className="designation-item">
+                  <span>{item.name}</span>
+                  <button className="delete-icon-btn" onClick={() => removeDesignation(item.id)}>🗑</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. UPLOAD PROGRESS MODAL (Kept similar to your original logic) */}
+      {uploadModal.open && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2>{uploadModal.status === "done" ? "Upload Completed" : "Uploading Data..."}</h2>
+            <div className="progress-bar">
+              <div className="progress-fill" style={{ width: `${uploadModal.total > 0 ? (uploadModal.current / uploadModal.total) * 100 : 0}%` }}></div>
+            </div>
+            <div className="stats-row">
+              <span className="success">✅ {uploadModal.success} Added</span>
+              <span className="warning">🟡 {uploadModal.skipped} Skipped</span>
+              <span className="error">❌ {uploadModal.failed} Failed</span>
+            </div>
+            {uploadModal.status === "done" && (
+              <button className="primary-btn w-100 mt-3" onClick={() => setUploadModal({ ...uploadModal, open: false })}>Done</button>
+            )}
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
 }
 
 export default ManageUsers;

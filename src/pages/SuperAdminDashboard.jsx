@@ -137,7 +137,7 @@ function SuperAdminDashboard() {
         let enrolled = 0;
         let courseCompleted = 0;
 
-        Object.entries(assignmentsData).forEach(([userId, userAssignments]) => {
+        Object.entries(assignmentsData).forEach(([, userAssignments]) => {
           if (userAssignments?.[course.id]?.assigned) enrolled += 1;
         });
 

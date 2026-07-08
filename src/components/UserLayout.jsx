@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { signOut } from "firebase/auth";
-import { ref, get } from "firebase/database";
-import { auth, database } from "../firebase";
+import { auth } from "../firebase";
+import { loadUserProfile } from "../lib/userAccess";
 import "../styles/userLayout.css";
 
 function UserLayout() {
@@ -18,15 +18,9 @@ function UserLayout() {
 
         if (!currentUser) return;
 
-        const snapshot = await get(
-          ref(database, `users/${currentUser.uid}`)
-        );
-
-        if (snapshot.exists()) {
-          setUserData(snapshot.val());
-        }
+        setUserData(await loadUserProfile(currentUser));
       } catch (error) {
-        console.error("Error loading user:", error);
+        console.error("Failed to load user profile:", error);
       }
     };
 
@@ -71,9 +65,8 @@ function UserLayout() {
       )}
 
       <aside
-        className={`learner-side-nav ${
-          sidebarOpen ? "sidebar-open" : ""
-        }`}
+        className={`learner-side-nav ${sidebarOpen ? "sidebar-open" : ""
+          }`}
       >
         <button
           className="learner-sidebar-close"

@@ -58,9 +58,9 @@ function DepartmentAdminDashboard() {
 
         const allUsers = usersSnap.exists()
           ? Object.entries(usersSnap.val()).map(([id, user]) => ({
-              id,
-              ...user,
-            }))
+            id,
+            ...user,
+          }))
           : [];
 
         const departmentMembers = allUsers.filter(
@@ -70,9 +70,9 @@ function DepartmentAdminDashboard() {
 
         const allCourses = coursesSnap.exists()
           ? Object.entries(coursesSnap.val()).map(([id, course]) => ({
-              id,
-              ...course,
-            }))
+            id,
+            ...course,
+          }))
           : [];
 
         const departmentCourses = allCourses.filter(
@@ -86,9 +86,9 @@ function DepartmentAdminDashboard() {
 
         const allVideos = videosSnap.exists()
           ? Object.entries(videosSnap.val()).map(([id, video]) => ({
-              id,
-              ...video,
-            }))
+            id,
+            ...video,
+          }))
           : [];
 
         const departmentVideos = allVideos.filter(
@@ -101,9 +101,9 @@ function DepartmentAdminDashboard() {
 
         const allAssignments = assignmentsSnap.exists()
           ? Object.entries(assignmentsSnap.val()).map(([id, assignment]) => ({
-              id,
-              ...assignment,
-            }))
+            id,
+            ...assignment,
+          }))
           : [];
 
         const departmentAssignments = allAssignments.filter((assignment) => {
@@ -153,11 +153,6 @@ function DepartmentAdminDashboard() {
 
   const totalCompleted = members.reduce(
     (total, member) => total + getCompletedCount(member.id),
-    0
-  );
-
-  const totalCertificates = members.reduce(
-    (total, member) => total + getCertificateCount(member.id),
     0
   );
 
@@ -314,37 +309,37 @@ function DepartmentAdminDashboard() {
         <div className="dept-kpi-card">
           <span>Total Courses Created</span>
           <h3>{courses.length}</h3>
-         
+
         </div>
 
         <div className="dept-kpi-card">
           <span>Total Videos Uploaded</span>
           <h3>{videos.length}</h3>
-          
+
         </div>
 
         <div className="dept-kpi-card">
           <span>Total Members Assigned</span>
           <h3>{members.length}</h3>
-          
+
         </div>
 
         <div className="dept-kpi-card">
           <span>Assigned Trainings</span>
           <h3>{totalAssignedTrainings}</h3>
-          
+
         </div>
 
         <div className="dept-kpi-card">
           <span>Pending Trainings</span>
           <h3>{pendingTrainings}</h3>
-          
+
         </div>
 
         <div className="dept-kpi-card">
           <span>Completion Rate</span>
           <h3>{completionRate}%</h3>
-          
+
         </div>
       </div>
 

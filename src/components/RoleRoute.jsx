@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
-import { ref, get } from "firebase/database";
-import { auth, database } from "../firebase";
+import { auth } from "../firebase";
+import {
+  canAccessRoles,
+  formatRoleLabel,
+  loadUserProfile,
+} from "../lib/userAccess";
 
 function RoleRoute({ children, allowedRoles }) {
   const [checking, setChecking] = useState(true);
@@ -20,23 +24,9 @@ function RoleRoute({ children, allowedRoles }) {
         }
 
         setIsLoggedIn(true);
-console.log("CURRENT UID:", currentUser.uid);
-        const snap = await get(ref(database, `users/${currentUser.uid}`));
-
-        if (snap.exists()) {
-          const data = snap.val();
-
-          console.log("CURRENT USER DATA:", data);
-          console.log("CURRENT ROLE:", data.role);
-          console.log("ALLOWED ROLES:", allowedRoles);
-
-          setUserData(data);
-        } else {
-          console.log("USER PROFILE NOT FOUND");
-          setUserData(null);
-        }
+        setUserData(await loadUserProfile(currentUser));
       } catch (error) {
-        console.error("ROLE CHECK ERROR:", error);
+        console.error("Role check failed:", error);
         setUserData(null);
       } finally {
         setChecking(false);
@@ -51,27 +41,24 @@ console.log("CURRENT UID:", currentUser.uid);
   if (!isLoggedIn) return <Navigate to="/" replace />;
 
   if (!userData) {
-    return <h2>User profile not found. Contact admin.</h2>;
+    return (
+      <h2 style={{ padding: "32px" }}>
+        User profile not found. Contact admin.
+      </h2>
+    );
   }
 
-  const userRole = String(userData.role || "").trim();
-
-  const normalizedUserRole = userRole.toLowerCase();
-
-  const normalizedAllowedRoles = allowedRoles.map((role) =>
-    String(role).trim().toLowerCase()
-  );
-
-  if (!normalizedAllowedRoles.includes(normalizedUserRole)) {
+  if (!canAccessRoles(userData.role, allowedRoles)) {
     return (
       <div style={{ padding: "40px" }}>
         <h2>Access Denied.</h2>
         <p>
-          Your role is: <strong>{userRole || "No role found"}</strong>
+          Your role is: <strong>{formatRoleLabel(userData.role)}</strong>
         </p>
         <p>
           Allowed roles: <strong>{allowedRoles.join(", ")}</strong>
         </p>
+        <p>Use the appropriate portal for your role.</p>
       </div>
     );
   }
