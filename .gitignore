@@ -26,3 +26,5 @@ dist-ssr
 # Videos
 public/videos/
 *.mp4
+
+.env
