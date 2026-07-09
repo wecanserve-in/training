@@ -73,13 +73,12 @@ function Login() {
 
             <h1>
               Learn.<br />
-              <span>Grow.</span><br />
-              Succeed.
+              <span>Develop.</span><br />
+            Perform.
             </h1>
 
             <p>
-              Access expert training and enhance your
-              professional skills anytime, anywhere.
+              Access company training, certifications, and learning resources anytime, anywhere.
             </p>
 
           </div>

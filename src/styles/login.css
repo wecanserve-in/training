@@ -30,7 +30,7 @@
   overflow: hidden;
 
   display: grid;
-  grid-template-columns: 1.0fr 0.9fr;
+  grid-template-columns: 0.9fr 1.0fr;
 
   box-shadow: 0 25px 60px rgba(15, 23, 42, 0.08);
 }
@@ -73,7 +73,8 @@
 }
 
 .hero-content span {
-  color: #dc2626;
+  color: 
+  #58baab;
 }
 
 .hero-content p {
@@ -157,7 +158,7 @@
 }
 
 .input-group input:focus {
-  border-color: #dc2626;
+  border-color: #58baab;
   box-shadow: 0 0 0 4px rgba(220, 38, 38, .08);
 }
 
@@ -194,15 +195,29 @@
 .remember {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: #4b5563;
-  font-size: 14px;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 15px;
+  color: #555;
 }
 
-.remember input {
-  accent-color: #dc2626;
-}
+.remember input[type="checkbox"] {
+  appearance: auto;
+  -webkit-appearance: checkbox;
 
+  width: 18px !important;
+  height: 18px !important;
+
+  margin: 0;
+  padding: 0;
+
+  accent-color: #2563eb;
+  cursor: pointer;
+
+  border-radius: 4px;
+  flex-shrink: 0;
+}
 .forgot-password {
   background: transparent;
   border: none;
@@ -233,7 +248,7 @@
   height: 56px;
   border: none;
   border-radius: 12px;
-  background: #dc2626;
+  background: #58baab;
   color: white;
   font-size: 16px;
   font-weight: 600;
@@ -242,7 +257,7 @@
 }
 
 .login-btn:hover:not(:disabled) {
-  background: #b91c1c;
+  background: #1f5f55;
 }
 
 .login-btn:disabled {

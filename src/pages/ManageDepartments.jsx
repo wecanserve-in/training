@@ -617,7 +617,7 @@ const deleteDepartment = async (dept) => {
                     {member.name}
 
                     {member.designation
-                      ? `- ${member.designation}`
+                      ? `  -  ${member.designation}`
                       : ""}
 
                   </option>
