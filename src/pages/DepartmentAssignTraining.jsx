@@ -22,12 +22,10 @@ function DepartmentAssignTraining() {
   const [zoneFilter, setZoneFilter] = useState("");
   const [stateFilter, setStateFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
-  const [experienceFilter, setExperienceFilter] = useState("");
-  const [designationFilter, setDesignationFilter] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
+  const [showFullDescription, setShowFullDescription] = useState(false);
 
   const getField = (obj, keys) => {
     for (const key of keys) {
@@ -49,83 +47,90 @@ function DepartmentAssignTraining() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
-      if (!loggedUser) return;
+      if (!loggedUser) {
+        setLoading(false);
+        return;
+      }
 
-      const userSnap = await get(ref(database, `users/${loggedUser.uid}`));
-      if (!userSnap.exists()) return;
+      try {
+        const userSnap = await get(ref(database, `users/${loggedUser.uid}`));
 
-      const adminData = {
-        id: loggedUser.uid,
-        email: loggedUser.email,
-        ...userSnap.val(),
-      };
+        if (!userSnap.exists()) {
+          setLoading(false);
+          return;
+        }
 
-      setCurrentUser(adminData);
+        const adminData = {
+          id: loggedUser.uid,
+          email: loggedUser.email,
+          ...userSnap.val(),
+        };
 
-      const [coursesSnap, usersSnap, assignmentsSnap, completedSnap] =
-        await Promise.all([
+        setCurrentUser(adminData);
+
+        const [coursesSnap, usersSnap, assignmentsSnap, completedSnap] = await Promise.all([
           get(ref(database, "courses")),
           get(ref(database, "users")),
           get(ref(database, "userAssignments")),
           get(ref(database, "completedCourses")),
         ]);
 
-      const allCourses = coursesSnap.exists()
-        ? Object.entries(coursesSnap.val()).map(([id, course]) => ({ id, ...course }))
-        : [];
+        const allCourses = coursesSnap.exists()
+          ? Object.entries(coursesSnap.val()).map(([id, course]) => ({ id, ...course }))
+          : [];
 
-      const canAssignAllCourses =
-        adminData.role === "superAdmin" || adminData.role === "admin";
+        const canAssignAllCourses =
+          adminData.role === "superAdmin" || adminData.role === "admin";
 
-      const myCourses = canAssignAllCourses
-        ? allCourses
-        : allCourses.filter((course) => {
-          return (
-            course.createdBy === adminData.id ||
-            course.createdByEmail === adminData.email ||
-            course.department === adminData.department
-          );
+        const myCourses = canAssignAllCourses
+          ? allCourses
+          : allCourses.filter((course) => {
+              return (
+                course.createdBy === adminData.id ||
+                course.createdByEmail === adminData.email ||
+                course.department === adminData.department
+              );
+            });
+
+        myCourses.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+        const allUsers = usersSnap.exists()
+          ? Object.entries(usersSnap.val()).map(([id, user]) => ({ id, ...user }))
+          : [];
+
+        const visibleUsers = allUsers.filter((user) => {
+          const role = getField(user, ["role"]).toLowerCase();
+
+          const isSuperAdmin = role === "superadmin";
+          const isAdmin = role === "admin";
+          const isDepartmentAdmin = role === "departmentadmin";
+
+          if (adminData.role === "superAdmin") return true;
+          if (adminData.role === "admin") return !isSuperAdmin;
+
+          if (adminData.role === "departmentAdmin") {
+            return !isSuperAdmin && !isAdmin && !isDepartmentAdmin;
+          }
+
+          return false;
         });
 
-      myCourses.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        setCourses(myCourses);
+        setUsers(visibleUsers);
+        setAssignments(assignmentsSnap.exists() ? assignmentsSnap.val() : {});
+        setCompletedCourses(completedSnap.exists() ? completedSnap.val() : {});
 
-      const allUsers = usersSnap.exists()
-        ? Object.entries(usersSnap.val()).map(([id, user]) => ({ id, ...user }))
-        : [];
-
-      const visibleUsers = allUsers.filter((user) => {
-        const role = getField(user, ["role"]).toLowerCase();
-
-        const isSuperAdmin = role === "superadmin";
-        const isAdmin = role === "admin";
-        const isDepartmentAdmin = role === "departmentadmin";
-
-        if (adminData.role === "superAdmin") {
-          return true;
+        if (preSelectedCourseId) {
+          setSelectedCourseId(preSelectedCourseId);
+        } else if (myCourses.length > 0) {
+          setSelectedCourseId(myCourses[0].id);
         }
-
-        if (adminData.role === "admin") {
-          return !isSuperAdmin;
-        }
-
-        if (adminData.role === "departmentAdmin") {
-          // Department admin should only assign training to learners/staff,
-          // not admins or other department admins.
-          return !isSuperAdmin && !isAdmin && !isDepartmentAdmin;
-        }
-
-        return false;
-      });
-
-      setCourses(myCourses);
-      setUsers(visibleUsers);
-      setAssignments(assignmentsSnap.exists() ? assignmentsSnap.val() : {});
-      setCompletedCourses(completedSnap.exists() ? completedSnap.val() : {});
-
-      if (preSelectedCourseId) setSelectedCourseId(preSelectedCourseId);
-      else if (myCourses.length > 0) setSelectedCourseId(myCourses[0].id);
-
-      setLoading(false);
+      } catch (error) {
+        console.error("Failed to load assign training data:", error);
+        alert("Failed to load data.");
+      } finally {
+        setLoading(false);
+      }
     });
 
     return () => unsubscribe();
@@ -134,6 +139,14 @@ function DepartmentAssignTraining() {
   const selectedCourse = useMemo(() => {
     return courses.find((course) => course.id === selectedCourseId);
   }, [courses, selectedCourseId]);
+
+  const courseDescription =
+    selectedCourse?.description || selectedCourse?.overview || "No description available.";
+
+  const shortDescription =
+    courseDescription.length > 120 && !showFullDescription
+      ? `${courseDescription.slice(0, 120)}...`
+      : courseDescription;
 
   const zoneOptions = useMemo(() => {
     return [...new Set(users.map((u) => getField(u, fieldKeys.zone)).filter(Boolean))];
@@ -151,23 +164,12 @@ function DepartmentAssignTraining() {
     const base = users.filter((u) => {
       const zone = getField(u, fieldKeys.zone);
       const state = getField(u, fieldKeys.state);
+
       return (!zoneFilter || zone === zoneFilter) && (!stateFilter || state === stateFilter);
     });
 
     return [...new Set(base.map((u) => getField(u, fieldKeys.city)).filter(Boolean))];
   }, [users, zoneFilter, stateFilter]);
-
-  const experienceOptions = useMemo(() => {
-    return [...new Set(users.map((u) => getField(u, fieldKeys.experience)).filter(Boolean))];
-  }, [users]);
-
-  const designationOptions = useMemo(() => {
-    return [...new Set(users.map((u) => getField(u, fieldKeys.designation)).filter(Boolean))];
-  }, [users]);
-
-  const roleOptions = useMemo(() => {
-    return [...new Set(users.map((u) => getField(u, ["role"])).filter(Boolean))];
-  }, [users]);
 
   const handleZoneChange = (value) => {
     setZoneFilter(value);
@@ -197,6 +199,8 @@ function DepartmentAssignTraining() {
   };
 
   const getUserCourseStatus = (userId) => {
+    if (!selectedCourseId || !selectedCourse) return "notAssigned";
+
     const currentVersion = Number(selectedCourse?.version || 1);
     const assignment = assignments?.[userId]?.[selectedCourseId];
     const completed = completedCourses?.[userId]?.[selectedCourseId];
@@ -242,9 +246,8 @@ function DepartmentAssignTraining() {
       const zone = getField(user, fieldKeys.zone);
       const state = getField(user, fieldKeys.state);
       const city = getField(user, fieldKeys.city);
-      const experience = getField(user, fieldKeys.experience);
       const designation = getField(user, fieldKeys.designation);
-      const role = getField(user, ["role"]);
+      const experience = getField(user, fieldKeys.experience);
 
       const searchableText = [
         user.name,
@@ -261,23 +264,11 @@ function DepartmentAssignTraining() {
         .join(" ")
         .toLowerCase();
 
-      const matchesSearch = searchableText.includes(search.toLowerCase());
-      const matchesZone = zoneFilter ? zone === zoneFilter : true;
-      const matchesState = stateFilter ? state === stateFilter : true;
-      const matchesCity = cityFilter ? city === cityFilter : true;
-      const matchesExperience = experienceFilter ? experience === experienceFilter : true;
-      const matchesDesignation = designationFilter ? designation === designationFilter : true;
-      const matchesRole = roleFilter ? role === roleFilter : true;
-
-
       return (
-        matchesSearch &&
-        matchesZone &&
-        matchesState &&
-        matchesCity &&
-        matchesExperience &&
-        matchesDesignation &&
-        matchesRole
+        searchableText.includes(search.trim().toLowerCase()) &&
+        (zoneFilter ? zone === zoneFilter : true) &&
+        (stateFilter ? state === stateFilter : true) &&
+        (cityFilter ? city === cityFilter : true)
       );
     });
   }, [
@@ -286,17 +277,11 @@ function DepartmentAssignTraining() {
     zoneFilter,
     stateFilter,
     cityFilter,
-    experienceFilter,
-    designationFilter,
-    roleFilter,
     selectedCourseId,
     selectedCourse,
     assignments,
     completedCourses,
   ]);
-
-  const allFilteredSelected =
-    filteredUsers.length > 0 && filteredUsers.every((user) => selectedUsers.includes(user.id));
 
   const toggleUser = (userId) => {
     setSelectedUsers((prev) =>
@@ -304,44 +289,27 @@ function DepartmentAssignTraining() {
     );
   };
 
-  const toggleFilteredUsers = () => {
-    const filteredIds = filteredUsers.map((user) => user.id);
-
-    if (allFilteredSelected) {
-      const filteredSet = new Set(filteredIds);
-      setSelectedUsers((prev) => prev.filter((id) => !filteredSet.has(id)));
-      return;
-    }
-
-    setSelectedUsers((prev) => Array.from(new Set([...prev, ...filteredIds])));
-  };
-
   const resetFilters = () => {
     setSearch("");
     setZoneFilter("");
     setStateFilter("");
     setCityFilter("");
-    setExperienceFilter("");
-    setDesignationFilter("");
-    setRoleFilter("");
     setSelectedUsers([]);
   };
 
-  const assignCourse = async (assignAllFiltered = false) => {
+  const assignCourse = async () => {
     if (!selectedCourseId) {
       alert("Please select a course.");
       return;
     }
 
-    const usersToAssign = assignAllFiltered ? filteredUsers.map((user) => user.id) : selectedUsers;
-
-    if (usersToAssign.length === 0) {
+    if (selectedUsers.length === 0) {
       alert("Please select at least one user.");
       return;
     }
 
     const confirmAssign = window.confirm(
-      `Assign "${selectedCourse?.title}" to ${usersToAssign.length} user(s)?`
+      `Assign "${selectedCourse?.title}" to ${selectedUsers.length} user(s)?`
     );
 
     if (!confirmAssign) return;
@@ -352,12 +320,13 @@ function DepartmentAssignTraining() {
       const courseVersion = Number(selectedCourse?.version || 1);
 
       await Promise.all(
-        usersToAssign.map((userId) =>
+        selectedUsers.map((userId) =>
           set(ref(database, `userAssignments/${userId}/${selectedCourseId}`), {
             assigned: true,
             courseId: selectedCourseId,
             courseTitle: selectedCourse?.title || "",
-            courseThumbnail: selectedCourse?.thumbnailUrl || selectedCourse?.courseThumbnail || "",
+            courseThumbnail:
+              selectedCourse?.thumbnailUrl || selectedCourse?.courseThumbnail || "",
             department: selectedCourse?.department || currentUser?.department || "",
             assignedBy: currentUser?.id || "",
             assignedByName: currentUser?.name || "",
@@ -372,8 +341,7 @@ function DepartmentAssignTraining() {
         )
       );
 
-      alert(`Course assigned to ${usersToAssign.length} user(s).`);
-
+      alert(`Course assigned to ${selectedUsers.length} user(s).`);
       setSelectedUsers([]);
 
       const newAssignmentsSnap = await get(ref(database, "userAssignments"));
@@ -400,8 +368,8 @@ function DepartmentAssignTraining() {
             {currentUser?.role === "superAdmin"
               ? "Assign courses to Super Admins, Admins, Department Admins and users."
               : currentUser?.role === "admin"
-                ? "Assign courses to yourself, Department Admins and users."
-                : "Assign courses to users in your department."}
+              ? "Assign courses to yourself, Department Admins and users."
+              : "Assign courses to users in your department."}
           </p>
         </div>
       </div>
@@ -415,6 +383,7 @@ function DepartmentAssignTraining() {
               onChange={(e) => {
                 setSelectedCourseId(e.target.value);
                 setSelectedUsers([]);
+                setShowFullDescription(false);
               }}
             >
               <option value="">Select Course</option>
@@ -441,7 +410,19 @@ function DepartmentAssignTraining() {
 
               <div>
                 <h3>{selectedCourse.title}</h3>
-                <p>{selectedCourse.description || selectedCourse.overview}</p>
+
+                <p className="course-description-text">
+                  {shortDescription}
+                  {courseDescription.length > 120 && (
+                    <button
+                      type="button"
+                      className="read-more-btn"
+                      onClick={() => setShowFullDescription((prev) => !prev)}
+                    >
+                      {showFullDescription ? " Read less" : " Read more"}
+                    </button>
+                  )}
+                </p>
 
                 <div className="assign-meta-row">
                   <span>{selectedCourse.totalVideos || 0} videos</span>
@@ -491,57 +472,6 @@ function DepartmentAssignTraining() {
             ))}
           </select>
 
-          <select
-            value={experienceFilter}
-            onChange={(e) => {
-              setExperienceFilter(e.target.value);
-              setSelectedUsers([]);
-            }}
-          >
-            <option value="">All Experience</option>
-            {experienceOptions.map((exp) => (
-              <option key={exp} value={exp}>
-                {exp}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={roleFilter}
-            onChange={(e) => {
-              setRoleFilter(e.target.value);
-              setSelectedUsers([]);
-            }}
-          >
-            <option value="">All Roles</option>
-            {roleOptions.map((role) => (
-              <option key={role} value={role}>
-                {role === "superAdmin"
-                  ? "Super Admin"
-                  : role === "admin"
-                    ? "Admin"
-                    : role === "departmentAdmin"
-                      ? "Department Admin"
-                      : role}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={designationFilter}
-            onChange={(e) => {
-              setDesignationFilter(e.target.value);
-              setSelectedUsers([]);
-            }}
-          >
-            <option value="">All Designations</option>
-            {designationOptions.map((desig) => (
-              <option key={desig} value={desig}>
-                {desig}
-              </option>
-            ))}
-          </select>
-
           <button type="button" className="assign-reset-btn" onClick={resetFilters}>
             Reset
           </button>
@@ -549,22 +479,16 @@ function DepartmentAssignTraining() {
 
         <div className="assign-table-head">
           <div>
-            <h2>Users to Assign</h2>
+            <h2>Available Users</h2>
             <p>
-              {filteredUsers.length} users showing • {selectedUsers.length} selected
+              {filteredUsers.length} Users • {selectedUsers.length} Selected
             </p>
           </div>
 
           <div className="assign-head-actions">
-            <button type="button" onClick={toggleFilteredUsers}>
-              {allFilteredSelected ? "Unselect Filtered" : "Select Filtered"}
-            </button>
-
-            <button type="button" onClick={() => assignCourse(false)} disabled={assigning}>
+            <button type="button" onClick={assignCourse} disabled={assigning}>
               {assigning ? "Assigning..." : `Assign Selected (${selectedUsers.length})`}
             </button>
-
-
           </div>
         </div>
 
@@ -574,18 +498,16 @@ function DepartmentAssignTraining() {
               <tr>
                 <th>Select</th>
                 <th>User</th>
-                <th>Role</th>
                 <th>Designation</th>
-                <th>Experience</th>
                 <th>Location</th>
-                <th>Reason</th>
+                <th>Status</th>
               </tr>
             </thead>
 
             <tbody>
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="assign-empty">
+                  <td colSpan="5" className="assign-empty">
                     No users need this course/latest version.
                   </td>
                 </tr>
@@ -595,8 +517,6 @@ function DepartmentAssignTraining() {
                   const status = getUserCourseStatus(user.id);
 
                   const designation = getField(user, fieldKeys.designation) || "-";
-                  const experience = getField(user, fieldKeys.experience) || "-";
-                  const role = getField(user, ["role"]) || "-";
                   const location =
                     [
                       getField(user, fieldKeys.city),
@@ -612,18 +532,20 @@ function DepartmentAssignTraining() {
                       className={selected ? "selected" : ""}
                       onClick={() => toggleUser(user.id)}
                     >
-                      <td>
-                        <input type="checkbox" checked={selected} readOnly />
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => toggleUser(user.id)}
+                        />
                       </td>
 
-                      <td>
+                      <td className="user-select-cell">
                         <strong>{user.name || "Unnamed User"}</strong>
                         <small>{user.email}</small>
                       </td>
 
-                      <td>{role}</td>
                       <td>{designation}</td>
-                      <td>{experience}</td>
                       <td>{location}</td>
 
                       <td>
@@ -637,21 +559,6 @@ function DepartmentAssignTraining() {
               )}
             </tbody>
           </table>
-        </div>
-
-        <div className="assign-footer">
-          <p>Already assigned latest-version users are hidden from this list.</p>
-
-          <button
-            type="button"
-            className="assign-all-btn"
-            onClick={() => assignCourse(true)}
-            disabled={assigning || filteredUsers.length === 0}
-          >
-            Assign All Filtered
-          </button>
-
-
         </div>
       </div>
     </div>

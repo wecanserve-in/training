@@ -3,30 +3,40 @@ import { onAuthStateChanged } from "firebase/auth";
 import { get, ref } from "firebase/database";
 import { auth, database } from "../firebase";
 import "../styles/departmenttraininganalytics.css";
+import * as XLSX from "xlsx";
 
 function DepartmentTrainingAnalytics() {
   const [currentUser, setCurrentUser] = useState(null);
+
   const [courses, setCourses] = useState([]);
   const [users, setUsers] = useState([]);
+
   const [assignments, setAssignments] = useState({});
   const [completedCourses, setCompletedCourses] = useState({});
   const [progress, setProgress] = useState({});
-  const [selectedCourseId, setSelectedCourseId] = useState("");
-  const [search, setSearch] = useState("");
-const [statusFilter, setStatusFilter] = useState("");
-const [roleFilter, setRoleFilter] = useState("");
-const [departmentFilter, setDepartmentFilter] = useState("");
+
   const [loading, setLoading] = useState(true);
 
+  const [selectedCourseId, setSelectedCourseId] = useState("");
+
+  // search
+  const [search, setSearch] = useState("");
+
+  // NEW
+  const [selectedStatus, setSelectedStatus] = useState("");
+
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (loggedUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
       if (!loggedUser) {
         setLoading(false);
         return;
       }
 
       try {
-        const userSnap = await get(ref(database, `users/${loggedUser.uid}`));
+        const userSnap = await get(
+          ref(database, `users/${loggedUser.uid}`)
+        );
+
         if (!userSnap.exists()) {
           setLoading(false);
           return;
@@ -43,7 +53,7 @@ const [departmentFilter, setDepartmentFilter] = useState("");
         const [
           coursesSnap,
           usersSnap,
-          assignmentsSnap,
+          assignmentSnap,
           completedSnap,
           progressSnap,
         ] = await Promise.all([
@@ -55,76 +65,97 @@ const [departmentFilter, setDepartmentFilter] = useState("");
         ]);
 
         const allCourses = coursesSnap.exists()
-          ? Object.entries(coursesSnap.val()).map(([id, course]) => ({
+          ? Object.entries(coursesSnap.val()).map(([id, value]) => ({
               id,
-              ...course,
+              ...value,
             }))
           : [];
-const canSeeAll =
-  adminData.role === "admin" || adminData.role === "superAdmin";
 
-const myCourses = canSeeAll
-  ? allCourses
-  : allCourses.filter((course) => {
-      return (
-        course.createdBy === adminData.id ||
-        course.createdByEmail === adminData.email ||
-        course.department === adminData.department
-      );
-    });
+        const canSeeAllCourses =
+          adminData.role === "admin" ||
+          adminData.role === "superAdmin";
 
-       const allUsers = usersSnap.exists()
-  ? Object.entries(usersSnap.val()).map(([id, user]) => ({
-      id,
-      ...user,
-    }))
-  : [];
+        const visibleCourses = canSeeAllCourses
+          ? allCourses
+          : allCourses.filter(
+              (course) =>
+                course.createdBy === adminData.id ||
+                course.createdByEmail === adminData.email ||
+                course.department === adminData.department
+            );
 
-const canSeeAllUsers =
-  adminData.role === "admin" || adminData.role === "superAdmin";
+        const allUsers = usersSnap.exists()
+          ? Object.entries(usersSnap.val()).map(([id, value]) => ({
+              id,
+              ...value,
+            }))
+          : [];
 
-const normalUsers = canSeeAllUsers
-  ? allUsers
-  : allUsers.filter((u) => {
-      return (
-        u.role !== "admin" &&
-        u.role !== "superAdmin" &&
-        u.role !== "departmentAdmin" &&
-        u.department === adminData.department
-      );
-    });
-        setCourses(myCourses);
-        setUsers(normalUsers);
-        setAssignments(assignmentsSnap.exists() ? assignmentsSnap.val() : {});
-        setCompletedCourses(completedSnap.exists() ? completedSnap.val() : {});
-        setProgress(progressSnap.exists() ? progressSnap.val() : {});
-      } catch (error) {
-        console.error(error);
-        alert("Failed to load analytics");
+        const canSeeAllUsers =
+          adminData.role === "admin" ||
+          adminData.role === "superAdmin";
+
+        const visibleUsers = canSeeAllUsers
+          ? allUsers.filter(
+              (u) =>
+                u.role !== "admin" &&
+                u.role !== "superAdmin"
+            )
+          : allUsers.filter(
+              (u) =>
+                u.role !== "admin" &&
+                u.role !== "superAdmin" &&
+                u.role !== "departmentAdmin" &&
+                u.department === adminData.department
+            );
+
+        setCourses(visibleCourses);
+        setUsers(visibleUsers);
+
+        setAssignments(
+          assignmentSnap.exists() ? assignmentSnap.val() : {}
+        );
+
+        setCompletedCourses(
+          completedSnap.exists() ? completedSnap.val() : {}
+        );
+
+        setProgress(
+          progressSnap.exists() ? progressSnap.val() : {}
+        );
+      } catch (err) {
+        console.error(err);
+        alert("Unable to load analytics.");
       } finally {
         setLoading(false);
       }
     });
 
-    return () => unsub();
+    return () => unsubscribe();
   }, []);
 
   const getCourseStatusForUser = (userId, courseId) => {
-    const assigned = assignments?.[userId]?.[courseId]?.assigned;
-    const completed = completedCourses?.[userId]?.[courseId];
+    const assigned =
+      assignments?.[userId]?.[courseId]?.assigned;
 
     if (!assigned) return "notAssigned";
-    if (completed?.passed || completed?.completed) return "completed";
+
+    const completed =
+      completedCourses?.[userId]?.[courseId];
+
+    if (completed?.passed || completed?.completed)
+      return "completed";
 
     const userProgress = progress?.[userId] || {};
 
-    const hasProgress = Object.values(userProgress).some(
-      (item) =>
-        item?.courseId === courseId &&
-        (Number(item?.watchedPercent || 0) > 0 || item?.completed)
+    const hasStarted = Object.values(userProgress).some(
+      (video) =>
+        video.courseId === courseId &&
+        (Number(video.watchedPercent || 0) > 0 ||
+          video.completed)
     );
 
-    return hasProgress ? "inProgress" : "notStarted";
+    return hasStarted ? "inProgress" : "notStarted";
   };
 
   const courseStats = useMemo(() => {
@@ -135,12 +166,20 @@ const normalUsers = canSeeAllUsers
       let notStarted = 0;
 
       users.forEach((user) => {
-        const status = getCourseStatusForUser(user.id, course.id);
+        const status = getCourseStatusForUser(
+          user.id,
+          course.id
+        );
 
-        if (status !== "notAssigned") assigned += 1;
-        if (status === "completed") completed += 1;
-        if (status === "inProgress") inProgress += 1;
-        if (status === "notStarted") notStarted += 1;
+        if (status === "notAssigned") return;
+
+        assigned++;
+
+        if (status === "completed") completed++;
+
+        if (status === "inProgress") inProgress++;
+
+        if (status === "notStarted") notStarted++;
       });
 
       return {
@@ -151,423 +190,476 @@ const normalUsers = canSeeAllUsers
         notStarted,
       };
     });
-  }, [courses, users, assignments, completedCourses, progress]);
+  }, [
+    courses,
+    users,
+    assignments,
+    completedCourses,
+    progress,
+  ]);
 
-  const selectedCourse = courseStats.find((course) => course.id === selectedCourseId);
-
-  const totalStats = useMemo(() => {
-    return courseStats.reduce(
-      (acc, course) => {
-        acc.assigned += course.assigned;
-        acc.completed += course.completed;
-        acc.inProgress += course.inProgress;
-        acc.notStarted += course.notStarted;
-        return acc;
-      },
-      {
-        assigned: 0,
-        completed: 0,
-        inProgress: 0,
-        notStarted: 0,
-      }
-    );
-  }, [courseStats]);
-
-  const roleOptions = useMemo(() => {
-  return [...new Set(users.map((u) => u.role).filter(Boolean))];
-}, [users]);
-
-const departmentOptions = useMemo(() => {
-  return [...new Set(users.map((u) => u.department).filter(Boolean))];
-}, [users]);
+  const selectedCourse = courseStats.find(
+    (course) => course.id === selectedCourseId
+  );
 
   const selectedUsers = useMemo(() => {
     if (!selectedCourseId) return [];
 
     return users
-      .map((user) => {
-        const status = getCourseStatusForUser(user.id, selectedCourseId);
-
-        return {
-          ...user,
-          status,
-        };
-      })
+      .map((user) => ({
+        ...user,
+        status: getCourseStatusForUser(
+          user.id,
+          selectedCourseId
+        ),
+      }))
       .filter((user) => {
         if (user.status === "notAssigned") return false;
 
-        const text = [
+        const searchText = [
           user.name,
           user.email,
-          user.zone,
-          user.state,
+          user.designation,
+          user.userRole,
           user.city,
           user.cityArea,
           user.area,
-          user.designation,
-          user.userRole,
-          user.experience,
-          user.role,
-user.department,
+          user.state,
+          user.zone,
+          user.department,
         ]
           .filter(Boolean)
           .join(" ")
           .toLowerCase();
 
-       const matchesSearch = text.includes(search.toLowerCase());
-const matchesStatus = statusFilter ? user.status === statusFilter : true;
-const matchesRole = roleFilter ? user.role === roleFilter : true;
-const matchesDepartment = departmentFilter
-  ? user.department === departmentFilter
-  : true;
+        const searchMatch = searchText.includes(
+          search.toLowerCase()
+        );
 
-return (
-  matchesSearch &&
-  matchesStatus &&
-  matchesRole &&
-  matchesDepartment
-);
+        const statusMatch = selectedStatus
+          ? user.status === selectedStatus
+          : true;
+
+        return searchMatch && statusMatch;
       });
-  },[
-  users,
-  selectedCourseId,
-  search,
-  statusFilter,
-  roleFilter,
-  departmentFilter,
-  assignments,
-  completedCourses,
-  progress,
-]);
+  }, [
+    users,
+    selectedCourseId,
+    search,
+    selectedStatus,
+    assignments,
+    completedCourses,
+    progress,
+  ]);
 
-  const downloadDepartmentReport = () => {
-    const reportRows = [];
-
-    courseStats.forEach((course) => {
-      users.forEach((user) => {
-        const status = getCourseStatusForUser(user.id, course.id);
-
-        if (status === "notAssigned") return;
-
-        reportRows.push({
-          Course: course.title || course.courseTitle || "-",
-          Department: course.department || "-",
-          User: user.name || "-",
-          Email: user.email || "-",
-          Designation: user.designation || user.userRole || "-",
-          Location:
-            [user.city || user.cityArea || user.area, user.state, user.zone]
-              .filter(Boolean)
-              .join(", ") || "-",
-          Status:
-            status === "completed"
-              ? "Completed"
-              : status === "inProgress"
-              ? "In Progress"
-              : "Not Started",
-        });
-      });
-    });
-
-    if (reportRows.length === 0) {
-      alert("No report data available to download");
-      return;
-    }
-
-    const headers = Object.keys(reportRows[0]);
-
-    const csvContent = [
-      headers.join(","),
-      ...reportRows.map((row) =>
-        headers
-          .map((header) => `"${String(row[header] || "").replace(/"/g, '""')}"`)
-          .join(",")
-      ),
-    ].join("\n");
-
-    const blob = new Blob([csvContent], {
-      type: "text/csv;charset=utf-8;",
-    });
-
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-
-    link.href = url;
-    link.download = `department-training-report-${new Date()
-      .toISOString()
-      .slice(0, 10)}.csv`;
-
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    URL.revokeObjectURL(url);
-  };
-
-  if (loading) {
-    return <div className="training-analytics-page">Loading analytics...</div>;
+const downloadDepartmentReport = () => {
+  if (!selectedCourse) {
+    alert("Please select a course first.");
+    return;
   }
 
- return (
+  const reportData = selectedUsers.map((user) => ({
+    Name: user.name || "",
+    Email: user.email || "",
+    Designation: user.designation || user.userRole || "",
+    Department: user.department || "",
+    City: user.city || user.cityArea || user.area || "",
+    State: user.state || "",
+    Zone: user.zone || "",
+    Status:
+      user.status === "completed"
+        ? "Completed"
+        : user.status === "inProgress"
+        ? "In Progress"
+        : "Not Started",
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(reportData);
+
+  const workbook = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    worksheet,
+    "Department Report"
+  );
+
+  XLSX.writeFile(
+    workbook,
+    `${selectedCourse.title || "Department"}_Report.xlsx`
+  );
+};
+
+  if (loading) {
+  return (
+    <div className="training-analytics-page loading-page">
+      Loading Training Analytics...
+    </div>
+  );
+}
+
+return (
   <div className="training-analytics-page">
-    <div className="training-analytics-header">
-      <div>
-        <span>Training Analytics</span>
-        <h1>Assignment Tracking</h1>
-        <p>Track course assignment, completion and user progress.</p>
+
+    {/* Top Right Button Only */}
+
+    <div className="analytics-topbar">
+  <button
+    className="download-report-btn"
+    onClick={downloadDepartmentReport}
+  >
+    Download Department Report
+  </button>
+</div>
+
+    {/* Course List */}
+
+    <section className="course-section">
+
+      <div className="section-heading">
+        <h2>Training Courses</h2>
+        <p>
+          Click any course to view learner progress.
+        </p>
       </div>
 
-      <button
-        type="button"
-        className="download-report-btn"
-        onClick={downloadDepartmentReport}
-      >
-        Download Department Report
-      </button>
-    </div>
-
-    <div className="analytics-stats-grid">
-      <div className="analytics-stat-card blue">
-        <h3>{totalStats.assigned}</h3>
-        <p>Total Assigned</p>
-      </div>
-
-      <div className="analytics-stat-card orange">
-        <h3>{totalStats.inProgress}</h3>
-        <p>In Progress</p>
-      </div>
-
-      <div className="analytics-stat-card green">
-        <h3>{totalStats.completed}</h3>
-        <p>Completed</p>
-      </div>
-
-      <div className="analytics-stat-card red">
-        <h3>{totalStats.notStarted}</h3>
-        <p>Not Started</p>
-      </div>
-    </div>
-
-    <div className="analytics-card">
-      <div className="analytics-card-head">
-        <div>
-          <h2>Course Overview</h2>
-          <p>Click any course to see assigned users.</p>
+      {courseStats.length === 0 ? (
+        <div className="empty-course-box">
+          No Courses Found
         </div>
-      </div>
+      ) : (
 
-      <div className="course-overview-table-wrap">
-        <table className="course-overview-table">
-          <thead>
-            <tr>
-              <th>Course</th>
-              <th>Assigned</th>
-              <th>In Progress</th>
-              <th>Completed</th>
-              <th>Not Started</th>
-            </tr>
-          </thead>
+        <div className="course-grid">
 
-          <tbody>
-            {courseStats.map((course) => (
-              <tr
-                key={course.id}
-                onClick={() => setSelectedCourseId(course.id)}
-                className={selectedCourseId === course.id ? "active" : ""}
-              >
-                <td>
-                  <strong>{course.title || course.courseTitle}</strong>
-                  <small>{course.department || "-"}</small>
-                </td>
+          {courseStats.map((course) => (
 
-                <td>{course.assigned}</td>
-                <td>{course.inProgress}</td>
-                <td>{course.completed}</td>
-                <td>{course.notStarted}</td>
-              </tr>
-            ))}
+            <div
+              key={course.id}
+              onClick={() => {
+                setSelectedCourseId(course.id);
+                setSelectedStatus("");
+              }}
+              className={`course-card ${
+                selectedCourseId === course.id
+                  ? "active"
+                  : ""
+              }`}
+            >
 
-            {courseStats.length === 0 && (
-              <tr>
-                <td colSpan="5" className="empty-cell">
-                  No courses created yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+              <div className="course-card-top">
+
+                <div>
+
+                  <h3>
+                    {course.title ||
+                      course.courseTitle ||
+                      "Untitled Course"}
+                  </h3>
+
+                  <span>
+                    {course.department || "General"}
+                  </span>
+
+                </div>
+
+                <div className="course-arrow">
+                  →
+                </div>
+
+              </div>
+
+              <div className="course-info">
+
+                <div>
+
+                  <strong>
+                    {course.assigned}
+                  </strong>
+
+                  <small>
+                    Assigned
+                  </small>
+
+                </div>
+
+                <div>
+
+                  <strong>
+                    {course.completed}
+                  </strong>
+
+                  <small>
+                    Completed
+                  </small>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          ))}
+
+        </div>
+
+      )}
+
+    </section>
 
     {selectedCourse && (
-      <div className="analytics-card">
-        <div className="analytics-card-head">
-          <div>
-            <h2>{selectedCourse.title || selectedCourse.courseTitle}</h2>
-            <p>
-              {selectedCourse.assigned} assigned • {selectedCourse.completed} completed
-            </p>
-          </div>
-        </div>
+  <section className="analytics-card">
 
-        <div className="funnel-box">
-          <div>
-            <span>Assigned</span>
-            <strong>{selectedCourse.assigned}</strong>
-            <div className="funnel-bar">
-              <i style={{ width: "100%" }}></i>
-            </div>
-          </div>
+    {/* Course Header */}
 
-          <div>
-            <span>Started</span>
-            <strong>{selectedCourse.inProgress + selectedCourse.completed}</strong>
-            <div className="funnel-bar">
-              <i
-                style={{
-                  width: `${
-                    selectedCourse.assigned
-                      ? ((selectedCourse.inProgress + selectedCourse.completed) /
-                          selectedCourse.assigned) *
-                        100
-                      : 0
-                  }%`,
-                }}
-              ></i>
-            </div>
-          </div>
+    <div className="selected-course-header">
 
-          <div>
-            <span>Completed</span>
-            <strong>{selectedCourse.completed}</strong>
-            <div className="funnel-bar">
-              <i
-                style={{
-                  width: `${
-                    selectedCourse.assigned
-                      ? (selectedCourse.completed / selectedCourse.assigned) * 100
-                      : 0
-                  }%`,
-                }}
-              ></i>
-            </div>
-          </div>
-        </div>
+      <div>
 
-        <div className="analytics-filter-row">
-          <input
-            placeholder="Search user, city, designation..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <h2>
+          {selectedCourse.title ||
+            selectedCourse.courseTitle}
+        </h2>
 
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="">All Status</option>
-            <option value="notStarted">Not Started</option>
-            <option value="inProgress">In Progress</option>
-            <option value="completed">Completed</option>
-          </select>
+        <p>
+          {selectedCourse.department || "General Department"}
+        </p>
 
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-          >
-            <option value="">All Roles</option>
-            {roleOptions.map((role) => (
-              <option key={role} value={role}>
-                {role === "superAdmin"
-                  ? "Super Admin"
-                  : role === "admin"
-                  ? "Admin"
-                  : role === "departmentAdmin"
-                  ? "Department Admin"
-                  : role}
-              </option>
-            ))}
-          </select>
-
-          {(currentUser?.role === "admin" ||
-            currentUser?.role === "superAdmin") && (
-            <select
-              value={departmentFilter}
-              onChange={(e) => setDepartmentFilter(e.target.value)}
-            >
-              <option value="">All Departments</option>
-              {departmentOptions.map((dept) => (
-                <option key={dept} value={dept}>
-                  {dept}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        <div className="user-progress-table-wrap">
-          <table className="user-progress-table">
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Role</th>
-                <th>Designation</th>
-                <th>Location</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {selectedUsers.map((user) => (
-                <tr key={user.id}>
-                  <td>
-                    <strong>{user.name || "Unnamed User"}</strong>
-                    <small>{user.email}</small>
-                  </td>
-
-                  <td>
-                    {user.role === "superAdmin"
-                      ? "Super Admin"
-                      : user.role === "admin"
-                      ? "Admin"
-                      : user.role === "departmentAdmin"
-                      ? "Department Admin"
-                      : user.role || "-"}
-                  </td>
-
-                  <td>{user.designation || user.userRole || "-"}</td>
-
-                  <td>
-                    {[user.city || user.cityArea || user.area, user.state, user.zone]
-                      .filter(Boolean)
-                      .join(", ") || "-"}
-                  </td>
-
-                  <td>
-                    <span className={`analytics-status ${user.status}`}>
-                      {user.status === "completed"
-                        ? "Completed"
-                        : user.status === "inProgress"
-                        ? "In Progress"
-                        : "Not Started"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-
-              {selectedUsers.length === 0 && (
-                <tr>
-                  <td colSpan="5" className="empty-cell">
-                    No users found for this course/filter.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
       </div>
-    )}
-  </div>
+
+      <div className="selected-course-count">
+
+        <span>Assigned Users</span>
+
+        <h2>{selectedCourse.assigned}</h2>
+
+      </div>
+
+    </div>
+
+    {/* Status Cards */}
+
+    <div className="status-grid">
+
+      <div
+        className={`status-card notstarted ${
+          selectedStatus === "notStarted"
+            ? "active"
+            : ""
+        }`}
+        onClick={() =>
+          setSelectedStatus(
+            selectedStatus === "notStarted"
+              ? ""
+              : "notStarted"
+          )
+        }
+      >
+
+        <small>
+          Not Started
+        </small>
+
+        <h2>
+          {selectedCourse.notStarted}
+        </h2>
+
+      </div>
+
+      <div
+        className={`status-card progress ${
+          selectedStatus === "inProgress"
+            ? "active"
+            : ""
+        }`}
+        onClick={() =>
+          setSelectedStatus(
+            selectedStatus === "inProgress"
+              ? ""
+              : "inProgress"
+          )
+        }
+      >
+
+        <small>
+          In Progress
+        </small>
+
+        <h2>
+          {selectedCourse.inProgress}
+        </h2>
+
+      </div>
+
+      <div
+        className={`status-card completed ${
+          selectedStatus === "completed"
+            ? "active"
+            : ""
+        }`}
+        onClick={() =>
+          setSelectedStatus(
+            selectedStatus === "completed"
+              ? ""
+              : "completed"
+          )
+        }
+      >
+
+        <small>
+          Completed
+        </small>
+
+        <h2>
+          {selectedCourse.completed}
+        </h2>
+
+      </div>
+
+    </div>
+
+    {/* Search */}
+
+    <div className="analytics-search">
+
+      <input
+        type="text"
+        placeholder="Search user, designation, city..."
+        value={search}
+        onChange={(e) =>
+          setSearch(e.target.value)
+        }
+      />
+
+      {selectedStatus && (
+        <button
+          className="clear-filter-btn"
+          onClick={() =>
+            setSelectedStatus("")
+          }
+        >
+          Clear Filter
+        </button>
+      )}
+
+    </div>
+
+    <div className="user-progress-table-wrap">
+
+  <table className="user-progress-table">
+
+    <thead>
+
+      <tr>
+
+        <th>User</th>
+
+        <th>Designation</th>
+
+        <th>Department</th>
+
+        <th>Location</th>
+
+        <th>Status</th>
+
+      </tr>
+
+    </thead>
+
+    <tbody>
+
+      {selectedUsers.length > 0 ? (
+
+        selectedUsers.map((user) => (
+
+          <tr key={user.id}>
+
+            <td>
+
+              <div className="user-cell">
+
+                <strong>
+                  {user.name || "Unnamed User"}
+                </strong>
+
+                <small>
+                  {user.email}
+                </small>
+
+              </div>
+
+            </td>
+
+            <td>
+              {user.designation ||
+                user.userRole ||
+                "-"}
+            </td>
+
+            <td>
+              {user.department || "-"}
+            </td>
+
+            <td>
+
+              {[
+                user.city ||
+                  user.cityArea ||
+                  user.area,
+                user.state,
+                user.zone,
+              ]
+                .filter(Boolean)
+                .join(", ") || "-"}
+
+            </td>
+
+            <td>
+
+              <span
+                className={`status-pill ${user.status}`}
+              >
+
+                {user.status === "completed"
+                  ? "Completed"
+                  : user.status ===
+                    "inProgress"
+                  ? "In Progress"
+                  : "Not Started"}
+
+              </span>
+
+            </td>
+
+          </tr>
+
+        ))
+
+      ) : (
+
+        <tr>
+
+          <td
+            colSpan="5"
+            className="empty-cell"
+          >
+
+            No users found.
+
+          </td>
+
+        </tr>
+
+      )}
+
+    </tbody>
+
+  </table>
+</div>
+
+  </section>
+)}
+
+</div>
 );
 }
 

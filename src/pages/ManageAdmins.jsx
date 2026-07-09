@@ -9,6 +9,8 @@ function ManageAdmins() {
   const [selectedUserId, setSelectedUserId] = useState("");
   const [assigning, setAssigning] = useState(false);
   const [search, setSearch] = useState("");
+  const [adminSearch, setAdminSearch] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
 
   const higherPostKeywords = [
     "manager",
@@ -52,7 +54,7 @@ function ManageAdmins() {
     const data = snap.val();
 
     const userList = Object.entries(data)
-      .filter(([_, user]) => user.role === "user")
+      .filter(([, user]) => user.role === "user")
       .map(([id, user]) => ({ id, ...user }))
       .sort((a, b) => {
         const aSenior = isHigherPost(a) ? 1 : 0;
@@ -63,8 +65,9 @@ function ManageAdmins() {
       });
 
     const adminList = Object.entries(data)
-      .filter(([_, user]) => user.role === "admin")
-      .map(([id, user]) => ({ id, ...user }));
+      .filter(([, user]) => user.role === "admin")
+      .map(([id, user]) => ({ id, ...user }))
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 
     setUsers(userList);
     setAdmins(adminList);
@@ -81,10 +84,12 @@ function ManageAdmins() {
   const shownUsers = useMemo(() => {
     const q = search.trim().toLowerCase();
 
-    if (!q) return eligibleUsers.slice(0, 8);
+    const source = q ? users : eligibleUsers;
 
-    return users
+    return source
       .filter((user) => {
+        if (!q) return true;
+
         const searchText = [
           user.name,
           user.email,
@@ -92,6 +97,7 @@ function ManageAdmins() {
           user.cityArea,
           user.state,
           user.zone,
+          user.seniority,
         ]
           .filter(Boolean)
           .join(" ")
@@ -102,27 +108,46 @@ function ManageAdmins() {
       .slice(0, 8);
   }, [users, eligibleUsers, search]);
 
-  useEffect(() => {
-    if (!search.trim()) return;
+  const filteredAdmins = useMemo(() => {
+    const q = adminSearch.trim().toLowerCase();
 
-    const q = search.trim().toLowerCase();
+    if (!q) return admins;
 
-    const matchedUser =
-      users.find((user) => String(user.name || "").toLowerCase() === q) ||
-      users.find((user) =>
-        String(user.name || "").toLowerCase().includes(q)
-      );
+    return admins.filter((admin) => {
+      const text = [
+        admin.name,
+        admin.email,
+        admin.designation,
+        admin.seniority,
+        admin.cityArea,
+        admin.state,
+        admin.zone,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
 
-    if (matchedUser) {
-      setSelectedUserId(matchedUser.id);
-    }
-  }, [search, users]);
+      return text.includes(q);
+    });
+  }, [admins, adminSearch]);
 
   const selectedUser = users.find((user) => user.id === selectedUserId);
 
   const selectUser = (user) => {
     setSelectedUserId(user.id);
     setSearch(user.name || "");
+  };
+
+  const openModal = () => {
+    setModalOpen(true);
+    setSearch("");
+    setSelectedUserId("");
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setSearch("");
+    setSelectedUserId("");
   };
 
   const assignAdmin = async (e) => {
@@ -141,9 +166,9 @@ function ManageAdmins() {
         promotedAt: new Date().toISOString(),
       });
 
-      alert("User assigned as Admin successfully.");
       setSelectedUserId("");
       setSearch("");
+      setModalOpen(false);
       loadData();
     } catch (error) {
       alert(error.message);
@@ -168,86 +193,27 @@ function ManageAdmins() {
       <div className="manage-admins-header">
         <div>
           <h1>Admins</h1>
-          <p>Create admins quickly. Search by name or choose from top eligible users.</p>
-        </div>
-      </div>
-
-      <div className="admin-create-card clean-admin-card">
-        <div className="card-title-row">
-          <div>
-            <h2>Make User Admin</h2>
-            <p>Admin will be able to manage users, courses, departments and reports.</p>
-          </div>
+          <p>View and manage all admins from one clean dashboard.</p>
         </div>
 
-        <form onSubmit={assignAdmin} className="assign-admin-form clean-admin-form">
-          <input
-            type="text"
-            placeholder="Search user by name"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-
-          <button type="submit" disabled={assigning || !selectedUserId}>
-            {assigning ? "Assigning..." : "Make Admin"}
-          </button>
-        </form>
-
-        {selectedUser && (
-          <div className="selected-user-preview clean-selected-user">
-            <span>Selected User</span>
-            <h3>{selectedUser.name}</h3>
-            <p>
-              {selectedUser.designation || "No designation"} •{" "}
-              {selectedUser.seniority || "No type"} •{" "}
-              {selectedUser.cityArea || "No city"}
-            </p>
-          </div>
-        )}
-      </div>
-
-      <div className="admin-info-card clean-user-list-card">
-        <div className="card-title-row">
-          <div>
-            <h2>{search ? "Search Results" : "Top Eligible Users"}</h2>
-            <p>
-              {search
-                ? "Matching users are shown below."
-                : "Senior and higher-post users are shown first."}
-            </p>
-          </div>
-        </div>
-
-        <div className="quick-admin-list">
-          {shownUsers.map((user) => (
-            <button
-              type="button"
-              key={user.id}
-              className={`quick-admin-chip ${
-                selectedUserId === user.id ? "active" : ""
-              }`}
-              onClick={() => selectUser(user)}
-            >
-              <strong>{user.name || "Unnamed User"}</strong>
-              <span>
-                {user.designation || "No designation"} •{" "}
-                {user.cityArea || "No city"}
-              </span>
-            </button>
-          ))}
-
-          {shownUsers.length === 0 && (
-            <p className="empty-help">No user found with this name.</p>
-          )}
-        </div>
+        <button className="new-admin-btn" onClick={openModal}>
+          + New Admin
+        </button>
       </div>
 
       <div className="admins-table-card">
-        <div className="card-title-row">
+        <div className="admins-top-row">
           <div>
-            <h2>Existing Admins</h2>
+            <h2>All Admins</h2>
             <p>{admins.length} admins assigned</p>
           </div>
+
+          <input
+            type="text"
+            placeholder="Search admins..."
+            value={adminSearch}
+            onChange={(e) => setAdminSearch(e.target.value)}
+          />
         </div>
 
         <div className="admins-table-wrap">
@@ -258,12 +224,13 @@ function ManageAdmins() {
                 <th>Email</th>
                 <th>Designation</th>
                 <th>Type</th>
+                <th>City</th>
                 <th>Action</th>
               </tr>
             </thead>
 
             <tbody>
-              {admins.map((admin) => (
+              {filteredAdmins.map((admin) => (
                 <tr key={admin.id}>
                   <td>{admin.name || "-"}</td>
                   <td>{admin.email || "-"}</td>
@@ -274,23 +241,108 @@ function ManageAdmins() {
                         admin.seniority.slice(1)
                       : "-"}
                   </td>
+                  <td>{admin.cityArea || "-"}</td>
                   <td>
-                    <button onClick={() => removeAdminRole(admin.id)}>
-                      Remove Access
+                    <button
+                      className="remove-admin-btn"
+                      onClick={() => removeAdminRole(admin.id)}
+                    >
+                      Remove
                     </button>
                   </td>
                 </tr>
               ))}
 
-              {admins.length === 0 && (
+              {filteredAdmins.length === 0 && (
                 <tr>
-                  <td colSpan="5">No admins assigned yet.</td>
+                  <td colSpan="6" className="empty-table">
+                    No admins found.
+                  </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {modalOpen && (
+        <div className="admin-modal-backdrop" onClick={closeModal}>
+          <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-head">
+              <div>
+                <h2>Make New Admin</h2>
+                <p>Search any user or choose from senior eligible users.</p>
+              </div>
+
+              <button onClick={closeModal}>×</button>
+            </div>
+
+            <form onSubmit={assignAdmin} className="assign-admin-form">
+              <div className="admin-search-box">
+                <input
+                  type="text"
+                  placeholder="Search user by name, email, designation..."
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setSelectedUserId("");
+                  }}
+                  autoFocus
+                />
+
+                <div className="user-dropdown">
+                  {shownUsers.map((user) => (
+                    <button
+                      type="button"
+                      key={user.id}
+                      className={`user-option ${
+                        selectedUserId === user.id ? "active" : ""
+                      }`}
+                      onClick={() => selectUser(user)}
+                    >
+                      <div>
+                        <strong>{user.name || "Unnamed User"}</strong>
+                        <span>{user.email || "No email"}</span>
+                      </div>
+
+                      <small>
+                        {user.designation || "No designation"} •{" "}
+                        {user.seniority || "No type"}
+                      </small>
+                    </button>
+                  ))}
+
+                  {shownUsers.length === 0 && (
+                    <p className="empty-help">No user found.</p>
+                  )}
+                </div>
+              </div>
+
+              {selectedUser && (
+                <div className="selected-user-preview">
+                  <span>Selected User</span>
+                  <h3>{selectedUser.name}</h3>
+                  <p>
+                    {selectedUser.designation || "No designation"} •{" "}
+                    {selectedUser.seniority || "No type"} •{" "}
+                    {selectedUser.cityArea || "No city"}
+                  </p>
+                </div>
+              )}
+
+              <div className="modal-actions">
+                <button type="button" className="cancel-btn" onClick={closeModal}>
+                  Cancel
+                </button>
+
+                <button type="submit" disabled={assigning || !selectedUserId}>
+                  {assigning ? "Assigning..." : "Make Admin"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
