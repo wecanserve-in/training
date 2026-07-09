@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { signOut } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase";
 import { loadUserProfile } from "../lib/userAccess";
 import "../styles/userLayout.css";
@@ -8,23 +8,26 @@ import "../styles/userLayout.css";
 function UserLayout() {
   const navigate = useNavigate();
 
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [desktopSidebarHidden, setDesktopSidebarHidden] = useState(false);
   const [userData, setUserData] = useState(null);
 
   useEffect(() => {
-    const loadUser = async () => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       try {
-        const currentUser = auth.currentUser;
+        if (!currentUser) {
+          setUserData(null);
+          return;
+        }
 
-        if (!currentUser) return;
-
-        setUserData(await loadUserProfile(currentUser));
+        const profile = await loadUserProfile(currentUser);
+        setUserData(profile);
       } catch (error) {
         console.error("Failed to load user profile:", error);
       }
-    };
+    });
 
-    loadUser();
+    return () => unsubscribe();
   }, []);
 
   const handleLogout = async () => {
@@ -32,8 +35,8 @@ function UserLayout() {
     navigate("/");
   };
 
-  const closeSidebar = () => {
-    setSidebarOpen(false);
+  const closeMobileSidebar = () => {
+    setMobileSidebarOpen(false);
   };
 
   const displayName =
@@ -48,30 +51,51 @@ function UserLayout() {
     "";
 
   return (
-    <div className="learner-shell">
+    <div
+      className={`learner-shell ${
+        desktopSidebarHidden ? "learner-sidebar-collapsed" : ""
+      }`}
+    >
       <button
-        className="learner-mobile-menu-btn"
-        onClick={() => setSidebarOpen(true)}
+        className={`learner-desktop-sidebar-toggle ${
+          desktopSidebarHidden ? "is-hidden" : ""
+        }`}
+        onClick={() => setDesktopSidebarHidden((prev) => !prev)}
         type="button"
+        aria-label="Toggle sidebar"
       >
-        ☰
+        {desktopSidebarHidden ? "›" : "‹"}
       </button>
 
-      {sidebarOpen && (
+      <div className="learner-mobile-topbar">
+        <img src="/Logo.webp" alt="Zuvius Logo" />
+
+        <button
+          type="button"
+          onClick={() => setMobileSidebarOpen(true)}
+          aria-label="Open menu"
+        >
+          ☰
+        </button>
+      </div>
+
+      {mobileSidebarOpen && (
         <div
-          className="learner-sidebar-overlay"
-          onClick={closeSidebar}
+          className="learner-sidebar-backdrop"
+          onClick={closeMobileSidebar}
         />
       )}
 
       <aside
-        className={`learner-side-nav ${sidebarOpen ? "sidebar-open" : ""
-          }`}
+        className={`learner-side-nav ${
+          mobileSidebarOpen ? "sidebar-open" : ""
+        } ${desktopSidebarHidden ? "sidebar-hidden" : ""}`}
       >
         <button
           className="learner-sidebar-close"
-          onClick={closeSidebar}
+          onClick={closeMobileSidebar}
           type="button"
+          aria-label="Close menu"
         >
           ×
         </button>
@@ -86,32 +110,31 @@ function UserLayout() {
           </div>
 
           <h3>{displayName}</h3>
-
           <p>{displayEmail}</p>
         </div>
 
         <nav className="learner-nav-menu">
-          <NavLink to="/dashboard" onClick={closeSidebar}>
+          <NavLink to="/dashboard" onClick={closeMobileSidebar}>
             Dashboard
           </NavLink>
 
-          <NavLink to="/assigned-courses" onClick={closeSidebar}>
+          <NavLink to="/assigned-courses" onClick={closeMobileSidebar}>
             My Courses
           </NavLink>
 
-          <NavLink to="/my-results" onClick={closeSidebar}>
+          <NavLink to="/my-results" onClick={closeMobileSidebar}>
             My Results
           </NavLink>
 
-          <NavLink to="/certificates" onClick={closeSidebar}>
+          <NavLink to="/certificates" onClick={closeMobileSidebar}>
             Certificates
           </NavLink>
 
-          <NavLink to="/my-learnings" onClick={closeSidebar}>
+          <NavLink to="/my-learnings" onClick={closeMobileSidebar}>
             My Learnings
           </NavLink>
 
-          <NavLink to="/profile" onClick={closeSidebar}>
+          <NavLink to="/profile" onClick={closeMobileSidebar}>
             Profile
           </NavLink>
         </nav>
@@ -119,6 +142,7 @@ function UserLayout() {
         <button
           className="learner-logout"
           onClick={handleLogout}
+          type="button"
         >
           Logout
         </button>

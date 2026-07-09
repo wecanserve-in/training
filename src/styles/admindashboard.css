@@ -443,3 +443,31 @@
     grid-template-columns: 1fr;
   }
 }
+
+.progress-circle {
+  width: 232px;
+  height: 232px;
+  border-radius: 50%;
+  margin: 28px auto 22px;
+  display: grid;
+  place-items: center;
+  position: relative;
+  background: #e8f0fe;
+}
+
+.progress-circle::before {
+  content: "";
+  position: absolute;
+  inset: 36px;
+  border-radius: 50%;
+  background: #ffffff;
+  z-index: 1;
+}
+
+.progress-circle div {
+  position: relative;
+  z-index: 2;
+  font-size: 38px;
+  font-weight: 900;
+  color: #111827;
+}

@@ -1,7 +1,7 @@
-import { Link, Outlet, useNavigate } from "react-router-dom";
-import { signOut, onAuthStateChanged } from "firebase/auth";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase";
-import { useEffect, useState } from "react";
 import { loadUserProfile } from "../lib/userAccess";
 import "../styles/superadminlayout.css";
 
@@ -12,48 +12,82 @@ function AdminLayout() {
   const [openReports, setOpenReports] = useState(true);
   const [openMyLearning, setOpenMyLearning] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [userData, setUserData] = useState(null);
 
   const handleLogout = async () => {
     await signOut(auth);
     navigate("/");
   };
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (!firebaseUser) {
-        setCurrentUser(null);
-        return;
-      }
-
-      try {
-        setCurrentUser(await loadUserProfile(firebaseUser));
-      } catch (error) {
-        console.error("Failed to load admin profile:", error);
-        setCurrentUser(null);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
   const closeMobileMenu = () => {
     setMobileOpen(false);
   };
 
+  const toggleSidebar = () => {
+    setSidebarCollapsed((prev) => !prev);
+  };
+
+  const getInitials = () => {
+    if (userData?.name) {
+      return userData.name
+        .split(" ")
+        .map((word) => word[0])
+        .join("")
+        .substring(0, 2)
+        .toUpperCase();
+    }
+
+    return "A";
+  };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setUserData(null);
+        navigate("/");
+        return;
+      }
+
+      try {
+        setUserData(await loadUserProfile(user));
+      } catch (error) {
+        console.error("Failed to load admin profile:", error);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [navigate]);
+
   return (
-    <div className="super-layout">
+    <div className={`super-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       <div className="mobile-topbar">
         <img src="/Logo.webp" alt="Logo" />
-        <button onClick={() => setMobileOpen(true)}>☰</button>
+        <button type="button" onClick={() => setMobileOpen(true)}>
+          ☰
+        </button>
       </div>
 
       {mobileOpen && (
-        <div className="sidebar-backdrop" onClick={() => setMobileOpen(false)} />
+        <div className="sidebar-backdrop" onClick={closeMobileMenu} />
       )}
 
-      <aside className={`super-sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
-        <button className="sidebar-close" onClick={() => setMobileOpen(false)}>
+      <button
+        type="button"
+        className={`desktop-sidebar-toggle ${
+          sidebarCollapsed ? "is-hidden" : ""
+        }`}
+        onClick={toggleSidebar}
+      >
+        {sidebarCollapsed ? "›" : "‹"}
+      </button>
+
+      <aside
+        className={`super-sidebar ${
+          mobileOpen ? "sidebar-open" : ""
+        } ${sidebarCollapsed ? "sidebar-hidden" : ""}`}
+      >
+        <button type="button" className="sidebar-close" onClick={closeMobileMenu}>
           ×
         </button>
 
@@ -62,60 +96,50 @@ function AdminLayout() {
         </div>
 
         <div className="sidebar-profile">
-          <div className="profile-circle">
-            {(currentUser?.name || currentUser?.email || "A")
-              .charAt(0)
-              .toUpperCase()}
-          </div>
+          <div className="profile-circle">{getInitials()}</div>
 
-          <h3>{currentUser?.name || currentUser?.email || "Admin"}</h3>
-          <p>{currentUser?.email || "Loading..."}</p>
-
-          <p>
-            {currentUser?.designation ||
-              (currentUser?.role === "admin"
-                ? "Admin"
-                : currentUser?.role === "superAdmin"
-                  ? "Super Admin"
-                  : "User")}
-          </p>
+          <h3>{userData?.name || "Admin"}</h3>
+          <p>{userData?.email || auth.currentUser?.email}</p>
         </div>
 
         <nav className="sidebar-menu">
-          <Link to="/admin" onClick={closeMobileMenu}>
-            Home
-          </Link>
+          <NavLink to="/admin" end onClick={closeMobileMenu}>
+            <span>Dashboard</span>
+          </NavLink>
 
-          <Link to="/admin/users" onClick={closeMobileMenu}>
-            Users
-          </Link>
+          <NavLink to="/admin/users" onClick={closeMobileMenu}>
+            <span>Users</span>
+          </NavLink>
 
-          <Link to="/admin/departments" onClick={closeMobileMenu}>
-            Departments
-          </Link>
+          <NavLink to="/admin/departments" onClick={closeMobileMenu}>
+            <span>Departments</span>
+          </NavLink>
 
           <div className="sidebar-dropdown">
             <button
               type="button"
-              className="dropdown-toggle"
-              onClick={() => setOpenTraining(!openTraining)}
+              className={`dropdown-toggle ${openTraining ? "active-dropdown" : ""}`}
+              onClick={() => setOpenTraining((prev) => !prev)}
             >
-              Training
+              <span>Training</span>
+              <span className="dropdown-arrow">
+                {openTraining ? "▾" : "›"}
+              </span>
             </button>
 
             {openTraining && (
               <div className="dropdown-submenu">
-                <Link to="/admin/courses" onClick={closeMobileMenu}>
+                <NavLink to="/admin/courses" onClick={closeMobileMenu}>
                   Courses
-                </Link>
+                </NavLink>
 
-                <Link to="/admin/video-library" onClick={closeMobileMenu}>
+                <NavLink to="/admin/video-library" onClick={closeMobileMenu}>
                   Videos
-                </Link>
+                </NavLink>
 
-                <Link to="/admin/assignments" onClick={closeMobileMenu}>
+                <NavLink to="/admin/assignments" onClick={closeMobileMenu}>
                   Assign Course
-                </Link>
+                </NavLink>
               </div>
             )}
           </div>
@@ -123,25 +147,31 @@ function AdminLayout() {
           <div className="sidebar-dropdown">
             <button
               type="button"
-              className="dropdown-toggle"
-              onClick={() => setOpenReports(!openReports)}
+              className={`dropdown-toggle ${openReports ? "active-dropdown" : ""}`}
+              onClick={() => setOpenReports((prev) => !prev)}
             >
-              Reports
+              <span>Reports</span>
+              <span className="dropdown-arrow">
+                {openReports ? "▾" : "›"}
+              </span>
             </button>
 
             {openReports && (
               <div className="dropdown-submenu">
-                <Link to="/admin/analytics" onClick={closeMobileMenu}>
+                <NavLink to="/admin/analytics" onClick={closeMobileMenu}>
                   Progress Report
-                </Link>
+                </NavLink>
 
-                <Link to="/admin/assignment-analytics" onClick={closeMobileMenu}>
+                <NavLink
+                  to="/admin/assignment-analytics"
+                  onClick={closeMobileMenu}
+                >
                   Assigned Users
-                </Link>
+                </NavLink>
 
-                <Link to="/admin/results" onClick={closeMobileMenu}>
+                <NavLink to="/admin/results" onClick={closeMobileMenu}>
                   Test Records
-                </Link>
+                </NavLink>
               </div>
             )}
           </div>
@@ -149,40 +179,45 @@ function AdminLayout() {
           <div className="sidebar-dropdown">
             <button
               type="button"
-              className="dropdown-toggle"
-              onClick={() => setOpenMyLearning(!openMyLearning)}
+              className={`dropdown-toggle ${
+                openMyLearning ? "active-dropdown" : ""
+              }`}
+              onClick={() => setOpenMyLearning((prev) => !prev)}
             >
-              My Courses
+              <span>My Courses</span>
+              <span className="dropdown-arrow">
+                {openMyLearning ? "▾" : "›"}
+              </span>
             </button>
 
             {openMyLearning && (
               <div className="dropdown-submenu">
-                <Link to="/admin/assigned-courses" onClick={closeMobileMenu}>
+                <NavLink to="/admin/assigned-courses" onClick={closeMobileMenu}>
                   Assigned Courses
-                </Link>
+                </NavLink>
 
-                <Link to="/admin/my-learnings" onClick={closeMobileMenu}>
+                <NavLink to="/admin/my-learnings" onClick={closeMobileMenu}>
                   My Progress
-                </Link>
+                </NavLink>
 
-                <Link to="/admin/my-results" onClick={closeMobileMenu}>
+                <NavLink to="/admin/my-results" onClick={closeMobileMenu}>
                   My Test Results
-                </Link>
+                </NavLink>
 
-                <Link to="/admin/certificates" onClick={closeMobileMenu}>
+                <NavLink to="/admin/certificates" onClick={closeMobileMenu}>
                   My Certificates
-                </Link>
+                </NavLink>
 
-                <Link to="/admin/profile" onClick={closeMobileMenu}>
+                <NavLink to="/admin/profile" onClick={closeMobileMenu}>
                   My Profile
-                </Link>
+                </NavLink>
               </div>
             )}
           </div>
         </nav>
 
-        <button className="sidebar-logout" onClick={handleLogout}>
-          Logout
+        <button type="button" className="sidebar-logout" onClick={handleLogout}>
+          <span>Logout</span>
         </button>
       </aside>
 

@@ -1,15 +1,27 @@
-/* Reset HTML and Body parameters to handle full display scale */
-html, 
-body, 
-#root {
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
+
+*,
+*::before,
+*::after {
   margin: 0;
   padding: 0;
-  width: 100%;
-  min-height: 100vh;
-  background-color: #f8fafc; /* Clean portal backdrop */
   box-sizing: border-box;
 }
 
-*, *::before, *::after {
-  box-sizing: inherit;
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: #f4f8fb;
+  color: #111827;
+  font-family: "Poppins", sans-serif;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
 }

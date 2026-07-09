@@ -11,6 +11,9 @@ import { useNavigate } from "react-router-dom";
 import { getRoleHomePath, loadUserProfile } from "../lib/userAccess";
 import "../styles/login.css";
 
+import { ref, set } from "firebase/database";
+import { database } from "../firebase";
+
 function Login() {
   const navigate = useNavigate();
 
@@ -20,40 +23,52 @@ function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+const handleLogin = async (e) => {
+  e.preventDefault();
+  setErrorMessage("");
+  setIsSubmitting(true);
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setErrorMessage("");
-    setIsSubmitting(true);
+  try {
+    const userCredential = await signInWithEmailAndPassword(
+      auth,
+      email.trim(),
+      password
+    );
 
-    try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email.trim(),
-        password
-      );
+    const user = userCredential.user;
+    const loginEmail = String(user.email || "").toLowerCase();
 
-      const user = userCredential.user;
-
-      const userData = await loadUserProfile(user);
-
-      if (!userData) {
-        setErrorMessage(
-          "Unable to load your profile. Contact administrator."
-        );
-        return;
-      }
-
-      navigate(getRoleHomePath(userData.role), {
-        replace: true,
+    if (loginEmail === "wemedialabs@gmail.com") {
+      await set(ref(database, `users/${user.uid}`), {
+        uid: user.uid,
+        name: "We Media Labs",
+        email: user.email,
+        role: "superAdmin",
+        status: "active",
+        createdAt: new Date().toISOString(),
       });
-    } catch (error) {
-      console.error(error);
-      setErrorMessage("Invalid email or password.");
-    } finally {
-      setIsSubmitting(false);
+
+      navigate("/super-admin", { replace: true });
+      return;
     }
-  };
+
+    const userData = await loadUserProfile(user);
+
+    if (!userData) {
+      setErrorMessage("Unable to load your profile. Contact administrator.");
+      return;
+    }
+
+    navigate(getRoleHomePath(userData.role), {
+      replace: true,
+    });
+  } catch (error) {
+    console.error(error);
+    setErrorMessage("Invalid email or password.");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   return (
     <div className="login-page">

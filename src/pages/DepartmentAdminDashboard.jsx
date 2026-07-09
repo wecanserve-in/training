@@ -1,31 +1,102 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
-import { ref, get } from "firebase/database";
+import { get, onValue, ref } from "firebase/database";
 import { auth, database } from "../firebase";
 import "../styles/departmentadmin.css";
 
 function DepartmentAdminDashboard() {
   const [currentUser, setCurrentUser] = useState(null);
-  const [members, setMembers] = useState([]);
-  const [courses, setCourses] = useState([]);
-  const [videos, setVideos] = useState([]);
-  const [assignments, setAssignments] = useState([]);
+
+  const [allCourses, setAllCourses] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [videoLibrary, setVideoLibrary] = useState([]);
+  const [oldVideos, setOldVideos] = useState([]);
+
+  const [assignments, setAssignments] = useState({});
   const [completedCourses, setCompletedCourses] = useState({});
-  const [results, setResults] = useState({});
+  const [progress, setProgress] = useState({});
+
+  const [authReady, setAuthReady] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const normalize = (value) => String(value || "").trim().toLowerCase();
+
+  const getRole = (user) => normalize(user?.role);
+
+  const isAdminRole = (role) => {
+    const cleanRole = normalize(role);
+    return cleanRole === "admin" || cleanRole === "superadmin";
+  };
+
+  const isDepartmentAdminRole = (role) => {
+    const cleanRole = normalize(role);
+
+    return (
+      cleanRole === "departmentadmin" ||
+      cleanRole === "department admin" ||
+      cleanRole === "department_admin" ||
+      cleanRole === "deptadmin" ||
+      cleanRole === "dept admin"
+    );
+  };
+
+  const sameText = (a, b) => {
+    const first = normalize(a);
+    const second = normalize(b);
+
+    return Boolean(first && second && first === second);
+  };
+
+  const getTime = (value) => {
+    const time = new Date(value || 0).getTime();
+    return Number.isFinite(time) ? time : 0;
+  };
+
+  const objectToArray = (data) => {
+    if (!data || typeof data !== "object") return [];
+
+    return Object.entries(data).map(([id, value]) => ({
+      id,
+      ...(value && typeof value === "object" ? value : {}),
+    }));
+  };
+
+  const getDepartmentName = (item) => {
+    return (
+      item?.department ||
+      item?.departmentName ||
+      item?.departmentType ||
+      item?.dept ||
+      item?.deptName ||
+      ""
+    );
+  };
+
+  const getCourseTitle = (course) => {
+    return (
+      course?.title ||
+      course?.courseTitle ||
+      course?.courseName ||
+      course?.name ||
+      "Untitled Course"
+    );
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
-      if (!loggedUser) {
-        setLoading(false);
-        return;
-      }
-
       try {
+        if (!loggedUser) {
+          setCurrentUser(null);
+          setAuthReady(true);
+          setLoading(false);
+          return;
+        }
+
         const userSnap = await get(ref(database, `users/${loggedUser.uid}`));
 
         if (!userSnap.exists()) {
+          setCurrentUser(null);
+          setAuthReady(true);
           setLoading(false);
           return;
         }
@@ -37,215 +108,283 @@ function DepartmentAdminDashboard() {
         };
 
         setCurrentUser(userData);
-
-        const departmentName = userData.department || "";
-
-        const [
-          usersSnap,
-          coursesSnap,
-          videosSnap,
-          assignmentsSnap,
-          completedSnap,
-          resultsSnap,
-        ] = await Promise.all([
-          get(ref(database, "users")),
-          get(ref(database, "courses")),
-          get(ref(database, "videos")),
-          get(ref(database, "assignments")),
-          get(ref(database, "completedCourses")),
-          get(ref(database, "results")),
-        ]);
-
-        const allUsers = usersSnap.exists()
-          ? Object.entries(usersSnap.val()).map(([id, user]) => ({
-            id,
-            ...user,
-          }))
-          : [];
-
-        const departmentMembers = allUsers.filter(
-          (user) =>
-            user.department === departmentName && user.role !== "superAdmin"
-        );
-
-        const allCourses = coursesSnap.exists()
-          ? Object.entries(coursesSnap.val()).map(([id, course]) => ({
-            id,
-            ...course,
-          }))
-          : [];
-
-        const departmentCourses = allCourses.filter(
-          (course) =>
-            course.department === departmentName ||
-            course.createdBy === loggedUser.uid ||
-            course.createdById === loggedUser.uid
-        );
-
-        const departmentCourseIds = departmentCourses.map((course) => course.id);
-
-        const allVideos = videosSnap.exists()
-          ? Object.entries(videosSnap.val()).map(([id, video]) => ({
-            id,
-            ...video,
-          }))
-          : [];
-
-        const departmentVideos = allVideos.filter(
-          (video) =>
-            departmentCourseIds.includes(video.courseId) ||
-            video.department === departmentName ||
-            video.createdBy === loggedUser.uid ||
-            video.createdById === loggedUser.uid
-        );
-
-        const allAssignments = assignmentsSnap.exists()
-          ? Object.entries(assignmentsSnap.val()).map(([id, assignment]) => ({
-            id,
-            ...assignment,
-          }))
-          : [];
-
-        const departmentAssignments = allAssignments.filter((assignment) => {
-          return (
-            assignment.department === departmentName ||
-            assignment.createdBy === loggedUser.uid ||
-            assignment.createdById === loggedUser.uid ||
-            departmentCourseIds.includes(assignment.courseId)
-          );
-        });
-
-        setMembers(departmentMembers);
-        setCourses(departmentCourses);
-        setVideos(departmentVideos);
-        setAssignments(departmentAssignments);
-        setCompletedCourses(completedSnap.exists() ? completedSnap.val() : {});
-        setResults(resultsSnap.exists() ? resultsSnap.val() : {});
+        setAuthReady(true);
       } catch (error) {
-        alert(error.message);
+        console.error("Failed to load current user:", error);
+        setCurrentUser(null);
+        setAuthReady(true);
+        setLoading(false);
       }
-
-      setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  const getCompletedCount = (userId) => {
-    if (!completedCourses[userId]) return 0;
+  useEffect(() => {
+    if (!authReady || !currentUser) return;
 
-    const departmentCourseIds = courses.map((course) => course.id);
+    setLoading(true);
 
-    return Object.keys(completedCourses[userId]).filter((courseId) =>
-      departmentCourseIds.includes(courseId)
-    ).length;
+    const loadedPaths = new Set();
+
+    const markLoaded = (path) => {
+      loadedPaths.add(path);
+
+      if (loadedPaths.size === 7) {
+        setLoading(false);
+      }
+    };
+
+    const watchPath = (path, setter, asArray = false) => {
+      return onValue(
+        ref(database, path),
+        (snapshot) => {
+          const value = snapshot.exists() ? snapshot.val() : asArray ? [] : {};
+          setter(asArray ? objectToArray(value) : value);
+          markLoaded(path);
+        },
+        (error) => {
+          console.error(`Firebase error at ${path}:`, error);
+          setter(asArray ? [] : {});
+          markLoaded(path);
+        }
+      );
+    };
+
+    const unsubCourses = watchPath("courses", setAllCourses, true);
+    const unsubUsers = watchPath("users", setAllUsers, true);
+    const unsubVideoLibrary = watchPath("videoLibrary", setVideoLibrary, true);
+    const unsubOldVideos = watchPath("videos", setOldVideos, true);
+    const unsubAssignments = watchPath("userAssignments", setAssignments);
+    const unsubCompleted = watchPath("completedCourses", setCompletedCourses);
+    const unsubProgress = watchPath("progress", setProgress);
+
+    return () => {
+      unsubCourses();
+      unsubUsers();
+      unsubVideoLibrary();
+      unsubOldVideos();
+      unsubAssignments();
+      unsubCompleted();
+      unsubProgress();
+    };
+  }, [authReady, currentUser]);
+
+  const currentRole = getRole(currentUser);
+
+  const canSeeAll = isAdminRole(currentRole);
+
+  const departmentName =
+    currentUser?.department ||
+    currentUser?.departmentName ||
+    currentUser?.departmentType ||
+    "";
+
+  const users = useMemo(() => {
+    return allUsers.filter((user) => {
+      const role = getRole(user);
+
+      return !isAdminRole(role) && !isDepartmentAdminRole(role);
+    });
+  }, [allUsers]);
+
+  const courses = useMemo(() => {
+    const visibleCourses = canSeeAll
+      ? allCourses
+      : allCourses.filter((course) => {
+          return (
+            course.createdBy === currentUser?.id ||
+            course.createdById === currentUser?.id ||
+            sameText(course.createdByEmail, currentUser?.email) ||
+            sameText(getDepartmentName(course), departmentName)
+          );
+        });
+
+    return [...visibleCourses].sort(
+      (a, b) => getTime(b.createdAt) - getTime(a.createdAt)
+    );
+  }, [allCourses, canSeeAll, currentUser, departmentName]);
+
+  const videos = useMemo(() => {
+    const map = new Map();
+
+    [...videoLibrary, ...oldVideos].forEach((video) => {
+      if (video?.id) {
+        map.set(video.id, video);
+      }
+    });
+
+    const list = [...map.values()];
+
+    if (canSeeAll) return list;
+
+    return list.filter((video) => {
+      return (
+        video.createdBy === currentUser?.id ||
+        video.createdById === currentUser?.id ||
+        sameText(video.createdByEmail, currentUser?.email) ||
+        sameText(getDepartmentName(video), departmentName)
+      );
+    });
+  }, [videoLibrary, oldVideos, canSeeAll, currentUser, departmentName]);
+
+  const getCourseStatusForUser = (userId, courseId) => {
+    const assignment = assignments?.[userId]?.[courseId];
+
+    if (!assignment?.assigned) {
+      return "notAssigned";
+    }
+
+    const completed = completedCourses?.[userId]?.[courseId];
+
+    if (
+      completed === true ||
+      completed?.passed ||
+      completed?.completed ||
+      completed?.isCompleted
+    ) {
+      return "completed";
+    }
+
+    const userProgress = progress?.[userId] || {};
+
+    const hasStarted = Object.values(userProgress).some((video) => {
+      return (
+        String(video?.courseId || "") === String(courseId) &&
+        (Number(video?.watchedPercent || 0) > 0 || video?.completed)
+      );
+    });
+
+    return hasStarted ? "inProgress" : "notStarted";
   };
 
-  const getCertificateCount = (userId) => {
-    if (!results[userId]) return 0;
+  const courseStats = useMemo(() => {
+    return courses.map((course) => {
+      let assigned = 0;
+      let completed = 0;
+      let inProgress = 0;
+      let notStarted = 0;
 
-    const departmentCourseIds = courses.map((course) => course.id);
+      users.forEach((user) => {
+        const status = getCourseStatusForUser(user.id, course.id);
 
-    return Object.entries(results[userId]).filter(([courseId, result]) => {
-      return departmentCourseIds.includes(courseId) && result.passed;
-    }).length;
-  };
+        if (status === "notAssigned") return;
 
-  const totalCompleted = members.reduce(
-    (total, member) => total + getCompletedCount(member.id),
-    0
-  );
+        assigned++;
 
-  const totalAssignedTrainings = assignments.length;
+        if (status === "completed") completed++;
+        if (status === "inProgress") inProgress++;
+        if (status === "notStarted") notStarted++;
+      });
 
-  const pendingTrainings = Math.max(totalAssignedTrainings - totalCompleted, 0);
-
-  const completionRate =
-    totalAssignedTrainings > 0
-      ? Math.min(Math.round((totalCompleted / totalAssignedTrainings) * 100), 100)
-      : 0;
-
-  const latestCourses = useMemo(() => {
-    return [...courses]
-      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
-      .slice(0, 5);
-  }, [courses]);
-
-  const usersNeedingFollowUp = useMemo(() => {
-    return members
-      .map((member) => {
-        const completed = getCompletedCount(member.id);
-        const completion =
-          courses.length > 0 ? Math.round((completed / courses.length) * 100) : 0;
-
-        return {
-          ...member,
-          completed,
-          completion,
-        };
-      })
-      .filter((member) => member.completion < 100)
-      .sort((a, b) => a.completion - b.completion)
-      .slice(0, 5);
-  }, [members, courses, completedCourses]);
-
-  const courseRows = useMemo(() => {
-    return courses.slice(0, 6).map((course) => {
-      const completed = members.filter((member) => {
-        return completedCourses[member.id]?.[course.id];
-      }).length;
-
-      const assigned = members.length;
-      const pending = Math.max(assigned - completed, 0);
       const rate = assigned > 0 ? Math.round((completed / assigned) * 100) : 0;
 
       return {
-        id: course.id,
-        title: course.title || course.courseName || course.name || "Untitled Course",
+        ...course,
+        title: getCourseTitle(course),
         assigned,
         completed,
-        pending,
+        inProgress,
+        notStarted,
+        pending: inProgress + notStarted,
         rate,
       };
     });
-  }, [courses, members, completedCourses]);
+  }, [courses, users, assignments, completedCourses, progress]);
+
+  const totalAssigned = useMemo(() => {
+    return courseStats.reduce((total, course) => total + course.assigned, 0);
+  }, [courseStats]);
+
+  const totalCompleted = useMemo(() => {
+    return courseStats.reduce((total, course) => total + course.completed, 0);
+  }, [courseStats]);
+
+  const totalInProgress = useMemo(() => {
+    return courseStats.reduce((total, course) => total + course.inProgress, 0);
+  }, [courseStats]);
+
+  const totalNotStarted = useMemo(() => {
+    return courseStats.reduce((total, course) => total + course.notStarted, 0);
+  }, [courseStats]);
+
+  const totalPending = totalInProgress + totalNotStarted;
+
+  const completionRate =
+    totalAssigned > 0 ? Math.round((totalCompleted / totalAssigned) * 100) : 0;
+
+  const courseOverview = useMemo(() => {
+    return [...courseStats]
+      .sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt))
+      .slice(0, 2);
+  }, [courseStats]);
+
+  const userRows = useMemo(() => {
+    return users
+      .map((user) => {
+        let assigned = 0;
+        let completed = 0;
+        let inProgress = 0;
+        let notStarted = 0;
+
+        courses.forEach((course) => {
+          const status = getCourseStatusForUser(user.id, course.id);
+
+          if (status === "notAssigned") return;
+
+          assigned++;
+
+          if (status === "completed") completed++;
+          if (status === "inProgress") inProgress++;
+          if (status === "notStarted") notStarted++;
+        });
+
+        const pending = inProgress + notStarted;
+        const rate = assigned > 0 ? Math.round((completed / assigned) * 100) : 0;
+
+        return {
+          id: user.id,
+          name: user.name || user.fullName || "Unnamed User",
+          email: user.email || "-",
+          designation: user.designation || user.userRole || "-",
+          department: getDepartmentName(user) || "-",
+          assigned,
+          completed,
+          inProgress,
+          notStarted,
+          pending,
+          rate,
+        };
+      })
+      .filter((user) => user.assigned > 0)
+      .sort((a, b) => b.assigned - a.assigned || a.rate - b.rate);
+  }, [users, courses, assignments, completedCourses, progress]);
 
   const downloadReport = () => {
-    const rows = members.map((member) => {
-      const completed = getCompletedCount(member.id);
-      const certificates = getCertificateCount(member.id);
-      const completion =
-        courses.length > 0 ? Math.round((completed / courses.length) * 100) : 0;
-
-      return {
-        Name: member.name || "",
-        Email: member.email || "",
-        Designation: member.designation || "",
-        Seniority: member.seniority || "",
-        Department: currentUser?.department || "",
-        City: member.cityArea || "",
-        State: member.state || "",
-        Zone: member.zone || "",
-        "Total Courses": courses.length,
-        "Completed Trainings": completed,
-        Certificates: certificates,
-        "Completion %": `${completion}%`,
-      };
-    });
+    const rows = userRows.map((user) => ({
+      Name: user.name,
+      Email: user.email,
+      Designation: user.designation,
+      Department: user.department,
+      Assigned: user.assigned,
+      Completed: user.completed,
+      "In Progress": user.inProgress,
+      "Not Started": user.notStarted,
+      Pending: user.pending,
+      "Completion %": `${user.rate}%`,
+    }));
 
     const headers = Object.keys(
       rows[0] || {
         Name: "",
         Email: "",
         Designation: "",
-        Seniority: "",
         Department: "",
-        City: "",
-        State: "",
-        Zone: "",
-        "Total Courses": "",
-        "Completed Trainings": "",
-        Certificates: "",
+        Assigned: "",
+        Completed: "",
+        "In Progress": "",
+        "Not Started": "",
+        Pending: "",
         "Completion %": "",
       }
     );
@@ -267,7 +406,7 @@ function DepartmentAdminDashboard() {
     const link = document.createElement("a");
 
     link.href = url;
-    link.download = `department-report-${new Date()
+    link.download = `department-dashboard-report-${new Date()
       .toISOString()
       .slice(0, 10)}.csv`;
 
@@ -281,7 +420,7 @@ function DepartmentAdminDashboard() {
   if (loading) {
     return (
       <div className="dept-dashboard-page">
-        <div className="dept-large-card">
+        <div className="dept-loading-card">
           <h2>Loading dashboard...</h2>
         </div>
       </div>
@@ -292,164 +431,171 @@ function DepartmentAdminDashboard() {
     <div className="dept-dashboard-page">
       <div className="dept-dashboard-header">
         <div>
-          <h1>Dashboard</h1>
-          <h2>Welcome back, {currentUser?.name || "Department Admin"}</h2>
+          <span>Department Dashboard</span>
+          <h1>{departmentName || "Department"} Overview</h1>
           <p>
-            Real-time overview for{" "}
-            <strong>{currentUser?.department || "your department"}</strong>.
+            Real Firebase stats based on userAssignments, completedCourses and
+            progress.
           </p>
         </div>
 
-        <div className="dept-header-actions">
-          <button onClick={downloadReport}>Export Report</button>
-        </div>
+        <button type="button" onClick={downloadReport}>
+          Export Report
+        </button>
       </div>
 
       <div className="dept-kpi-grid">
         <div className="dept-kpi-card">
-          <span>Total Courses Created</span>
+          <span>Total Assignable Users</span>
+          <h3>{users.length}</h3>
+          <p>All normal users</p>
+        </div>
+
+        <div className="dept-kpi-card">
+          <span>Total Courses</span>
           <h3>{courses.length}</h3>
-
+          <p>Visible courses</p>
         </div>
 
         <div className="dept-kpi-card">
-          <span>Total Videos Uploaded</span>
+          <span>Total Videos</span>
           <h3>{videos.length}</h3>
-
+          <p>Video library</p>
         </div>
 
         <div className="dept-kpi-card">
-          <span>Total Members Assigned</span>
-          <h3>{members.length}</h3>
-
+          <span>Assigned</span>
+          <h3>{totalAssigned}</h3>
+          <p>User-course assignments</p>
         </div>
 
-        <div className="dept-kpi-card">
-          <span>Assigned Trainings</span>
-          <h3>{totalAssignedTrainings}</h3>
-
+        <div className="dept-kpi-card success">
+          <span>Completed</span>
+          <h3>{totalCompleted}</h3>
+          <p>Completed trainings</p>
         </div>
 
-        <div className="dept-kpi-card">
-          <span>Pending Trainings</span>
-          <h3>{pendingTrainings}</h3>
-
+        <div className="dept-kpi-card progress">
+          <span>In Progress</span>
+          <h3>{totalInProgress}</h3>
+          <p>Started trainings</p>
         </div>
 
-        <div className="dept-kpi-card">
+        <div className="dept-kpi-card warning">
+          <span>Pending</span>
+          <h3>{totalPending}</h3>
+          <p>In progress + not started</p>
+        </div>
+
+        <div className="dept-kpi-card primary">
           <span>Completion Rate</span>
           <h3>{completionRate}%</h3>
-
-        </div>
-      </div>
-
-      <div className="dept-main-layout">
-        <div className="dept-large-card">
-          <div className="dept-section-head">
-            <h2>Course Progress Overview</h2>
-            <Link to="/department-admin/courses">View All</Link>
-          </div>
-
-          <div className="dept-table">
-            <div className="dept-table-head">
-              <span>Course Name</span>
-              <span>Assigned</span>
-              <span>Completed</span>
-              <span>Pending</span>
-              <span>Completion</span>
-            </div>
-
-            {courseRows.map((course) => (
-              <div className="dept-table-row" key={course.id}>
-                <strong>{course.title}</strong>
-                <span>{course.assigned}</span>
-                <span>{course.completed}</span>
-                <span>{course.pending}</span>
-                <div className="dept-progress-line">
-                  <b>{course.rate}%</b>
-                  <div>
-                    <span style={{ width: `${course.rate}%` }}></span>
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {courseRows.length === 0 && (
-              <div className="dept-empty-row">No courses created yet.</div>
-            )}
-          </div>
-
-          <Link to="/department-admin/courses" className="dept-outline-btn">
-            View All Courses
-          </Link>
-        </div>
-
-        <div className="dept-side-column">
-          <div className="dept-small-card">
-            <div className="dept-section-head">
-              <h2>Quick Actions</h2>
-            </div>
-
-            <div className="dept-quick-actions">
-              <Link to="/department-admin/courses/create">Create Course</Link>
-              <Link to="/department-admin/assignments">Assign Course</Link>
-              <Link to="/department-admin/members">View Members</Link>
-              <Link to="/department-admin/courses">Manage Courses</Link>
-            </div>
-          </div>
-
-          <div className="dept-small-card">
-            <div className="dept-section-head">
-              <h2>Needs Follow-up</h2>
-            </div>
-
-            <div className="dept-follow-list">
-              {usersNeedingFollowUp.map((member) => (
-                <div className="dept-follow-row" key={member.id}>
-                  <div>
-                    <strong>{member.name || "Unnamed User"}</strong>
-                    <span>{member.designation || "No designation"}</span>
-                  </div>
-                  <b>{member.completion}%</b>
-                </div>
-              ))}
-
-              {usersNeedingFollowUp.length === 0 && (
-                <p className="dept-empty-text">All members are fully completed.</p>
-              )}
-            </div>
-          </div>
-
-          <div className="dept-small-card">
-            <h2>Access Scope</h2>
-            <p>You can manage only users, courses and reports linked to:</p>
-            <strong>{currentUser?.department || "Your Department"}</strong>
-          </div>
+          <p>Completed / assigned</p>
         </div>
       </div>
 
       <div className="dept-large-card">
         <div className="dept-section-head">
-          <h2>Latest Courses</h2>
-          <Link to="/department-admin/courses">Manage Courses</Link>
+          <div>
+            <span>Course Overview</span>
+            <h2>Latest 2 Courses</h2>
+          </div>
         </div>
 
-        <div className="dept-follow-list">
-          {latestCourses.map((course) => (
-            <div className="dept-follow-row" key={course.id}>
-              <div>
-                <strong>
-                  {course.title || course.courseName || course.name || "Untitled Course"}
-                </strong>
-                <span>{course.department || currentUser?.department || "Department Course"}</span>
-              </div>
-              <b>{course.status || "Active"}</b>
-            </div>
-          ))}
+        {courseOverview.length === 0 ? (
+          <div className="dept-empty-row">No course data found.</div>
+        ) : (
+          <div className="dept-course-card-grid">
+            {courseOverview.map((course) => (
+              <div className="dept-course-card" key={course.id}>
+                <div className="dept-course-title-row">
+                  <h3>{course.title}</h3>
+                  <strong>{course.rate}%</strong>
+                </div>
 
-          {latestCourses.length === 0 && (
-            <p className="dept-empty-text">No latest courses available.</p>
-          )}
+                <div className="dept-progress-line">
+                  <div>
+                    <span style={{ width: `${course.rate}%` }}></span>
+                  </div>
+                </div>
+
+                <div className="dept-course-stats">
+                  <div>
+                    <span>Assigned</span>
+                    <b>{course.assigned}</b>
+                  </div>
+
+                  <div>
+                    <span>Completed</span>
+                    <b>{course.completed}</b>
+                  </div>
+
+                  <div>
+                    <span>In Progress</span>
+                    <b>{course.inProgress}</b>
+                  </div>
+
+                  <div>
+                    <span>Not Started</span>
+                    <b>{course.notStarted}</b>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="dept-large-card">
+        <div className="dept-section-head">
+          <div>
+            <span>Users</span>
+            <h2>Assigned User Progress</h2>
+          </div>
+        </div>
+
+        <div className="dept-table-wrap">
+          <table className="dept-table">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Email</th>
+                <th>Department</th>
+                <th>Designation</th>
+                <th>Assigned</th>
+                <th>Completed</th>
+                <th>In Progress</th>
+                <th>Not Started</th>
+                <th>Completion</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {userRows.length > 0 ? (
+                userRows.map((user) => (
+                  <tr key={user.id}>
+                    <td>
+                      <strong>{user.name}</strong>
+                    </td>
+                    <td>{user.email}</td>
+                    <td>{user.department}</td>
+                    <td>{user.designation}</td>
+                    <td>{user.assigned}</td>
+                    <td>{user.completed}</td>
+                    <td>{user.inProgress}</td>
+                    <td>{user.notStarted}</td>
+                    <td>
+                      <b>{user.rate}%</b>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="9">No assigned users found.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

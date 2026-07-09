@@ -49,7 +49,7 @@ function DepartmentAdminLayout() {
     { label: "Video Library", path: "/department-admin/video-library" },
     { label: "Assigned Users", path: "/department-admin/members" },
     { label: "Assign Course", path: "/department-admin/assignments" },
-    { label: "Reports", path: "/department-admin/analytics" },
+    // { label: "Reports", path: "/department-admin/analytics" },
   ];
 
   const learningItems = [

@@ -86,9 +86,15 @@ function ManageUsers() {
     if (!snap.exists()) return setUsers([]);
 
     const data = snap.val();
-    const userList = Object.entries(data)
-      .filter(([_, user]) => user.role === "user")
-      .map(([id, user]) => ({ id, ...user }));
+  const userList = Object.entries(data)
+  .filter(([_, user]) =>
+    user.role === "user" ||
+    user.role === "departmentAdmin"
+  )
+  .map(([id, user]) => ({
+    id,
+    ...user,
+  }));
 
     setUsers(userList);
   };
@@ -203,15 +209,23 @@ function ManageUsers() {
     e.preventDefault();
     if (!editingUserId) return;
     try {
-      await update(ref(database, `users/${editingUserId}`), {
-        name: form.name.trim(),
-        designation: form.designation.trim(),
-        seniority: form.seniority,
-        zone: form.zone.trim(),
-        state: form.state.trim(),
-        cityArea: form.cityArea.trim(),
-        updatedAt: new Date().toISOString(),
-      });
+    const oldUser = users.find((u) => u.id === editingUserId);
+
+await update(ref(database, `users/${editingUserId}`), {
+  role: oldUser?.role || "user",
+  department: oldUser?.department || "",
+  departmentId: oldUser?.departmentId || "",
+  departmentType: oldUser?.departmentType || "",
+
+  name: form.name.trim(),
+  designation: form.designation.trim(),
+  seniority: form.seniority,
+  zone: form.zone.trim(),
+  state: form.state.trim(),
+  cityArea: form.cityArea.trim(),
+
+  updatedAt: new Date().toISOString(),
+});
       alert("User updated successfully.");
       setEditingUserId(null);
       resetForm();
@@ -361,11 +375,23 @@ function ManageUsers() {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
     XLSX.writeFile(workbook, "user-template.xlsx");
   };
+const filteredUsers = users.filter((user) => {
+  const searchText = [
+    user.name,
+    user.email,
+    user.designation,
+    user.zone,
+    user.state,
+    user.cityArea,
+    user.role,
+    user.seniority,
+  ]
+    .map((value) => String(value ?? ""))
+    .join(" ")
+    .toLowerCase();
 
-  const filteredUsers = users.filter((user) =>
-    (user.name + user.email + user.cityArea).toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
+  return searchText.includes(searchTerm.toLowerCase());
+});
   return (
     <div className="manage-users-page">
       
