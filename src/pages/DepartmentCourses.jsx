@@ -34,13 +34,32 @@ function DepartmentCourses() {
         }))
       : [];
 
-    const canSeeAllCourses = user.role === "admin" || user.role === "superAdmin";
+   const role = String(user.role || "").toLowerCase();
 
-    const ownCourses = canSeeAllCourses
-      ? allCourses
-      : allCourses.filter((course) => course.department === user.department);
 
-    ownCourses.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+let visibleCourses = [];
+
+if (role === "superadmin" || role === "admin") {
+  // Superadmin and Admin can see all courses
+  visibleCourses = allCourses;
+} else if (role === "departmentadmin") {
+  // Department admin can see only own department courses
+  visibleCourses = allCourses.filter(
+    (course) => course.department === user.department
+  );
+} else {
+  // Normal user can see only assigned courses
+  const assignedCourseIds = user.assignedCourses || [];
+
+  visibleCourses = allCourses.filter((course) =>
+    assignedCourseIds.includes(course.id)
+  );
+}
+
+visibleCourses.sort(
+  (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+);
+
 
     const allCourseVideos = courseVideosSnap.exists() ? courseVideosSnap.val() : {};
 
@@ -51,7 +70,7 @@ function DepartmentCourses() {
         }))
       : [];
 
-    setCourses(ownCourses);
+   setCourses(visibleCourses);
     setCourseVideos(allCourseVideos);
     setVideoLibrary(libraryVideos);
   };
@@ -192,12 +211,17 @@ function DepartmentCourses() {
   }
 
   // ✅ Get Base Path to keep sidebar active
-  let basePath = "";
-  if (currentUser?.role === "superAdmin") basePath = "/super-admin";
-  else if (currentUser?.role === "admin") basePath = "/admin";
-  else if (currentUser?.role === "departmentAdmin") basePath = "/department-admin";
+// ✅ Get Base Path to keep sidebar active
+const role = String(currentUser?.role || "").toLowerCase();
 
-  const createCourseLink = `${basePath}/courses/create`; // Adjust to your specific create route if needed
+let basePath = "";
+
+if (role === "superadmin") basePath = "/super-admin";
+else if (role === "admin") basePath = "/admin";
+else if (role === "departmentadmin") basePath = "/department-admin";
+else basePath = "/user";
+
+ 
 
   return (
     <div className="department-courses-page">
@@ -208,7 +232,7 @@ function DepartmentCourses() {
             <h2>Course Library</h2>
             <p>{filteredCourses.length} of {courses.length} courses showing</p>
           </div>
-          <Link to={currentUser?.role === 'admin' || currentUser?.role === 'superAdmin' ? `${basePath}/add-course` : `${basePath}/courses/create`} className="create-course-btn">
+          <Link to={role === "admin" || role === "superadmin" ? `${basePath}/add-course` : `${basePath}/courses/create`} className="create-course-btn">
             + Create New Course
           </Link>
         </div>
@@ -221,7 +245,7 @@ function DepartmentCourses() {
             onChange={(e) => setSearch(e.target.value)}
           />
           
-          {(currentUser?.role === "admin" || currentUser?.role === "superAdmin") && (
+{(role === "admin" || role === "superadmin") && (
             <select value={filterDepartment} onChange={(e) => setFilterDepartment(e.target.value)}>
               <option value="">All Departments</option>
               {departmentOptions.map((dept) => (

@@ -20,7 +20,8 @@ function CertificatePage() {
   }, [id]);
 
   const fetchCertificateData = async () => {
-    const attemptSnap = await get(ref(database, `attempts/${id}`));
+    const attemptUserId = id.split("_")[0];
+    const attemptSnap = await get(ref(database, `attempts/${attemptUserId}/${id}`));
 
     if (!attemptSnap.exists()) return;
 

@@ -18,7 +18,8 @@ function ResultPage() {
 
   const fetchResult = async () => {
     try {
-      const resultSnap = await get(ref(database, `attempts/${id}`));
+      const attemptUserId = id.split("_")[0];
+      const resultSnap = await get(ref(database, `attempts/${attemptUserId}/${id}`));
 
       if (!resultSnap.exists()) {
         setResult(null);

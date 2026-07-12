@@ -279,7 +279,7 @@ const [
     if (isVideoQuiz) {
       const videoQuizAttemptId = `${user.uid}_${id}_videoQuiz_${Date.now()}`;
 
-      await set(ref(database, `videoQuizAttempts/${videoQuizAttemptId}`), {
+      await set(ref(database, `videoQuizAttempts/${user.uid}/${videoQuizAttemptId}`), {
         userId: user.uid,
         courseId: course.id,
         courseTitle: course.title || course.courseTitle || "",
@@ -301,7 +301,7 @@ const [
     const passed = total === 0 ? true : score >= passingScore;
     const attemptId = `${user.uid}_${course.id}_${Date.now()}`;
 
-    await set(ref(database, `attempts/${attemptId}`), {
+    await set(ref(database, `attempts/${user.uid}/${attemptId}`), {
       userId: user.uid,
       userName: user.displayName || "",
       courseId: course.id,

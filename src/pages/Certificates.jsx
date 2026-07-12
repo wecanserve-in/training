@@ -34,7 +34,7 @@ function Certificates() {
             .filter(([_, item]) => item?.passed && item?.attemptId)
             .map(async ([courseId, item]) => {
               const [attemptSnap, courseSnap, userSnap] = await Promise.all([
-                get(ref(database, `attempts/${item.attemptId}`)),
+                get(ref(database, `attempts/${user.uid}/${item.attemptId}`)),
                 get(ref(database, `courses/${courseId}`)),
                 get(ref(database, `users/${user.uid}`)),
               ]);

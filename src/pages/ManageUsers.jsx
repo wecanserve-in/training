@@ -509,7 +509,7 @@ const filteredUsers = users.filter((user) => {
                   <td>
                     <div className="action-buttons">
                       <button className="text-btn" onClick={() => startEditUser(user)}>Edit</button>
-                      <button className="text-btn" onClick={() => resetUserPassword(user.email)}>Reset Pwd</button>
+                      <button className="text-btn" onClick={() => resetUserPassword(user.email)}>Reset Password</button>
                       <button className="text-btn danger" onClick={() => deleteUser(user.id)}>Delete</button>
                     </div>
                   </td>

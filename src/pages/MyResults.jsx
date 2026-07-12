@@ -23,7 +23,7 @@ function MyResults() {
     }
 
     try {
-      const snapshot = await get(ref(database, "attempts"));
+      const snapshot = await get(ref(database, `attempts/${user.uid}`));
 
       if (!snapshot.exists()) {
         setResults([]);
@@ -40,7 +40,6 @@ function MyResults() {
         }))
         .filter((attempt) => {
           return (
-            attempt.userId === user.uid &&
             attempt.courseId &&
             !attempt.videoId &&
             attempt.reason !== "video_revision_quiz"

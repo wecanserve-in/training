@@ -1,4 +1,4 @@
-import { Link, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase";
@@ -8,7 +8,9 @@ import "../styles/superadminlayout.css";
 function SuperAdminLayout() {
   const navigate = useNavigate();
 
-  const [openLearning, setOpenLearning] = useState(false);
+  const [openTraining, setOpenTraining] = useState(true);
+  const [openReports, setOpenReports] = useState(true);
+  const [openMyLearning, setOpenMyLearning] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [userData, setUserData] = useState(null);
@@ -26,121 +28,194 @@ function SuperAdminLayout() {
     setSidebarCollapsed((prev) => !prev);
   };
 
+  const getInitials = () => {
+    if (userData?.name) {
+      return userData.name
+        .split(" ")
+        .map((word) => word[0])
+        .join("")
+        .substring(0, 2)
+        .toUpperCase();
+    }
+
+    return "SA";
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          setUserData(await loadUserProfile(user));
-        } catch (error) {
-          console.error("Failed to load super admin profile:", error);
-        }
+      if (!user) {
+        setUserData(null);
+        navigate("/");
+        return;
+      }
+
+      try {
+        setUserData(await loadUserProfile(user));
+      } catch (error) {
+        console.error("Failed to load super admin profile:", error);
       }
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [navigate]);
 
   return (
     <div className={`super-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       <div className="mobile-topbar">
         <img src="/Logo.webp" alt="Logo" />
-        <button onClick={() => setMobileOpen(true)}>☰</button>
+        <button type="button" onClick={() => setMobileOpen(true)}>
+          ☰
+        </button>
       </div>
 
       {mobileOpen && (
-        <div className="sidebar-backdrop" onClick={() => setMobileOpen(false)} />
+        <div className="sidebar-backdrop" onClick={closeMobileMenu} />
       )}
 
-<button
-  className={`desktop-sidebar-toggle ${sidebarCollapsed ? "is-hidden" : ""}`}
-  onClick={toggleSidebar}
->
-  {sidebarCollapsed ? "›" : "‹"}
-</button>
-
-<aside
-  className={`super-sidebar ${
-    mobileOpen ? "sidebar-open" : ""
-  } ${sidebarCollapsed ? "sidebar-hidden" : ""}`}
->
-        <button className="sidebar-close" onClick={() => setMobileOpen(false)}>
+      <aside className={`super-sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
+        <button type="button" className="sidebar-close" onClick={closeMobileMenu}>
           ×
         </button>
 
-    
-        <div className="sidebar-logo-box">
-          <img src="/Logo.webp" alt="Logo" />
+        <div className="sidebar-top">
+          <div className="sidebar-logo-box">
+            <img src="/Logo.webp" alt="Logo" />
+          </div>
+
+          <button
+            type="button"
+            className="sidebar-collapse-btn"
+            onClick={toggleSidebar}
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {sidebarCollapsed ? "›" : "‹"}
+          </button>
         </div>
 
         <div className="sidebar-profile">
-          <div className="profile-circle">
-            {userData?.name
-              ? userData.name
-                  .split(" ")
-                  .map((word) => word[0])
-                  .join("")
-                  .substring(0, 2)
-                  .toUpperCase()
-              : "SA"}
-          </div>
+          <div className="profile-circle">{getInitials()}</div>
 
-          <h3>{userData?.name || "Super Admin"}</h3>
-          <p>{userData?.email || auth.currentUser?.email}</p>
+          <div className="profile-text">
+            <h3>{userData?.name || "Super Admin"}</h3>
+            <p>{userData?.email || auth.currentUser?.email}</p>
+          </div>
         </div>
 
         <nav className="sidebar-menu">
-          <Link to="/super-admin" onClick={closeMobileMenu}>
+          <NavLink to="/super-admin" end onClick={closeMobileMenu}>
             <span>Dashboard</span>
-          </Link>
+          </NavLink>
 
-          <Link to="/super-admin/users" onClick={closeMobileMenu}>
-            <span>Add Users</span>
-          </Link>
+          <NavLink to="/super-admin/users" onClick={closeMobileMenu}>
+            <span>Users</span>
+          </NavLink>
 
-          <Link to="/super-admin/admins" onClick={closeMobileMenu}>
+          <NavLink to="/super-admin/admins" onClick={closeMobileMenu}>
             <span>Admins</span>
-          </Link>
+          </NavLink>
 
-          <Link to="/super-admin/departments" onClick={closeMobileMenu}>
+          <NavLink to="/super-admin/departments" onClick={closeMobileMenu}>
             <span>Departments</span>
-          </Link>
-
-          <Link to="/super-admin/analytics" onClick={closeMobileMenu}>
-            <span>Analytics</span>
-          </Link>
+          </NavLink>
 
           <div className="sidebar-dropdown">
             <button
               type="button"
-              className="dropdown-toggle"
-              onClick={() => setOpenLearning(!openLearning)}
+              className={`dropdown-toggle ${openTraining ? "active-dropdown" : ""}`}
+              onClick={() => setOpenTraining((prev) => !prev)}
             >
-              <span>My Learnings</span>
+              <span>Training</span>
+              <span className="dropdown-arrow">{openTraining ? "▾" : "›"}</span>
             </button>
 
-            {openLearning && (
+            {openTraining && (
               <div className="dropdown-submenu">
-                <Link to="/super-admin/my-learnings" onClick={closeMobileMenu}>
-                  My Learnings
-                </Link>
-                <Link to="/super-admin/assigned-courses" onClick={closeMobileMenu}>
+                <NavLink to="/super-admin/courses" onClick={closeMobileMenu}>
+                  Course Library
+                </NavLink>
+
+                <NavLink to="/super-admin/video-library" onClick={closeMobileMenu}>
+                  Video Library
+                </NavLink>
+
+                <NavLink to="/super-admin/assignments" onClick={closeMobileMenu}>
+                  Assign Course
+                </NavLink>
+              </div>
+            )}
+          </div>
+
+          <div className="sidebar-dropdown">
+            <button
+              type="button"
+              className={`dropdown-toggle ${openReports ? "active-dropdown" : ""}`}
+              onClick={() => setOpenReports((prev) => !prev)}
+            >
+              <span>Reports</span>
+              <span className="dropdown-arrow">{openReports ? "▾" : "›"}</span>
+            </button>
+
+            {openReports && (
+              <div className="dropdown-submenu">
+                <NavLink to="/super-admin/analytics" onClick={closeMobileMenu}>
+                  Progress Report
+                </NavLink>
+
+                <NavLink
+                  to="/super-admin/assignment-analytics"
+                  onClick={closeMobileMenu}
+                >
+                  Assigned Users
+                </NavLink>
+
+                <NavLink to="/super-admin/results" onClick={closeMobileMenu}>
+                  Test Records
+                </NavLink>
+              </div>
+            )}
+          </div>
+
+          <div className="sidebar-dropdown">
+            <button
+              type="button"
+              className={`dropdown-toggle ${
+                openMyLearning ? "active-dropdown" : ""
+              }`}
+              onClick={() => setOpenMyLearning((prev) => !prev)}
+            >
+              <span>My Courses</span>
+              <span className="dropdown-arrow">
+                {openMyLearning ? "▾" : "›"}
+              </span>
+            </button>
+
+            {openMyLearning && (
+              <div className="dropdown-submenu">
+                <NavLink to="/super-admin/assigned-courses" onClick={closeMobileMenu}>
                   Assigned Courses
-                </Link>
-                <Link to="/super-admin/my-results" onClick={closeMobileMenu}>
-                  My Results
-                </Link>
-                <Link to="/super-admin/certificates" onClick={closeMobileMenu}>
-                  Certificates
-                </Link>
-                <Link to="/super-admin/profile" onClick={closeMobileMenu}>
-                  Profile
-                </Link>
+                </NavLink>
+
+                <NavLink to="/super-admin/my-learnings" onClick={closeMobileMenu}>
+                  My Progress
+                </NavLink>
+
+                <NavLink to="/super-admin/my-results" onClick={closeMobileMenu}>
+                  My Test Results
+                </NavLink>
+
+                <NavLink to="/super-admin/certificates" onClick={closeMobileMenu}>
+                  My Certificates
+                </NavLink>
+
+                <NavLink to="/super-admin/profile" onClick={closeMobileMenu}>
+                  My Profile
+                </NavLink>
               </div>
             )}
           </div>
         </nav>
 
-        <button className="sidebar-logout" onClick={handleLogout}>
+        <button type="button" className="sidebar-logout" onClick={handleLogout}>
           <span>Logout</span>
         </button>
       </aside>

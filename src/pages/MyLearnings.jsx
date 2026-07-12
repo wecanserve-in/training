@@ -38,7 +38,7 @@ function MyLearnings() {
           videoLibrarySnap,
         ] = await Promise.all([
           get(ref(database, `progress/${user.uid}`)),
-          get(ref(database, "attempts")),
+          get(ref(database, `attempts/${user.uid}`)),
           get(ref(database, `completedCourses/${user.uid}`)),
           get(ref(database, "courses")),
           get(ref(database, "videos")),
@@ -70,7 +70,7 @@ function MyLearnings() {
               id: attemptId,
               ...item,
             }))
-            .filter((item) => item.userId === user.uid && item.courseId)
+            .filter((item) => item.courseId)
             .sort(
               (a, b) =>
                 new Date(b.submittedAt || 0).getTime() -
