@@ -1,0 +1,345 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+.au-page {
+  font-family: "Inter", sans-serif;
+  min-height: 100vh;
+  background: #f0faf5;
+  padding: 0 24px 28px;
+  color: #1e293b;
+}
+
+.au-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+/* ─── Animations ─── */
+@keyframes auFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes auCardIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes auRowIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes auBarGrow { from { width: 0; } }
+
+.au-fade-in { animation: auFadeIn 0.35s ease both; }
+.au-card-enter { animation: auCardIn 0.3s ease both; }
+.au-table-row-enter { animation: auRowIn 0.25s ease both; }
+
+/* ─── Hero ─── */
+.au-hero {
+  background: linear-gradient(135deg, #065f46 0%, #047857 40%, #059669 100%);
+  border-radius: 16px;
+  padding: 22px 28px;
+  margin-bottom: 14px;
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.au-hero::before {
+  content: "";
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  right: 40px;
+  top: -40px;
+  pointer-events: none;
+}
+
+.au-hero-left { display: flex; align-items: center; gap: 14px; z-index: 1; }
+
+.au-hero-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.au-hero h1 { font-size: 1.4rem; font-weight: 700; margin: 0 0 3px; color: #fff; }
+.au-hero p { font-size: 0.82rem; opacity: 0.9; margin: 0; color: rgba(255,255,255,0.9); }
+
+.au-hero-right { display: flex; gap: 20px; z-index: 1; }
+.au-hero-stat { text-align: center; }
+.au-hero-stat strong { display: block; font-size: 1.15rem; font-weight: 700; color: #fff; }
+.au-hero-stat span { font-size: 0.68rem; color: rgba(255,255,255,0.8); }
+.au-stat-done strong { color: #86efac; }
+.au-stat-prog strong { color: #fde68a; }
+.au-stat-wait strong { color: #fca5a5; }
+
+/* ─── Section Head ─── */
+.au-section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.au-section-head h2 { font-size: 0.95rem; font-weight: 600; color: #1e293b; margin: 0; }
+.au-section-head p { font-size: 0.75rem; color: #94a3b8; margin: 2px 0 0; }
+
+/* ─── Course List ─── */
+.au-course-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.au-course-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #e8f5ee;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.au-course-row:hover {
+  border-color: #059669;
+  background: #f8fdf9;
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(5,150,105,0.08);
+}
+
+.au-course-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.au-course-info { flex: 1; min-width: 0; }
+.au-course-info h3 { font-size: 0.9rem; font-weight: 600; color: #1e293b; margin: 0 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.au-course-info span { font-size: 0.72rem; color: #94a3b8; }
+
+.au-course-progress-wrap { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.au-course-progress-bar { width: 60px; height: 6px; background: #e8f5ee; border-radius: 100px; overflow: hidden; }
+.au-course-progress-bar span { display: block; height: 100%; background: linear-gradient(90deg, #86efac, #22c55e); border-radius: 100px; animation: auBarGrow 0.7s ease both; }
+.au-course-progress-wrap strong { font-size: 0.82rem; font-weight: 700; color: #16a34a; min-width: 34px; text-align: right; }
+
+/* ─── Toolbar ─── */
+.au-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.au-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid #e8f5ee;
+  background: #f0fdf4;
+  color: #059669;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: "Inter", sans-serif;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.au-back-btn:hover { background: #dcfce7; border-color: #059669; }
+
+.au-filters { display: flex; gap: 10px; align-items: center; flex: 1; flex-wrap: wrap; }
+
+.au-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid #e8f5ee;
+  border-radius: 8px;
+  padding: 7px 12px;
+  flex: 1;
+  min-width: 180px;
+  transition: border-color 0.2s;
+}
+
+.au-search-box:focus-within { border-color: #059669; }
+.au-search-box input { border: none; outline: none; background: transparent; font-size: 0.82rem; color: #1e293b; width: 100%; font-family: "Inter", sans-serif; }
+.au-search-box input::placeholder { color: #94a3b8; }
+
+/* ─── Status Pills ─── */
+.au-status-pills { display: flex; gap: 6px; }
+
+.au-pill {
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  font-family: "Inter", sans-serif;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.au-pill:hover { border-color: #059669; color: #059669; }
+.au-pill.active { background: #059669; color: #fff; border-color: #059669; }
+
+.au-pill-notstarted:hover, .au-pill-notstarted.active { background: #f1f5f9; color: #475569; border-color: #94a3b8; }
+.au-pill-progress:hover, .au-pill-progress.active { background: #fef3c7; color: #92400e; border-color: #fbbf24; }
+.au-pill-done:hover, .au-pill-done.active { background: #dcfce7; color: #166534; border-color: #22c55e; }
+
+/* ─── Status Bar ─── */
+.au-status-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.au-status-chip {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #e8f5ee;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.au-status-chip:hover { transform: translateY(-2px); box-shadow: 0 3px 8px rgba(0,0,0,0.05); }
+
+.au-status-chip strong { display: block; font-size: 1.3rem; font-weight: 700; color: #1e293b; }
+.au-status-chip span { font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.3px; }
+
+.au-chip-all { border-color: #e8f5ee; }
+.au-chip-notstarted { border-color: #e2e8f0; background: #f8fafc; }
+.au-chip-notstarted strong { color: #475569; }
+.au-chip-progress { border-color: #fde68a; background: #fffbeb; }
+.au-chip-progress strong { color: #d97706; }
+.au-chip-done { border-color: #bbf7d0; background: #f0fdf4; }
+.au-chip-done strong { color: #16a34a; }
+
+/* ─── Card / Table ─── */
+.au-card {
+  background: #fff;
+  border: 1px solid #e8f5ee;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.au-table-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.au-table-head h2 { font-size: 0.95rem; font-weight: 600; color: #1e293b; margin: 0; }
+
+.au-table-wrap { overflow-x: auto; }
+.au-table-wrap table { width: 100%; border-collapse: collapse; min-width: 750px; }
+
+.au-table-wrap th {
+  background: #f8fdf9;
+  padding: 9px 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #64748b;
+  border-bottom: 1px solid #e8f5ee;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.au-table-wrap td {
+  padding: 9px 12px;
+  font-size: 0.82rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.au-table-wrap tr:hover td { background: #f8fdf9; }
+.au-table-wrap tr:last-child td { border-bottom: none; }
+
+.au-td-idx { color: #94a3b8; font-size: 0.75rem; font-weight: 600; }
+.au-td-name strong { font-weight: 600; color: #1e293b; }
+.au-td-email { color: #94a3b8; font-size: 0.78rem; }
+
+/* ─── Status Badge ─── */
+.au-status-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.au-status-notStarted { background: #f1f5f9; color: #475569; }
+.au-status-inProgress { background: #fef3c7; color: #92400e; }
+.au-status-completed { background: #dcfce7; color: #166534; }
+
+/* ─── Unassign Button ─── */
+.au-unassign-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #dc2626;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: "Inter", sans-serif;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.au-unassign-btn:hover { background: #dc2626; color: #fff; border-color: #dc2626; }
+
+/* ─── Empty ─── */
+.au-empty {
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  padding: 24px 12px;
+  background: #f8fdf9;
+  border: 1px dashed #e8f5ee;
+  border-radius: 10px;
+  margin: 0;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .au-page { padding: 0 12px 20px; }
+  .au-hero { flex-direction: column; align-items: flex-start; padding: 18px 20px; gap: 14px; }
+  .au-hero-right { flex-wrap: wrap; gap: 12px; }
+  .au-hero h1 { font-size: 1.2rem; }
+  .au-toolbar { flex-direction: column; align-items: stretch; }
+  .au-filters { flex-direction: column; }
+  .au-search-box { min-width: 0; }
+  .au-status-pills { overflow-x: auto; flex-wrap: nowrap; }
+  .au-status-bar { flex-wrap: wrap; }
+  .au-status-chip { min-width: calc(50% - 5px); }
+}
+
+@media (max-width: 480px) {
+  .au-hero { margin: 0 0 10px; padding: 16px; }
+  .au-hero h1 { font-size: 1.05rem; }
+  .au-status-chip { min-width: 100%; }
+  .au-course-row { padding: 10px 12px; }
+  .au-course-avatar { width: 34px; height: 34px; font-size: 0.85rem; }
+}

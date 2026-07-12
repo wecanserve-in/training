@@ -9,7 +9,7 @@ function UserLayout() {
   const navigate = useNavigate();
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [desktopSidebarHidden, setDesktopSidebarHidden] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [userData, setUserData] = useState(null);
 
   useEffect(() => {
@@ -17,6 +17,7 @@ function UserLayout() {
       try {
         if (!currentUser) {
           setUserData(null);
+          navigate("/");
           return;
         }
 
@@ -28,7 +29,7 @@ function UserLayout() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [navigate]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -37,6 +38,10 @@ function UserLayout() {
 
   const closeMobileSidebar = () => {
     setMobileSidebarOpen(false);
+  };
+
+  const toggleCollapse = () => {
+    setSidebarCollapsed((prev) => !prev);
   };
 
   const displayName =
@@ -50,26 +55,17 @@ function UserLayout() {
     auth.currentUser?.email ||
     "";
 
+  const initials = displayName
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .substring(0, 2)
+    .toUpperCase();
+
   return (
-    <div
-      className={`learner-shell ${
-        desktopSidebarHidden ? "learner-sidebar-collapsed" : ""
-      }`}
-    >
-      <button
-        className={`learner-desktop-sidebar-toggle ${
-          desktopSidebarHidden ? "is-hidden" : ""
-        }`}
-        onClick={() => setDesktopSidebarHidden((prev) => !prev)}
-        type="button"
-        aria-label="Toggle sidebar"
-      >
-        {desktopSidebarHidden ? "›" : "‹"}
-      </button>
-
+    <div className={`learner-shell ${sidebarCollapsed ? "learner-sidebar-collapsed" : ""}`}>
       <div className="learner-mobile-topbar">
-        <img src="/Logo.webp" alt="Zuvius Logo" />
-
+        <img src="/Logo.webp" alt="Logo" />
         <button
           type="button"
           onClick={() => setMobileSidebarOpen(true)}
@@ -89,7 +85,7 @@ function UserLayout() {
       <aside
         className={`learner-side-nav ${
           mobileSidebarOpen ? "sidebar-open" : ""
-        } ${desktopSidebarHidden ? "sidebar-hidden" : ""}`}
+        }`}
       >
         <button
           className="learner-sidebar-close"
@@ -100,17 +96,26 @@ function UserLayout() {
           ×
         </button>
 
-        <div className="learner-logo-box">
-          <img src="/Logo.webp" alt="Zuvius Logo" />
+        <div className="learner-sidebar-top">
+          <div className="learner-logo-box">
+            <img src="/Logo.webp" alt="Logo" />
+          </div>
+          <button
+            type="button"
+            className="learner-sidebar-collapse-btn"
+            onClick={toggleCollapse}
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {sidebarCollapsed ? "›" : "‹"}
+          </button>
         </div>
 
         <div className="learner-sidebar-profile">
-          <div className="learner-profile-circle">
-            {displayName?.charAt(0)?.toUpperCase()}
+          <div className="learner-profile-circle">{initials}</div>
+          <div className="learner-sidebar-profile-text">
+            <h3>{displayName}</h3>
+            <p>{displayEmail}</p>
           </div>
-
-          <h3>{displayName}</h3>
-          <p>{displayEmail}</p>
         </div>
 
         <nav className="learner-nav-menu">

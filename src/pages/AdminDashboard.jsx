@@ -6,17 +6,16 @@ import "../styles/admindashboard.css";
 function AdminDashboard() {
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
-  const [courses, setCourses] = useState([]);
   const [completedCourses, setCompletedCourses] = useState({});
   const [results, setResults] = useState({});
   const [userAssignments, setUserAssignments] = useState({});
   const [oldAssignments, setOldAssignments] = useState({});
   const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [weeklyData, setWeeklyData] = useState([]);
 
   const objectToArray = (data) => {
     if (!data || typeof data !== "object") return [];
-
     return Object.entries(data).map(([id, value]) => ({
       id,
       ...(value && typeof value === "object" ? value : { value }),
@@ -33,9 +32,7 @@ function AdminDashboard() {
 
     const markLoaded = (path) => {
       loadedPaths.add(path);
-      if (loadedPaths.size === 8) {
-        setLoading(false);
-      }
+      if (loadedPaths.size === 7) setLoading(false);
     };
 
     const watchPath = (path, handler) => {
@@ -52,37 +49,38 @@ function AdminDashboard() {
       );
     };
 
-    const unsubUsers = watchPath("users", (snapshot) => {
-      setUsers(snapshot.exists() ? objectToArray(snapshot.val()) : []);
+    const unsubUsers = watchPath("users", (s) => {
+      setUsers(s.exists() ? objectToArray(s.val()) : []);
     });
 
-    const unsubDepartments = watchPath("departments", (snapshot) => {
-      setDepartments(snapshot.exists() ? objectToArray(snapshot.val()) : []);
+    const unsubDepartments = watchPath("departments", (s) => {
+      setDepartments(s.exists() ? objectToArray(s.val()) : []);
     });
 
-    const unsubCourses = watchPath("courses", (snapshot) => {
-      setCourses(snapshot.exists() ? objectToArray(snapshot.val()) : []);
+    const unsubCompletedCourses = watchPath("completedCourses", (s) => {
+      setCompletedCourses(s.exists() ? s.val() : {});
     });
 
-    const unsubCompletedCourses = watchPath("completedCourses", (snapshot) => {
-      setCompletedCourses(snapshot.exists() ? snapshot.val() : {});
+    const unsubResults = watchPath("results", (s) => {
+      setResults(s.exists() ? s.val() : {});
     });
 
-    const unsubResults = watchPath("results", (snapshot) => {
-      setResults(snapshot.exists() ? snapshot.val() : {});
+    const unsubUserAssignments = watchPath("userAssignments", (s) => {
+      setUserAssignments(s.exists() ? s.val() : {});
     });
 
-    const unsubUserAssignments = watchPath("userAssignments", (snapshot) => {
-      setUserAssignments(snapshot.exists() ? snapshot.val() : {});
+    const unsubOldAssignments = watchPath("assignments", (s) => {
+      setOldAssignments(s.exists() ? s.val() : {});
     });
 
-    const unsubOldAssignments = watchPath("assignments", (snapshot) => {
-      setOldAssignments(snapshot.exists() ? snapshot.val() : {});
-    });
-
-    const unsubAttempts = watchPath("attempts", (snapshot) => {
-      const list = snapshot.exists() ? objectToArray(snapshot.val()) : [];
-
+    const unsubAttempts = watchPath("attempts", (s) => {
+      const val = s.val() || {};
+      const list = [];
+      Object.entries(val).forEach(([uid, userAttempts]) => {
+        Object.entries(userAttempts || {}).forEach(([attemptId, attempt]) => {
+          list.push({ id: attemptId, userId: uid, ...attempt });
+        });
+      });
       setAttempts(
         list.sort(
           (a, b) =>
@@ -95,7 +93,6 @@ function AdminDashboard() {
     return () => {
       unsubUsers();
       unsubDepartments();
-      unsubCourses();
       unsubCompletedCourses();
       unsubResults();
       unsubUserAssignments();
@@ -104,208 +101,153 @@ function AdminDashboard() {
     };
   }, []);
 
-  const getRole = (user) => {
-    return String(user?.role || "").trim().toLowerCase();
-  };
+  const getRole = (user) => String(user?.role || "").trim().toLowerCase();
 
-  const learners = useMemo(() => {
-    return users.filter((user) => getRole(user) === "user");
-  }, [users]);
+  const learners = useMemo(() => users.filter((u) => getRole(u) === "user"), [users]);
 
-  const departmentAdmins = useMemo(() => {
-    return users.filter((user) => {
-      const role = getRole(user);
-      return (
-        role === "departmentadmin" ||
-        role === "department admin" ||
-        role === "department_admin" ||
-        role === "deptadmin" ||
-        role === "dept admin"
-      );
-    });
-  }, [users]);
+  const departmentAdmins = useMemo(
+    () =>
+      users.filter((u) => {
+        const r = getRole(u);
+        return r === "departmentadmin" || r === "department admin" || r === "department_admin" || r === "deptadmin" || r === "dept admin";
+      }),
+    [users]
+  );
 
   const assignments = useMemo(() => {
     const merged = {};
-
-    const addAssignments = (source) => {
+    const add = (source) => {
       if (!source || typeof source !== "object") return;
-
-      Object.entries(source).forEach(([userId, assignedData]) => {
-        if (!merged[userId]) {
-          merged[userId] = {};
-        }
-
-        if (Array.isArray(assignedData)) {
-          assignedData.forEach((courseId) => {
-            if (courseId) {
-              merged[userId][courseId] = true;
-            }
-          });
+      Object.entries(source).forEach(([userId, data]) => {
+        if (!merged[userId]) merged[userId] = {};
+        if (Array.isArray(data)) {
+          data.forEach((cId) => { if (cId) merged[userId][cId] = true; });
           return;
         }
-
-        if (assignedData && typeof assignedData === "object") {
-          merged[userId] = {
-            ...merged[userId],
-            ...assignedData,
-          };
-        }
+        if (data && typeof data === "object") merged[userId] = { ...merged[userId], ...data };
       });
     };
-
-    addAssignments(oldAssignments);
-    addAssignments(userAssignments);
-
+    add(oldAssignments);
+    add(userAssignments);
     return merged;
   }, [oldAssignments, userAssignments]);
 
-  const learnerIds = useMemo(() => {
-    return new Set(learners.map((user) => String(user.id)));
-  }, [learners]);
+  const learnerIds = useMemo(() => new Set(learners.map((u) => String(u.id))), [learners]);
 
-  const countValidItems = (data) => {
+  const countValid = (data) => {
     if (!data) return 0;
-
-    if (Array.isArray(data)) {
-      return data.filter(Boolean).length;
-    }
-
+    if (Array.isArray(data)) return data.filter(Boolean).length;
     if (typeof data !== "object") return 0;
-
-    return Object.values(data).filter(
-      (value) => value !== false && value !== null && value !== undefined
-    ).length;
+    return Object.values(data).filter((v) => v !== false && v !== null && v !== undefined).length;
   };
 
-  const getAssignedCourseCount = (userId) => {
-    return countValidItems(assignments?.[userId]);
-  };
+  const getAssignedCount = (userId) => countValid(assignments?.[userId]);
+  const getCompletedCount = (userId) => countValid(completedCourses?.[userId]);
 
-  const getCompletedCourseCount = (userId) => {
-    return countValidItems(completedCourses?.[userId]);
-  };
-
-  const getCertificateCount = (userId) => {
-    const userResults = results?.[userId];
-
-    if (!userResults || typeof userResults !== "object") return 0;
-
-    return Object.values(userResults).filter((result) => {
-      if (result === true) return true;
-
-      if (!result || typeof result !== "object") return false;
-
-      return (
-        result.passed === true ||
-        result.isPassed === true ||
-        String(result.status || "").toLowerCase() === "passed"
-      );
+  const getCertCount = (userId) => {
+    const r = results?.[userId];
+    if (!r || typeof r !== "object") return 0;
+    return Object.values(r).filter((v) => {
+      if (v === true) return true;
+      if (!v || typeof v !== "object") return false;
+      return v.passed === true || v.isPassed === true || String(v.status || "").toLowerCase() === "passed";
     }).length;
   };
 
-  const totalAssignedCourses = useMemo(() => {
-    return learners.reduce(
-      (total, user) => total + getAssignedCourseCount(user.id),
-      0
-    );
-  }, [learners, assignments]);
-
-  const totalCompletedCourses = useMemo(() => {
-    return learners.reduce(
-      (total, user) => total + getCompletedCourseCount(user.id),
-      0
-    );
-  }, [learners, completedCourses]);
-
-  const totalCertificates = useMemo(() => {
-    return learners.reduce(
-      (total, user) => total + getCertificateCount(user.id),
-      0
-    );
-  }, [learners, results]);
-
-  const pendingCourses = Math.max(
-    totalAssignedCourses - totalCompletedCourses,
-    0
+  const totalAssigned = useMemo(
+    () => learners.reduce((t, u) => t + getAssignedCount(u.id), 0),
+    [learners, assignments]
   );
 
-  const completionRate =
-    totalAssignedCourses > 0
-      ? Math.round((totalCompletedCourses / totalAssignedCourses) * 100)
-      : 0;
+  const totalCompleted = useMemo(
+    () => learners.reduce((t, u) => t + getCompletedCount(u.id), 0),
+    [learners, completedCourses]
+  );
 
-  const safeCompletionRate = Math.min(Math.max(completionRate, 0), 100);
-  const progressDegrees = safeCompletionRate * 3.6;
+  const totalCerts = useMemo(
+    () => learners.reduce((t, u) => t + getCertCount(u.id), 0),
+    [learners, results]
+  );
 
-  const usersNeedingAttention = useMemo(() => {
-    return learners
-      .map((user) => {
-        const assigned = getAssignedCourseCount(user.id);
-        const completed = getCompletedCourseCount(user.id);
+  const pendingCourses = Math.max(totalAssigned - totalCompleted, 0);
+  const completionRate = totalAssigned > 0 ? Math.round((totalCompleted / totalAssigned) * 100) : 0;
+  const safeRate = Math.min(Math.max(completionRate, 0), 100);
 
-        return {
-          ...user,
-          assigned,
-          completed,
-          pending: Math.max(assigned - completed, 0),
-          completion:
-            assigned > 0 ? Math.round((completed / assigned) * 100) : 0,
-        };
-      })
-      .filter((user) => user.assigned > 0 && user.completion < 100)
-      .sort((a, b) => b.pending - a.pending)
-      .slice(0, 6);
-  }, [learners, assignments, completedCourses]);
+  const usersNeedingAttention = useMemo(
+    () =>
+      learners
+        .map((u) => {
+          const a = getAssignedCount(u.id);
+          const c = getCompletedCount(u.id);
+          return { ...u, assigned: a, completed: c, pending: Math.max(a - c, 0), completion: a > 0 ? Math.round((c / a) * 100) : 0 };
+        })
+        .filter((u) => u.assigned > 0 && u.completion < 100)
+        .sort((a, b) => b.pending - a.pending)
+        .slice(0, 5),
+    [learners, assignments, completedCourses]
+  );
 
-  const departmentSummary = useMemo(() => {
-    return departments.slice(0, 6).map((dept) => {
-      const deptName = dept.departmentName || dept.name || dept.title || "";
-
-      const deptUsers = learners.filter(
-        (user) =>
-          String(user.department || "").trim().toLowerCase() ===
-          String(deptName).trim().toLowerCase()
-      );
-
-      const assigned = deptUsers.reduce(
-        (total, user) => total + getAssignedCourseCount(user.id),
-        0
-      );
-
-      const completed = deptUsers.reduce(
-        (total, user) => total + getCompletedCourseCount(user.id),
-        0
-      );
-
-      return {
-        ...dept,
-        deptName,
-        users: deptUsers.length,
-        assigned,
-        completed,
-        completion: assigned > 0 ? Math.round((completed / assigned) * 100) : 0,
-      };
-    });
-  }, [departments, learners, assignments, completedCourses]);
-
-  const recentActivity = useMemo(() => {
-    return attempts
-      .filter((attempt) => {
-        const attemptUserId = String(
-          attempt.userId ||
-            attempt.uid ||
-            attempt.employeeId ||
-            attempt.learnerId ||
-            ""
+  const departmentSummary = useMemo(
+    () =>
+      departments.slice(0, 5).map((dept) => {
+        const name = dept.departmentName || dept.name || dept.title || "";
+        const deptUsers = learners.filter(
+          (u) => String(u.department || "").trim().toLowerCase() === String(name).trim().toLowerCase()
         );
+        const a = deptUsers.reduce((t, u) => t + getAssignedCount(u.id), 0);
+        const c = deptUsers.reduce((t, u) => t + getCompletedCount(u.id), 0);
+        return { ...dept, deptName: name, users: deptUsers.length, assigned: a, completed: c, completion: a > 0 ? Math.round((c / a) * 100) : 0 };
+      }),
+    [departments, learners, assignments, completedCourses]
+  );
 
-        if (!attemptUserId) return true;
+  const recentActivity = useMemo(
+    () =>
+      attempts
+        .filter((att) => {
+          const uid = String(att.userId || "");
+          if (!uid) return true;
+          return learnerIds.has(uid);
+        })
+        .slice(0, 5),
+    [attempts, learnerIds]
+  );
 
-        return learnerIds.has(attemptUserId);
-      })
-      .slice(0, 6);
-  }, [attempts, learnerIds]);
+  useEffect(() => {
+    if (loading) return;
+
+    const now = Date.now();
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const bars = [];
+
+    for (let i = 6; i >= 0; i--) {
+      const dayStart = now - i * 24 * 60 * 60 * 1000;
+      const dayEnd = dayStart + 24 * 60 * 60 * 1000;
+      let count = 0;
+
+      Object.values(completedCourses).forEach((userCourses) => {
+        Object.values(userCourses || {}).forEach((val) => {
+          const ts = val?.completedAt || val?.date || val;
+          const time = typeof ts === "number" ? ts : new Date(ts).getTime();
+          if (Number.isFinite(time) && time >= dayStart && time < dayEnd) count += 1;
+        });
+      });
+
+      Object.values(results).forEach((userResults) => {
+        Object.values(userResults || {}).forEach((result) => {
+          const ts = result?.date || result?.submittedAt;
+          const time = typeof ts === "number" ? ts : new Date(ts).getTime();
+          if (Number.isFinite(time) && time >= dayStart && time < dayEnd) count += 1;
+        });
+      });
+
+      const date = new Date(dayStart);
+      bars.push({ label: dayNames[date.getDay()], value: count });
+    }
+
+    const maxBar = Math.max(...bars.map((b) => b.value), 1);
+    setWeeklyData(bars.map((b) => ({ ...b, height: (b.value / maxBar) * 100 })));
+  }, [loading, completedCourses, results]);
 
   if (loading) {
     return (
@@ -317,95 +259,138 @@ function AdminDashboard() {
 
   return (
     <div className="admin-dashboard-page">
-      <div className="admin-topbar">
-        <div>
-          <span>Admin Overview</span>
+      <section className="admin-hero">
+        <div className="hero-content">
+          <span className="hero-badge">Admin Overview</span>
           <h1>Training Dashboard</h1>
-          <p>
-            Course-wise overview of normal users, assignments, completions and
-            certificates.
-          </p>
+          <p>Course-wise overview of users, assignments, completions and certificates.</p>
+          <div className="hero-stats">
+            <div className="hero-stat">
+              <div className="hero-stat-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <div>
+                <strong>{learners.length}</strong>
+                <span>Users</span>
+              </div>
+            </div>
+            <div className="hero-stat">
+              <div className="hero-stat-icon admins-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              </div>
+              <div>
+                <strong>{departmentAdmins.length}</strong>
+                <span>Dept Admins</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="hero-decoration">
+          <div className="hero-circle-1"></div>
+          <div className="hero-circle-2"></div>
+        </div>
+      </section>
+
+      <section className="admin-stat-cards">
+        <div className="stat-card stat-users">
+          <div className="stat-card-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <div className="stat-card-info">
+            <span>Total Users</span>
+            <strong>{learners.length}</strong>
+          </div>
         </div>
 
-        <img src="/Logo.webp" alt="Logo" />
-      </div>
-
-      <div className="admin-kpi-grid">
-        <div className="admin-kpi-card">
-          <span>Total Users</span>
-          <h2>{learners.length}</h2>
-          <p>Only role user counted</p>
+        <div className="stat-card stat-dept-admins">
+          <div className="stat-card-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </div>
+          <div className="stat-card-info">
+            <span>Dept Admins</span>
+            <strong>{departmentAdmins.length}</strong>
+          </div>
         </div>
 
-        <div className="admin-kpi-card">
-          <span>Department Admins</span>
-          <h2>{departmentAdmins.length}</h2>
-          <p>Not included in user stats</p>
+        <div className="stat-card stat-assigned">
+          <div className="stat-card-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </div>
+          <div className="stat-card-info">
+            <span>Assigned</span>
+            <strong>{totalAssigned}</strong>
+          </div>
         </div>
 
-        <div className="admin-kpi-card">
-          <span>Active Courses</span>
-          <h2>{courses.length}</h2>
-          <p>Created training courses</p>
+        <div className="stat-card stat-pending">
+          <div className="stat-card-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div className="stat-card-info">
+            <span>Pending</span>
+            <strong>{pendingCourses}</strong>
+          </div>
         </div>
 
-        <div className="admin-kpi-card">
-          <span>Assigned Courses</span>
-          <h2>{totalAssignedCourses}</h2>
-          <p>Assigned only to users</p>
+        <div className="stat-card stat-completed">
+          <div className="stat-card-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div className="stat-card-info">
+            <span>Completed</span>
+            <strong>{totalCompleted}</strong>
+          </div>
         </div>
 
-        <div className="admin-kpi-card danger">
-          <span>Pending Courses</span>
-          <h2>{pendingCourses}</h2>
-          <p>Yet to be completed</p>
+        <div className="stat-card stat-rate">
+          <div className="stat-card-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+          </div>
+          <div className="stat-card-info">
+            <span>Completion</span>
+            <strong>{completionRate}%</strong>
+          </div>
         </div>
+      </section>
 
-        <div className="admin-kpi-card primary">
-          <span>Completion Rate</span>
-          <h2>{completionRate}%</h2>
-          <p>User course completion</p>
-        </div>
-      </div>
-
-      <div className="admin-main-grid no-actions">
+      <section className="admin-main-grid">
         <div className="admin-panel progress-panel">
           <div className="admin-panel-head">
             <span>Progress</span>
             <h2>Overall Training Status</h2>
           </div>
 
-          <div
-            className="progress-circle"
-            style={{
-              background: `conic-gradient(
-                #4285f4 0deg ${progressDegrees}deg,
-                #e8f0fe ${progressDegrees}deg 360deg
-              )`,
-            }}
-          >
-            <div>{completionRate}%</div>
+          <div className="progress-donut-wrap">
+            <svg className="progress-donut" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="50" fill="none" stroke="#e8f5ee" strokeWidth="12" />
+              <circle
+                cx="60" cy="60" r="50" fill="none"
+                stroke="#22c55e"
+                strokeWidth="12"
+                strokeDasharray={`${safeRate * 3.14} ${314 - safeRate * 3.14}`}
+                strokeDashoffset="78.5"
+                strokeLinecap="round"
+              />
+            </svg>
+            <div className="progress-donut-center">
+              <strong>{completionRate}%</strong>
+            </div>
           </div>
 
-          <p>
-            {totalCompletedCourses} of {totalAssignedCourses} assigned courses
-            completed.
-          </p>
+          <p>{totalCompleted} of {totalAssigned} assigned courses completed.</p>
 
           <div className="mini-stats">
             <div>
               <span>Completed</span>
-              <strong>{totalCompletedCourses}</strong>
+              <strong>{totalCompleted}</strong>
             </div>
-
             <div>
               <span>Pending</span>
               <strong>{pendingCourses}</strong>
             </div>
-
             <div>
               <span>Certificates</span>
-              <strong>{totalCertificates}</strong>
+              <strong>{totalCerts}</strong>
             </div>
           </div>
         </div>
@@ -424,20 +409,71 @@ function AdminDashboard() {
                 <div className="admin-user-row" key={user.id}>
                   <div>
                     <strong>{user.name || "Unnamed User"}</strong>
-                    <span>
-                      {user.designation || "User"} • Pending {user.pending}
-                    </span>
+                    <span>{user.designation || "User"} &bull; Pending {user.pending}</span>
                   </div>
-
                   <b>{user.completion}%</b>
                 </div>
               ))
             )}
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="admin-bottom-grid">
+      <section className="admin-chart-row">
+        <div className="admin-panel chart-panel">
+          <div className="admin-panel-head">
+            <span>Weekly</span>
+            <h2>This Week&apos;s Activity</h2>
+          </div>
+          <div className="admin-chart">
+            <div className="chart-y-axis">
+              <span>{Math.max(...weeklyData.map((d) => d.value), 0)}</span>
+              <span>{Math.round(Math.max(...weeklyData.map((d) => d.value), 0) / 2)}</span>
+              <span>0</span>
+            </div>
+            <div className="chart-body">
+              <div className="chart-bars">
+                {weeklyData.length === 0 ? (
+                  <p className="empty-text">No data</p>
+                ) : (
+                  weeklyData.map((d, i) => (
+                    <div className="chart-bar-col" key={i}>
+                      <div className="chart-bar" style={{ height: `${d.height}%` }}></div>
+                      <span className="chart-bar-label">{d.label}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="admin-gradient-cards">
+        <div className="gradient-card gradient-green">
+          <div className="gradient-card-content">
+            <strong>{totalCompleted}+</strong>
+            <span>Completed Courses</span>
+            <p>Finished by users</p>
+          </div>
+          <div className="gradient-card-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+        </div>
+
+        <div className="gradient-card gradient-purple">
+          <div className="gradient-card-content">
+            <strong>{totalCerts}+</strong>
+            <span>Certificates Earned</span>
+            <p>Passed assessments</p>
+          </div>
+          <div className="gradient-card-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+          </div>
+        </div>
+      </section>
+
+      <section className="admin-bottom-grid">
         <div className="admin-panel">
           <div className="admin-panel-head">
             <span>Departments</span>
@@ -452,12 +488,8 @@ function AdminDashboard() {
                 <div className="admin-user-row dept-row" key={dept.id}>
                   <div>
                     <strong>{dept.deptName || "-"}</strong>
-                    <span>
-                      Users {dept.users} • Assigned {dept.assigned} • Completed{" "}
-                      {dept.completed}
-                    </span>
+                    <span>Users {dept.users} &bull; Assigned {dept.assigned} &bull; Completed {dept.completed}</span>
                   </div>
-
                   <b>{dept.completion}%</b>
                 </div>
               ))
@@ -479,14 +511,8 @@ function AdminDashboard() {
                 <div className="admin-user-row" key={attempt.id}>
                   <div>
                     <strong>{attempt.userName || "Unnamed User"}</strong>
-                    <span>
-                      {attempt.courseTitle ||
-                        attempt.courseName ||
-                        attempt.videoTitle ||
-                        "Untitled Course"}
-                    </span>
+                    <span>{attempt.courseTitle || attempt.courseName || attempt.videoTitle || "Untitled Course"}</span>
                   </div>
-
                   <b className={attempt.passed ? "pass-text" : "fail-text"}>
                     {attempt.passed ? "Passed" : "Failed"}
                   </b>
@@ -495,7 +521,7 @@ function AdminDashboard() {
             )}
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

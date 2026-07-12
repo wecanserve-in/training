@@ -10,12 +10,16 @@ function DepartmentAdminLayout() {
   const location = useLocation();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [openLearning, setOpenLearning] = useState(false);
   const [profile, setProfile] = useState(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
-      if (!loggedUser) return;
+      if (!loggedUser) {
+        navigate("/");
+        return;
+      }
 
       try {
         setProfile(await loadUserProfile(loggedUser));
@@ -26,7 +30,7 @@ function DepartmentAdminLayout() {
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [navigate]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -34,7 +38,7 @@ function DepartmentAdminLayout() {
   };
 
   const initials = useMemo(() => {
-    const name = profile?.name || profile?.email || "Department Admin";
+    const name = profile?.name || profile?.email || "DA";
     return name
       .split(" ")
       .map((part) => part[0])
@@ -49,7 +53,6 @@ function DepartmentAdminLayout() {
     { label: "Video Library", path: "/department-admin/video-library" },
     { label: "Assigned Users", path: "/department-admin/members" },
     { label: "Assign Course", path: "/department-admin/assignments" },
-    // { label: "Reports", path: "/department-admin/analytics" },
   ];
 
   const learningItems = [
@@ -64,34 +67,44 @@ function DepartmentAdminLayout() {
     if (path === "/department-admin") {
       return location.pathname === "/department-admin";
     }
-
     return location.pathname === path;
   };
 
   const closeSidebar = () => setSidebarOpen(false);
+  const toggleCollapse = () => setSidebarCollapsed((prev) => !prev);
 
   return (
-    <div className="department-admin-layout">
-      <button className="dept-mobile-menu-btn" onClick={() => setSidebarOpen(true)}>
-        ☰
-      </button>
+    <div className={`department-admin-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+      <div className="mobile-topbar">
+        <img src="/Logo.webp" alt="Logo" />
+        <button type="button" onClick={() => setSidebarOpen(true)}>☰</button>
+      </div>
 
-      {sidebarOpen && <div className="dept-sidebar-overlay" onClick={closeSidebar}></div>}
+      {sidebarOpen && <div className="dept-sidebar-overlay" onClick={closeSidebar} />}
 
       <aside className={`dept-admin-sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
-        <button className="dept-sidebar-close" onClick={closeSidebar}>
-          ×
-        </button>
+        <button className="dept-sidebar-close" onClick={closeSidebar}>×</button>
 
-        <div className="dept-sidebar-logo-box">
-          <img src="/Logo.webp" alt="Logo" />
+        <div className="dept-sidebar-top">
+          <div className="dept-sidebar-logo-box">
+            <img src="/Logo.webp" alt="Logo" />
+          </div>
+          <button
+            type="button"
+            className="dept-sidebar-collapse-btn"
+            onClick={toggleCollapse}
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {sidebarCollapsed ? "›" : "‹"}
+          </button>
         </div>
 
         <div className="dept-sidebar-profile">
           <div className="dept-profile-circle">{initials}</div>
-          <h3>{profile?.name || "Department Admin"}</h3>
-          <p>{profile?.department || profile?.departmentType || "Department Training Lead"}</p>
-          {profile?.email && <small>{profile.email}</small>}
+          <div className="dept-sidebar-profile-text">
+            <h3>{profile?.name || "Department Admin"}</h3>
+            <p>{profile?.department || profile?.departmentType || "Dept Admin"}</p>
+          </div>
         </div>
 
         <nav className="dept-sidebar-menu">
@@ -112,8 +125,8 @@ function DepartmentAdminLayout() {
               className={`dept-dropdown-toggle ${openLearning ? "active" : ""}`}
               onClick={() => setOpenLearning(!openLearning)}
             >
-              My Learnings
-              <span>{openLearning ? "▴" : "▾"}</span>
+              <span>My Learnings</span>
+              <span className="dept-dropdown-arrow">{openLearning ? "▴" : "▾"}</span>
             </button>
 
             {openLearning && (

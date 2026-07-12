@@ -8,8 +8,8 @@ import "../styles/superadminlayout.css";
 function SuperAdminLayout() {
   const navigate = useNavigate();
 
-  const [openTraining, setOpenTraining] = useState(true);
-  const [openReports, setOpenReports] = useState(true);
+  const [openTraining, setOpenTraining] = useState(false);
+  const [openReports, setOpenReports] = useState(false);
   const [openMyLearning, setOpenMyLearning] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -162,7 +162,7 @@ function SuperAdminLayout() {
                 </NavLink>
 
                 <NavLink
-                  to="/super-admin/assignment-analytics"
+                  to="/super-admin/assigned-users"
                   onClick={closeMobileMenu}
                 >
                   Assigned Users

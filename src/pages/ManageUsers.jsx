@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { initializeApp, deleteApp } from "firebase/app";
 import {
   getAuth,
@@ -20,11 +20,8 @@ function ManageUsers() {
   const [searchTerm, setSearchTerm] = useState("");
   const [creating, setCreating] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
+  const [showForm, setShowForm] = useState(false);
 
-  // Drag & Drop State
-  const [dragActive, setDragActive] = useState(false);
-
-  // Modals State
   const [isDesignationModalOpen, setIsDesignationModalOpen] = useState(false);
   const [designations, setDesignations] = useState([]);
   const [newDesignation, setNewDesignation] = useState("");
@@ -50,13 +47,12 @@ function ManageUsers() {
     cityArea: "",
   });
 
-  // Strict Cascading Logic
   const availableZones = [...new Set(locations.map((loc) => loc.zone))].filter(Boolean);
-  
+
   const availableStates = [...new Set(
     locations.filter((loc) => loc.zone === form.zone).map((loc) => loc.state)
   )].filter(Boolean);
-  
+
   const availableCities = locations
     .filter((loc) => loc.zone === form.zone && loc.state === form.state)
     .flatMap((loc) => loc.cities || []);
@@ -70,12 +66,7 @@ function ManageUsers() {
     const snap = await get(ref(database, "master/designations"));
     if (snap.exists()) {
       const data = snap.val();
-      setDesignations(
-        Object.entries(data).map(([id, item]) => ({
-          id,
-          ...item,
-        }))
-      );
+      setDesignations(Object.entries(data).map(([id, item]) => ({ id, ...item })));
     } else {
       setDesignations([]);
     }
@@ -84,41 +75,22 @@ function ManageUsers() {
   const fetchUsers = async () => {
     const snap = await get(ref(database, "users"));
     if (!snap.exists()) return setUsers([]);
-
     const data = snap.val();
-  const userList = Object.entries(data)
-  .filter(([_, user]) =>
-    user.role === "user" ||
-    user.role === "departmentAdmin"
-  )
-  .map(([id, user]) => ({
-    id,
-    ...user,
-  }));
-
+    const userList = Object.entries(data)
+      .filter(([_, user]) => user.role === "user" || user.role === "departmentAdmin")
+      .map(([id, user]) => ({ id, ...user }));
     setUsers(userList);
   };
 
-  // Designation Functions
   const addDesignation = async () => {
     const name = newDesignation.trim();
     if (!name) return;
-
-    const exists = designations.some(
-      (item) => item.name.toLowerCase() === name.toLowerCase()
-    );
-
-    if (exists) {
+    if (designations.some((item) => item.name.toLowerCase() === name.toLowerCase())) {
       alert("Designation already exists.");
       return;
     }
-
     const newRef = push(ref(database, "master/designations"));
-    await set(newRef, {
-      name,
-      createdAt: new Date().toISOString(),
-    });
-
+    await set(newRef, { name, createdAt: new Date().toISOString() });
     setNewDesignation("");
     fetchMasterData();
   };
@@ -130,43 +102,19 @@ function ManageUsers() {
   };
 
   const resetForm = () => {
-    setForm({
-      name: "",
-      email: "",
-      designation: "",
-      seniority: "",
-      zone: "",
-      state: "",
-      cityArea: "",
-    });
+    setForm({ name: "", email: "", designation: "", seniority: "", zone: "", state: "", cityArea: "" });
   };
 
   const createUserRecord = async (userData) => {
-    if (
-      !userData.name ||
-      !userData.email ||
-      !userData.designation ||
-      !userData.seniority ||
-      !userData.cityArea
-    ) {
+    if (!userData.name || !userData.email || !userData.designation || !userData.seniority || !userData.cityArea) {
       return { success: false, error: "Missing required fields" };
     }
-
     const appName = `user-${Date.now()}-${Math.random()}`;
     const secondaryApp = initializeApp(firebaseConfig, appName);
     const secondaryAuth = getAuth(secondaryApp);
-
     try {
-      const userCredential = await createUserWithEmailAndPassword(
-        secondaryAuth,
-        userData.email.trim(),
-        DEFAULT_PASSWORD
-      );
-
-      await updateProfile(userCredential.user, {
-        displayName: userData.name.trim(),
-      });
-
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, userData.email.trim(), DEFAULT_PASSWORD);
+      await updateProfile(userCredential.user, { displayName: userData.name.trim() });
       await set(ref(database, `users/${userCredential.user.uid}`), {
         uid: userCredential.user.uid,
         name: userData.name.trim(),
@@ -181,7 +129,6 @@ function ManageUsers() {
         mustChangePassword: true,
         createdAt: new Date().toISOString(),
       });
-
       await sendPasswordResetEmail(secondaryAuth, userData.email.trim());
       return { success: true };
     } catch (error) {
@@ -198,6 +145,7 @@ function ManageUsers() {
     if (result.success) {
       alert("User created successfully. Password reset email sent.");
       resetForm();
+      setShowForm(false);
       fetchUsers();
     } else {
       alert(result.error);
@@ -209,25 +157,23 @@ function ManageUsers() {
     e.preventDefault();
     if (!editingUserId) return;
     try {
-    const oldUser = users.find((u) => u.id === editingUserId);
-
-await update(ref(database, `users/${editingUserId}`), {
-  role: oldUser?.role || "user",
-  department: oldUser?.department || "",
-  departmentId: oldUser?.departmentId || "",
-  departmentType: oldUser?.departmentType || "",
-
-  name: form.name.trim(),
-  designation: form.designation.trim(),
-  seniority: form.seniority,
-  zone: form.zone.trim(),
-  state: form.state.trim(),
-  cityArea: form.cityArea.trim(),
-
-  updatedAt: new Date().toISOString(),
-});
+      const oldUser = users.find((u) => u.id === editingUserId);
+      await update(ref(database, `users/${editingUserId}`), {
+        role: oldUser?.role || "user",
+        department: oldUser?.department || "",
+        departmentId: oldUser?.departmentId || "",
+        departmentType: oldUser?.departmentType || "",
+        name: form.name.trim(),
+        designation: form.designation.trim(),
+        seniority: form.seniority,
+        zone: form.zone.trim(),
+        state: form.state.trim(),
+        cityArea: form.cityArea.trim(),
+        updatedAt: new Date().toISOString(),
+      });
       alert("User updated successfully.");
       setEditingUserId(null);
+      setShowForm(false);
       resetForm();
       fetchUsers();
     } catch (error) {
@@ -246,11 +192,12 @@ await update(ref(database, `users/${editingUserId}`), {
       state: user.state || "",
       cityArea: user.cityArea || "",
     });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setShowForm(true);
   };
 
   const cancelEdit = () => {
     setEditingUserId(null);
+    setShowForm(false);
     resetForm();
   };
 
@@ -274,40 +221,25 @@ await update(ref(database, `users/${editingUserId}`), {
     }
   };
 
-  // Bulk Upload Logic
   const processFile = async (file) => {
     if (!file) return;
     setCreating(true);
-
     const data = await file.arrayBuffer();
     const workbook = XLSX.read(data);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sheet);
-
     let successCount = 0;
     let skippedCount = 0;
     let failCount = 0;
     const uploadErrors = [];
 
-    setUploadModal({
-      open: true,
-      current: 0,
-      total: rows.length,
-      success: 0,
-      failed: 0,
-      status: "processing",
-      errors: [],
-    });
+    setUploadModal({ open: true, current: 0, total: rows.length, success: 0, failed: 0, status: "processing", errors: [] });
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       setUploadModal((prev) => ({ ...prev, current: i + 1 }));
-
       const city = row.cityArea || row.CityArea || row.City || row.city || "";
-      const matchedLocation = locations.find((location) =>
-        location.cities.includes(city)
-      );
-
+      const matchedLocation = locations.find((location) => location.cities.includes(city));
       const result = await createUserRecord({
         name: row.name || row.Name || "",
         email: row.email || row.Email || "",
@@ -317,7 +249,6 @@ await update(ref(database, `users/${editingUserId}`), {
         zone: matchedLocation?.zone || "",
         state: matchedLocation?.state || "",
       });
-
       if (result.success) {
         successCount++;
       } else if (result.error.includes("already-in-use")) {
@@ -329,43 +260,14 @@ await update(ref(database, `users/${editingUserId}`), {
       }
     }
 
-    setUploadModal((prev) => ({
-      ...prev,
-      status: "done",
-      success: successCount,
-      skipped: skippedCount,
-      failed: failCount,
-      errors: uploadErrors,
-    }));
+    setUploadModal((prev) => ({ ...prev, status: "done", success: successCount, skipped: skippedCount, failed: failCount, errors: uploadErrors }));
     setCreating(false);
     fetchUsers();
   };
 
-  // Drag Events
-  const handleDrag = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      processFile(e.dataTransfer.files[0]);
-    }
-  };
-
   const handleFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      processFile(e.target.files[0]);
-    }
-    e.target.value = ""; // reset input
+    if (e.target.files && e.target.files[0]) processFile(e.target.files[0]);
+    e.target.value = "";
   };
 
   const downloadTemplate = () => {
@@ -375,122 +277,136 @@ await update(ref(database, `users/${editingUserId}`), {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
     XLSX.writeFile(workbook, "user-template.xlsx");
   };
-const filteredUsers = users.filter((user) => {
-  const searchText = [
-    user.name,
-    user.email,
-    user.designation,
-    user.zone,
-    user.state,
-    user.cityArea,
-    user.role,
-    user.seniority,
-  ]
-    .map((value) => String(value ?? ""))
-    .join(" ")
-    .toLowerCase();
 
-  return searchText.includes(searchTerm.toLowerCase());
-});
+  const filteredUsers = users.filter((user) => {
+    const searchText = [user.name, user.email, user.designation, user.zone, user.state, user.cityArea, user.role, user.seniority]
+      .map((v) => String(v ?? "")).join(" ").toLowerCase();
+    return searchText.includes(searchTerm.toLowerCase());
+  });
+
+  const seniorityColor = (s) => {
+    if (s === "senior") return { bg: "#dcfce7", color: "#166534" };
+    if (s === "junior") return { bg: "#dbeafe", color: "#1e40af" };
+    return { bg: "#fef3c7", color: "#92400e" };
+  };
+
   return (
     <div className="manage-users-page">
-      
-      {/* 1. USER CREATION FORM */}
-      <div className="users-card full-user-form-card">
-        <div className="card-title-row">
-          <div>
-            <h2>{editingUserId ? "Edit User" : "Add New User"}</h2>
-            <p>Select Zone first, then State, then City to ensure correct mapping.</p>
+
+      {/* Hero Banner */}
+      <section className="mu-hero">
+        <div className="mu-hero-content">
+          <h1>Manage Users</h1>
+          <p>Add, edit, upload and manage all users from one place.</p>
+        </div>
+        <div className="mu-hero-stats">
+          <div className="mu-hero-stat">
+            <div className="mu-hero-stat-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div>
+              <strong>{users.length}</strong>
+              <span>Total Users</span>
+            </div>
           </div>
-          <div className="title-actions">
-            <button type="button" className="outline-btn green" onClick={() => setIsDesignationModalOpen(true)}>
-              + Manage Designations
-            </button>
-            <span className="password-pill">Default Password: {DEFAULT_PASSWORD}</span>
+          <div className="mu-hero-stat">
+            <div className="mu-hero-stat-icon dept-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </div>
+            <div>
+              <strong>{users.filter((u) => u.role === "departmentAdmin").length}</strong>
+              <span>Dept Admins</span>
+            </div>
           </div>
         </div>
+      </section>
 
-        <form onSubmit={editingUserId ? updateExistingUser : createSingleUser} className="users-form-grid">
-          <input placeholder="Full Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-          <input placeholder="Email Address" type="email" value={form.email} disabled={!!editingUserId} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
-          
-          <select className="nice-select" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} required>
-            <option value="" disabled>Select Designation</option>
-            {designations.map((item) => (
-              <option key={item.id} value={item.name}>{item.name}</option>
-            ))}
-          </select>
-
-          <select className="nice-select" value={form.seniority} onChange={(e) => setForm({ ...form, seniority: e.target.value })} required>
-            <option value="" disabled>Select Seniority</option>
-            <option value="senior">Senior</option>
-            <option value="junior">Junior</option>
-            <option value="intern">Intern</option>
-          </select>
-
-          {/* STRICT CASCADING LOCATIONS */}
-          <select className="nice-select" value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value, state: "", cityArea: "" })} required>
-            <option value="" disabled>1. Select Zone</option>
-            {availableZones.map((z) => <option key={z} value={z}>{z}</option>)}
-          </select>
-
-          <select className="nice-select" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value, cityArea: "" })} disabled={!form.zone} required>
-            <option value="" disabled>{form.zone ? "2. Select State" : "Select Zone First"}</option>
-            {availableStates.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-
-          <select className="nice-select" value={form.cityArea} onChange={(e) => setForm({ ...form, cityArea: e.target.value })} disabled={!form.state} required>
-            <option value="" disabled>{form.state ? "3. Select City" : "Select State First"}</option>
-            {availableCities.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-
-          <button type="submit" className="primary-btn" disabled={creating}>
-            {editingUserId ? "Update User" : creating ? "Creating..." : "Create User"}
+      {/* Top Action Bar */}
+      <div className="mu-action-bar">
+        <div className="mu-search-box">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input type="text" placeholder="Search by name, email, designation, city..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+        </div>
+        <div className="mu-action-buttons">
+          <button className="mu-btn mu-btn-outline" onClick={downloadTemplate}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download Template
           </button>
-          
-          {editingUserId && (
-            <button type="button" className="cancel-btn" onClick={cancelEdit}>Cancel</button>
-          )}
-        </form>
-      </div>
-
-      {/* 2. DRAG & DROP BULK UPLOAD */}
-      <div 
-        className={`users-card bulk-drag-card ${dragActive ? "drag-active" : ""}`}
-        onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
-      >
-        <div className="bulk-drag-content">
-          <div className="drag-icon">📁</div>
-          <h2>Drag & Drop Excel File Here</h2>
-          <p>or click the button below to browse files</p>
-          
-          <div className="bulk-actions">
-            <label className="primary-btn upload-label">
-              <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileChange} style={{ display: "none" }} />
-              Browse File
-            </label>
-            <button className="outline-btn" onClick={downloadTemplate}>Download Template</button>
-          </div>
+          <label className="mu-btn mu-btn-outline">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Upload Excel
+            <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileChange} style={{ display: "none" }} />
+          </label>
+          <button className="mu-btn mu-btn-outline" onClick={() => setIsDesignationModalOpen(true)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            Manage Designation
+          </button>
+          <button className="mu-btn mu-btn-primary" onClick={() => { setEditingUserId(null); resetForm(); setShowForm(true); }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add New User
+          </button>
         </div>
       </div>
 
-      {/* 3. USERS TABLE */}
-      <div className="users-card">
-        <div className="card-title-row">
+      {/* Inline Form (Add/Edit) */}
+      {showForm && (
+        <div className="mu-form-card">
+          <div className="mu-form-header">
+            <h2>{editingUserId ? "Edit User" : "Add New User"}</h2>
+            <span className="mu-password-pill">Default Password: {DEFAULT_PASSWORD}</span>
+          </div>
+          <form onSubmit={editingUserId ? updateExistingUser : createSingleUser} className="mu-form-grid">
+            <input placeholder="Full Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+            <input placeholder="Email Address" type="email" value={form.email} disabled={!!editingUserId} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+            <select className="nice-select" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} required>
+              <option value="" disabled>Select Designation</option>
+              {designations.map((item) => (<option key={item.id} value={item.name}>{item.name}</option>))}
+            </select>
+            <select className="nice-select" value={form.seniority} onChange={(e) => setForm({ ...form, seniority: e.target.value })} required>
+              <option value="" disabled>Select Seniority</option>
+              <option value="senior">Senior</option>
+              <option value="junior">Junior</option>
+              <option value="intern">Intern</option>
+            </select>
+            <select className="nice-select" value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value, state: "", cityArea: "" })} required>
+              <option value="" disabled>1. Select Zone</option>
+              {availableZones.map((z) => <option key={z} value={z}>{z}</option>)}
+            </select>
+            <select className="nice-select" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value, cityArea: "" })} disabled={!form.zone} required>
+              <option value="" disabled>{form.zone ? "2. Select State" : "Select Zone First"}</option>
+              {availableStates.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <select className="nice-select" value={form.cityArea} onChange={(e) => setForm({ ...form, cityArea: e.target.value })} disabled={!form.state} required>
+              <option value="" disabled>{form.state ? "3. Select City" : "Select State First"}</option>
+              {availableCities.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <div className="mu-form-actions">
+              <button type="submit" className="mu-btn mu-btn-primary" disabled={creating}>
+                {editingUserId ? "Update User" : creating ? "Creating..." : "Create User"}
+              </button>
+              <button type="button" className="mu-btn mu-btn-cancel" onClick={cancelEdit}>Cancel</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Users Table Card */}
+      <div className="mu-table-card">
+        <div className="mu-table-header">
           <div>
-            <h2>Existing Users</h2>
+            <h2>All Users</h2>
             <p>{filteredUsers.length} users found</p>
           </div>
-          <input type="text" className="search-input" placeholder="Search by name, email or city..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
         </div>
-
-        <div className="users-table-wrap">
+        <div className="mu-table-wrap">
           <table>
             <thead>
               <tr>
+                <th>#</th>
                 <th>Name</th>
                 <th>Email</th>
                 <th>Designation</th>
+                <th>Seniority</th>
                 <th>Zone</th>
                 <th>State</th>
                 <th>City</th>
@@ -498,32 +414,44 @@ const filteredUsers = users.filter((user) => {
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.map((user) => (
+              {filteredUsers.map((user, idx) => (
                 <tr key={user.id}>
-                  <td>{user.name}</td>
-                  <td>{user.email}</td>
-                  <td>{user.designation}</td>
-                  <td>{user.zone}</td>
-                  <td>{user.state}</td>
-                  <td>{user.cityArea}</td>
+                  <td className="mu-td-idx">{idx + 1}</td>
+                  <td className="mu-td-name">{user.name}</td>
+                  <td className="mu-td-email">{user.email}</td>
+                  <td>{user.designation || "-"}</td>
                   <td>
-                    <div className="action-buttons">
-                      <button className="text-btn" onClick={() => startEditUser(user)}>Edit</button>
-                      <button className="text-btn" onClick={() => resetUserPassword(user.email)}>Reset Password</button>
-                      <button className="text-btn danger" onClick={() => deleteUser(user.id)}>Delete</button>
+                    <span className="mu-badge" style={seniorityColor(user.seniority)}>
+                      {user.seniority || "-"}
+                    </span>
+                  </td>
+                  <td>{user.zone || "-"}</td>
+                  <td>{user.state || "-"}</td>
+                  <td>{user.cityArea || "-"}</td>
+                  <td>
+                    <div className="mu-actions">
+                      <button className="mu-action-edit" onClick={() => startEditUser(user)} title="Edit">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                      </button>
+                      <button className="mu-action-reset" onClick={() => resetUserPassword(user.email)} title="Reset Password">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                      </button>
+                      <button className="mu-action-delete" onClick={() => deleteUser(user.id)} title="Delete">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
                     </div>
                   </td>
                 </tr>
               ))}
               {filteredUsers.length === 0 && (
-                <tr><td colSpan="7" className="text-center">No users found.</td></tr>
+                <tr><td colSpan="9" className="mu-empty">No users found.</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* 4. DESIGNATION MODAL */}
+      {/* Designation Modal */}
       {isDesignationModalOpen && (
         <div className="modal-overlay" onClick={() => setIsDesignationModalOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -531,14 +459,12 @@ const filteredUsers = users.filter((user) => {
               <h2>Manage Designations</h2>
               <button className="close-btn" onClick={() => setIsDesignationModalOpen(false)}>×</button>
             </div>
-            
             <div className="designation-input-row">
               <input placeholder="Type new designation..." value={newDesignation} onChange={(e) => setNewDesignation(e.target.value)} />
-              <button className="primary-btn" onClick={addDesignation}>Add</button>
+              <button className="mu-btn mu-btn-primary" onClick={addDesignation}>Add</button>
             </div>
-
             <div className="designations-list">
-              {designations.length === 0 ? <p className="text-muted">No designations added.</p> : null}
+              {designations.length === 0 && <p className="text-muted">No designations added.</p>}
               {designations.map((item) => (
                 <div key={item.id} className="designation-item">
                   <span>{item.name}</span>
@@ -550,7 +476,7 @@ const filteredUsers = users.filter((user) => {
         </div>
       )}
 
-      {/* 5. UPLOAD PROGRESS MODAL (Kept similar to your original logic) */}
+      {/* Upload Progress Modal */}
       {uploadModal.open && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -564,7 +490,7 @@ const filteredUsers = users.filter((user) => {
               <span className="error">❌ {uploadModal.failed} Failed</span>
             </div>
             {uploadModal.status === "done" && (
-              <button className="primary-btn w-100 mt-3" onClick={() => setUploadModal({ ...uploadModal, open: false })}>Done</button>
+              <button className="mu-btn mu-btn-primary w-100 mt-3" onClick={() => setUploadModal({ ...uploadModal, open: false })}>Done</button>
             )}
           </div>
         </div>

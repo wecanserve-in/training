@@ -8,8 +8,8 @@ import "../styles/superadminlayout.css";
 function AdminLayout() {
   const navigate = useNavigate();
 
-  const [openTraining, setOpenTraining] = useState(true);
-  const [openReports, setOpenReports] = useState(true);
+  const [openTraining, setOpenTraining] = useState(false);
+  const [openReports, setOpenReports] = useState(false);
   const [openMyLearning, setOpenMyLearning] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -72,34 +72,33 @@ function AdminLayout() {
         <div className="sidebar-backdrop" onClick={closeMobileMenu} />
       )}
 
-      <button
-        type="button"
-        className={`desktop-sidebar-toggle ${
-          sidebarCollapsed ? "is-hidden" : ""
-        }`}
-        onClick={toggleSidebar}
-      >
-        {sidebarCollapsed ? "›" : "‹"}
-      </button>
-
-      <aside
-        className={`super-sidebar ${
-          mobileOpen ? "sidebar-open" : ""
-        } ${sidebarCollapsed ? "sidebar-hidden" : ""}`}
-      >
+      <aside className={`super-sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
         <button type="button" className="sidebar-close" onClick={closeMobileMenu}>
           ×
         </button>
 
-        <div className="sidebar-logo-box">
-          <img src="/Logo.webp" alt="Logo" />
+        <div className="sidebar-top">
+          <div className="sidebar-logo-box">
+            <img src="/Logo.webp" alt="Logo" />
+          </div>
+
+          <button
+            type="button"
+            className="sidebar-collapse-btn"
+            onClick={toggleSidebar}
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {sidebarCollapsed ? "›" : "‹"}
+          </button>
         </div>
 
         <div className="sidebar-profile">
           <div className="profile-circle">{getInitials()}</div>
 
-          <h3>{userData?.name || "Admin"}</h3>
-          <p>{userData?.email || auth.currentUser?.email}</p>
+          <div className="profile-text">
+            <h3>{userData?.name || "Admin"}</h3>
+            <p>{userData?.email || auth.currentUser?.email}</p>
+          </div>
         </div>
 
         <nav className="sidebar-menu">
