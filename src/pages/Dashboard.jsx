@@ -266,8 +266,6 @@ function Dashboard() {
     };
   }, [allVideosFlat, progressMap, courses, courseVideosMap]);
 
-
-
   const newlyAssignedCourses = useMemo(() => {
     return [...courses]
       .sort(
@@ -275,405 +273,185 @@ function Dashboard() {
           new Date(b.assignment?.assignedAt || b.createdAt || 0) -
           new Date(a.assignment?.assignedAt || a.createdAt || 0)
       )
-      .slice(0, 4);
+      .slice(0, 3);
   }, [courses]);
 
   if (loading) {
     return <h2 className="dashboard-loading">Loading Dashboard...</h2>;
   }
 
- return (
-  <div className="learner-dashboard-page">
-
-    {/* HERO */}
-
-    <section className="dashboard-hero">
-
-      <div className="hero-left">
-
-        <span className="hero-badge">
-          👋 Welcome Back
-        </span>
-
-        <h1>
-          Hi, {userData?.name || "Learner"}
-        </h1>
-
-        <p>
-          Continue your assigned learning and keep your progress moving.
-        </p>
-
-        {continueVideo && (
-          <Link
-            to={`/course/${continueVideo.courseId}`}
-            className="hero-button"
-          >
-            Continue Learning
-          </Link>
-        )}
-
-      </div>
-
-      <div className="hero-right">
-
-        <div className="hero-progress-card">
-
-          <span>Overall Progress</span>
-
-          <h2>{progressPercent}%</h2>
-
-          <div className="hero-progress">
-
-            <span
-              style={{
-                width: `${progressPercent}%`,
-              }}
-            />
-
+return (
+  <div className="super-dashboard">
+    <section className="dash-hero">
+      <div className="hero-content">
+        <h1>Hi, {userData?.name || "Learner"}</h1>
+        <p>Continue your assigned learning and keep your progress moving.</p>
+        <div className="hero-stats">
+          <div className="hero-stat">
+            <div className="hero-stat-icon">
+              <FaBookOpen />
+            </div>
+            <div>
+              <strong>{totalCourses}</strong>
+              <span>Assigned</span>
+            </div>
           </div>
-
-          <small>
-            {completedCount} of {totalCourses} courses completed
-          </small>
-
+          <div className="hero-stat">
+            <div className="hero-stat-icon admins-icon">
+              <FaClock />
+            </div>
+            <div>
+              <strong>{inProgressCount}</strong>
+              <span>In Progress</span>
+            </div>
+          </div>
+          <div className="hero-stat">
+            <div className="hero-stat-icon dept-icon">
+              <FaCheckCircle />
+            </div>
+            <div>
+              <strong>{completedCount}</strong>
+              <span>Completed</span>
+            </div>
+          </div>
         </div>
-
       </div>
-
+      <div className="hero-decoration">
+        <div className="hero-circle-1"></div>
+        <div className="hero-circle-2"></div>
+      </div>
     </section>
 
-    
-    {/* CONTINUE LEARNING */}
-
-    <section className="continue-section">
-
-      <div className="section-header">
-
-        <div>
-
-          <h2>Continue Learning</h2>
-
-          <p>
-            Resume where you left off.
-          </p>
-
+    <section className="dash-stat-cards">
+      <div className="stat-card stat-courses">
+        <div className="stat-card-icon">
+          <FaBookOpen />
         </div>
-
-        <Link to="/assigned-courses">
-
-          View All
-
-        </Link>
-
+        <div className="stat-card-info">
+          <span>Assigned</span>
+          <strong>{totalCourses}</strong>
+        </div>
       </div>
+      <div className="stat-card stat-progress">
+        <div className="stat-card-icon">
+          <FaClock />
+        </div>
+        <div className="stat-card-info">
+          <span>In Progress</span>
+          <strong>{inProgressCount}</strong>
+        </div>
+      </div>
+      <div className="stat-card stat-completed">
+        <div className="stat-card-icon">
+          <FaCheckCircle />
+        </div>
+        <div className="stat-card-info">
+          <span>Completed</span>
+          <strong>{completedCount}</strong>
+        </div>
+      </div>
+      <div className="stat-card stat-cert">
+        <div className="stat-card-icon">
+          <FaCertificate />
+        </div>
+        <div className="stat-card-info">
+          <span>Certificates</span>
+          <strong>{passedCount}</strong>
+        </div>
+      </div>
+      <div className="stat-card stat-rate">
+        <div className="stat-card-icon">
+          <FaCheckCircle />
+        </div>
+        <div className="stat-card-info">
+          <span>Completion Rate</span>
+          <strong>{progressPercent}%</strong>
+        </div>
+      </div>
+    </section>
 
-      {continueVideo ? (
-
-        <div className="continue-card">
-
+    {continueVideo && (
+      <section className="continue-section">
+        <div className="card-head">
+          <div>
+            <h2>Continue Learning</h2>
+            <p>Resume where you left off</p>
+          </div>
+        </div>
+        <Link to={`/course/${continueVideo.courseId}`} className="continue-card">
           <div className="continue-image">
-
-            {continueVideo.thumbnailUrl ||
-            continueVideo.courseThumbnail ? (
-
+            {continueVideo.thumbnailUrl || continueVideo.courseThumbnail ? (
               <img
-                src={
-                  continueVideo.thumbnailUrl ||
-                  continueVideo.courseThumbnail
-                }
+                src={continueVideo.thumbnailUrl || continueVideo.courseThumbnail}
                 alt={continueVideo.title}
               />
-
             ) : (
-
               <div>
-
                 <FaPlay />
-
               </div>
-
             )}
-
           </div>
-
           <div className="continue-content">
-
-            <span>
-              {continueVideo.courseTitle}
-            </span>
-
-            <h3>
-              {continueVideo.title}
-            </h3>
-
+            <span>{continueVideo.courseTitle}</span>
+            <h3>{continueVideo.title}</h3>
             <div className="continue-progress">
-
               <div>
-
-                <span
-                  style={{
-                    width: `${continueVideo.watchedPercent || 0}%`,
-                  }}
-                />
-
+                <span style={{ width: `${continueVideo.watchedPercent || 0}%` }} />
               </div>
-
-              <strong>
-                {continueVideo.watchedPercent || 0}%
-              </strong>
-
+              <strong>{continueVideo.watchedPercent || 0}%</strong>
             </div>
-
           </div>
-
-          <Link
-            to={`/course/${continueVideo.courseId}`}
-          >
-
-            <button>
-
-              Continue
-
-            </button>
-
-          </Link>
-
-        </div>
-
-      ) : (
-
-        <div className="empty-dashboard-card">
-
-          <h3>No course to continue</h3>
-
-          <p>
-            Your newly assigned courses will appear below.
-          </p>
-
-        </div>
-
-      )}
-
-    </section>
-
-    {/* STATS */}
-
-    <section className="stats-section">
-
-      <div className="stats-grid">
-
-        <div className="stat-card">
-
-          <div className="stat-icon blue">
-            <FaBookOpen />
-          </div>
-
-          <div>
-
-            <span>Assigned</span>
-
-            <h3>{totalCourses}</h3>
-
-          </div>
-
-        </div>
-
-        <div className="stat-card">
-
-          <div className="stat-icon yellow">
-            <FaClock />
-          </div>
-
-          <div>
-
-            <span>In Progress</span>
-
-            <h3>{inProgressCount}</h3>
-
-          </div>
-
-        </div>
-
-        <div className="stat-card">
-
-          <div className="stat-icon green">
-            <FaCheckCircle />
-          </div>
-
-          <div>
-
-            <span>Completed</span>
-
-            <h3>{completedCount}</h3>
-
-          </div>
-
-        </div>
-
-        <div className="stat-card">
-
-          <div className="stat-icon red">
-            <FaCertificate />
-          </div>
-
-          <div>
-
-            <span>Certificates</span>
-
-            <h3>{passedCount}</h3>
-
-          </div>
-
-        </div>
-
-      </div>
-
-    </section>
-
-
-        {/* YOUR COURSES */}
-
-    <section className="courses-section">
-
-      <div className="section-header">
-
-        <div>
-
-          <h2>Your Courses</h2>
-
-          <p>
-            Pick up where you left off.
-          </p>
-
-        </div>
-
-        <Link to="/assigned-courses">
-
-          View All Courses
-
+          <button>Continue</button>
         </Link>
+      </section>
+    )}
 
+    <section className="newly-courses-section">
+      <div className="card-head">
+        <div>
+          <h2>Newly Assigned</h2>
+          <p>Courses assigned to you recently</p>
+        </div>
+        <Link to="/assigned-courses">View All</Link>
       </div>
-
-      {newlyAssignedCourses.length === 0 ? (
-
-        <div className="empty-dashboard-card">
-
-          <h3>No Courses Assigned</h3>
-
-          <p>
-            Courses assigned by your administrator will appear here.
-          </p>
-
-        </div>
-
-      ) : (
-
-        <div className="courses-grid">
-
-          {newlyAssignedCourses.map((course) => {
-
-            const progress = getCourseProgress(course.id);
-
-            const status = getCourseStatus(course.id);
-
+      <div className="newly-courses-grid">
+        {newlyAssignedCourses.length === 0 ? (
+          <p className="empty-text">No courses assigned yet.</p>
+        ) : (
+          newlyAssignedCourses.map((course, i) => {
+            const colors = ["#f59e0b", "#3b82f6", "#10b981", "#8b5cf6", "#ec4899"];
+            const letter = (course.title || course.courseTitle || "C").charAt(0).toUpperCase();
             const thumbnail = getCourseThumbnail(course);
-
+            const progress = getCourseProgress(course.id);
+            const status = getCourseStatus(course.id);
             return (
-
-              <div
-                className="course-card"
-                key={course.id}
-              >
-
-                <div className="course-image">
-
+              <Link to={`/course/${course.id}`} className="newly-course-card" key={course.id}>
+                <div className="newly-course-thumb">
                   {thumbnail ? (
-
-                    <img
-                      src={thumbnail}
-                      alt={course.title || course.courseTitle}
-                    />
-
+                    <img src={thumbnail} alt={course.title || course.courseTitle} />
                   ) : (
-
-                    <div className="course-placeholder">
-
-                      {(course.title ||
-                        course.courseTitle ||
-                        "C").charAt(0)}
-
+                    <div className="newly-course-placeholder" style={{ background: colors[i % colors.length] }}>
+                      {letter}
                     </div>
-
                   )}
-
                 </div>
-
-                <div className="course-content">
-
-                  <span className="course-tag">
-
-                    {course.department || "Training"}
-
-                  </span>
-
-                  <h3>
-
-                    {course.title ||
-                      course.courseTitle}
-
-                  </h3>
-
-                  <div className="course-progress">
-
+                <div className="newly-course-info">
+                  <h3>{course.title || course.courseTitle}</h3>
+                  <span>{course.department || "Training"}</span>
+                  <div className="newly-course-progress">
                     <div className="progress-bar">
-
-                      <span
-                        style={{
-                          width: `${progress}%`,
-                        }}
-                      />
-
+                      <span style={{ width: `${progress}%` }}></span>
                     </div>
-
-                    <strong>
-
-                      {progress}%
-
-                    </strong>
-
+                    <strong>{progress}%</strong>
                   </div>
-
-                  <Link
-                    to={`/course/${course.id}`}
-                  >
-
-                    <button className="course-btn">
-
-                      {status === "completed"
-                        ? "Review"
-                        : "Start Learning"}
-
-                    </button>
-
-                  </Link>
-
                 </div>
-
-              </div>
-
+              </Link>
             );
-
-          })}
-
-        </div>
-
-      )}
-
+          })
+        )}
+      </div>
     </section>
-
   </div>
-
 );
 }
 

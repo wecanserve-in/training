@@ -51,7 +51,7 @@ function DepartmentAdminLayout() {
     { label: "Dashboard", path: "/department-admin" },
     { label: "Course Library", path: "/department-admin/courses" },
     { label: "Video Library", path: "/department-admin/video-library" },
-    { label: "Assigned Users", path: "/department-admin/members" },
+    { label: "Assigned Users", path: "/department-admin/assigned-users" },
     { label: "Assign Course", path: "/department-admin/assignments" },
   ];
 

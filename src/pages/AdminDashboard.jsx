@@ -10,9 +10,9 @@ function AdminDashboard() {
   const [results, setResults] = useState({});
   const [userAssignments, setUserAssignments] = useState({});
   const [oldAssignments, setOldAssignments] = useState({});
+  const [coursesData, setCoursesData] = useState([]);
   const [attempts, setAttempts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [weeklyData, setWeeklyData] = useState([]);
 
   const objectToArray = (data) => {
     if (!data || typeof data !== "object") return [];
@@ -32,7 +32,7 @@ function AdminDashboard() {
 
     const markLoaded = (path) => {
       loadedPaths.add(path);
-      if (loadedPaths.size === 7) setLoading(false);
+      if (loadedPaths.size === 8) setLoading(false);
     };
 
     const watchPath = (path, handler) => {
@@ -73,6 +73,10 @@ function AdminDashboard() {
       setOldAssignments(s.exists() ? s.val() : {});
     });
 
+    const unsubCourses = watchPath("courses", (s) => {
+      setCoursesData(s.exists() ? objectToArray(s.val()) : []);
+    });
+
     const unsubAttempts = watchPath("attempts", (s) => {
       const val = s.val() || {};
       const list = [];
@@ -97,6 +101,7 @@ function AdminDashboard() {
       unsubResults();
       unsubUserAssignments();
       unsubOldAssignments();
+      unsubCourses();
       unsubAttempts();
     };
   }, []);
@@ -201,6 +206,31 @@ function AdminDashboard() {
     [departments, learners, assignments, completedCourses]
   );
 
+  const courseWiseProgress = useMemo(() => {
+    return coursesData.slice(0, 5).map((course) => {
+      let assigned = 0;
+      let courseCompleted = 0;
+
+      Object.values(assignments).forEach((userAssignments) => {
+        if (userAssignments?.[course.id]?.assigned) assigned += 1;
+      });
+
+      Object.values(completedCourses).forEach((userCourses) => {
+        if (userCourses?.[course.id]) courseCompleted += 1;
+      });
+
+      const progress = assigned > 0 ? Math.min(Math.round((courseCompleted / assigned) * 100), 100) : 0;
+
+      return {
+        id: course.id,
+        title: course.title || course.name || "Untitled Course",
+        assigned,
+        completed: courseCompleted,
+        progress,
+      };
+    });
+  }, [coursesData, assignments, completedCourses]);
+
   const recentActivity = useMemo(
     () =>
       attempts
@@ -212,42 +242,6 @@ function AdminDashboard() {
         .slice(0, 5),
     [attempts, learnerIds]
   );
-
-  useEffect(() => {
-    if (loading) return;
-
-    const now = Date.now();
-    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const bars = [];
-
-    for (let i = 6; i >= 0; i--) {
-      const dayStart = now - i * 24 * 60 * 60 * 1000;
-      const dayEnd = dayStart + 24 * 60 * 60 * 1000;
-      let count = 0;
-
-      Object.values(completedCourses).forEach((userCourses) => {
-        Object.values(userCourses || {}).forEach((val) => {
-          const ts = val?.completedAt || val?.date || val;
-          const time = typeof ts === "number" ? ts : new Date(ts).getTime();
-          if (Number.isFinite(time) && time >= dayStart && time < dayEnd) count += 1;
-        });
-      });
-
-      Object.values(results).forEach((userResults) => {
-        Object.values(userResults || {}).forEach((result) => {
-          const ts = result?.date || result?.submittedAt;
-          const time = typeof ts === "number" ? ts : new Date(ts).getTime();
-          if (Number.isFinite(time) && time >= dayStart && time < dayEnd) count += 1;
-        });
-      });
-
-      const date = new Date(dayStart);
-      bars.push({ label: dayNames[date.getDay()], value: count });
-    }
-
-    const maxBar = Math.max(...bars.map((b) => b.value), 1);
-    setWeeklyData(bars.map((b) => ({ ...b, height: (b.value / maxBar) * 100 })));
-  }, [loading, completedCourses, results]);
 
   if (loading) {
     return (
@@ -419,38 +413,8 @@ function AdminDashboard() {
         </div>
       </section>
 
-      <section className="admin-chart-row">
-        <div className="admin-panel chart-panel">
-          <div className="admin-panel-head">
-            <span>Weekly</span>
-            <h2>This Week&apos;s Activity</h2>
-          </div>
-          <div className="admin-chart">
-            <div className="chart-y-axis">
-              <span>{Math.max(...weeklyData.map((d) => d.value), 0)}</span>
-              <span>{Math.round(Math.max(...weeklyData.map((d) => d.value), 0) / 2)}</span>
-              <span>0</span>
-            </div>
-            <div className="chart-body">
-              <div className="chart-bars">
-                {weeklyData.length === 0 ? (
-                  <p className="empty-text">No data</p>
-                ) : (
-                  weeklyData.map((d, i) => (
-                    <div className="chart-bar-col" key={i}>
-                      <div className="chart-bar" style={{ height: `${d.height}%` }}></div>
-                      <span className="chart-bar-label">{d.label}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section className="admin-gradient-cards">
-        <div className="gradient-card gradient-green">
+        <div className="gradient-card gradient-yellow">
           <div className="gradient-card-content">
             <strong>{totalCompleted}+</strong>
             <span>Completed Courses</span>
@@ -461,7 +425,7 @@ function AdminDashboard() {
           </div>
         </div>
 
-        <div className="gradient-card gradient-purple">
+        <div className="gradient-card gradient-red">
           <div className="gradient-card-content">
             <strong>{totalCerts}+</strong>
             <span>Certificates Earned</span>
@@ -476,25 +440,60 @@ function AdminDashboard() {
       <section className="admin-bottom-grid">
         <div className="admin-panel">
           <div className="admin-panel-head">
-            <span>Departments</span>
-            <h2>Department-wise Course Status</h2>
+            <span>Courses</span>
+            <h2>Course-wise Progress</h2>
           </div>
 
-          <div className="admin-user-list">
-            {departmentSummary.length === 0 ? (
-              <p className="admin-empty-text">No departments created yet.</p>
+          <div className="course-list">
+            {courseWiseProgress.length === 0 ? (
+              <p className="admin-empty-text">No course data available yet.</p>
             ) : (
-              departmentSummary.map((dept) => (
-                <div className="admin-user-row dept-row" key={dept.id}>
-                  <div>
-                    <strong>{dept.deptName || "-"}</strong>
-                    <span>Users {dept.users} &bull; Assigned {dept.assigned} &bull; Completed {dept.completed}</span>
+              courseWiseProgress.map((course, i) => {
+                const colors = ["#f59e0b", "#3b82f6", "#10b981", "#8b5cf6", "#ec4899"];
+                const letter = course.title?.charAt(0)?.toUpperCase() || "C";
+                return (
+                  <div className="course-row" key={course.id}>
+                    <div className="course-avatar" style={{ background: colors[i % colors.length] }}>
+                      {letter}
+                    </div>
+                    <div className="course-info">
+                      <h3>{course.title}</h3>
+                      <span>{course.assigned} Assigned &bull; {course.completed} Done</span>
+                    </div>
+                    <div className="course-progress-wrap">
+                      <div className="course-progress-bar">
+                        <span style={{ width: `${course.progress}%` }}></span>
+                      </div>
+                      <strong>{course.progress}%</strong>
+                    </div>
                   </div>
-                  <b>{dept.completion}%</b>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
+        </div>
+
+        <div className="admin-panel">
+          <div className="admin-panel-head">
+            <span>Departments</span>
+            <h2>Department-wise Status</h2>
+          </div>
+
+          {departmentSummary.length === 0 ? (
+            <p className="admin-empty-text">No departments created yet.</p>
+          ) : (
+            departmentSummary.map((dept, index) => (
+              <div className="dept-row" key={dept.id}>
+                <div>
+                  <span>{index + 1}. {dept.deptName || "-"}</span>
+                  <strong>{dept.completion}%</strong>
+                </div>
+                <div className="dept-track">
+                  <span style={{ width: `${dept.completion}%` }}></span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         <div className="admin-panel">

@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { get, onValue, ref, remove } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, database } from "../firebase";
 import "../styles/videolibrarylist.css";
 
 function DepartmentVideoLibrary() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [currentUser, setCurrentUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
 
@@ -197,23 +200,36 @@ function DepartmentVideoLibrary() {
           <h1>Video Library</h1>
           <p>Browse, search and manage all training videos.</p>
         </div>
-        <div className="vl-hero-stats">
-          <div className="vl-hero-stat">
-            <div className="vl-hero-stat-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+        <div className="vl-hero-right">
+          <button
+            type="button"
+            className="vl-upload-btn"
+            onClick={() => {
+              const base = location.pathname.split("/video-library")[0];
+              navigate(`${base}/video-library/upload`);
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Upload New Video
+          </button>
+          <div className="vl-hero-stats">
+            <div className="vl-hero-stat">
+              <div className="vl-hero-stat-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+              </div>
+              <div>
+                <strong>{filteredVideos.length}</strong>
+                <span>Videos</span>
+              </div>
             </div>
-            <div>
-              <strong>{filteredVideos.length}</strong>
-              <span>Videos</span>
-            </div>
-          </div>
-          <div className="vl-hero-stat">
-            <div className="vl-hero-stat-icon quiz-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            </div>
-            <div>
-              <strong>{Object.keys(quizMap).length}</strong>
-              <span>With Quiz</span>
+            <div className="vl-hero-stat">
+              <div className="vl-hero-stat-icon quiz-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </div>
+              <div>
+                <strong>{Object.keys(quizMap).length}</strong>
+                <span>With Quiz</span>
+              </div>
             </div>
           </div>
         </div>

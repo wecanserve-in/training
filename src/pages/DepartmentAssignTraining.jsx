@@ -51,41 +51,84 @@ function DepartmentAssignTraining() {
         if (!userSnap.exists()) { setLoading(false); return; }
 
         const adminData = { id: loggedUser.uid, email: loggedUser.email, ...userSnap.val() };
+        const rawRole = String(adminData.role || "").toLowerCase().replace(/[\s_-]/g, "");
+        const isSuperAdmin = rawRole === "superadmin";
+        const isAdmin = rawRole === "admin";
+        const isDeptAdmin = rawRole === "departmentadmin";
+
+        if (isDeptAdmin) {
+          const deptSnap = await get(ref(database, "departments"));
+          if (deptSnap.exists()) {
+            const depts = deptSnap.val();
+            const match = Object.entries(depts).find(
+              ([, d]) => d.departmentAdminId === loggedUser.uid
+            );
+            if (match) {
+              adminData.departmentId = match[0];
+              adminData.department = match[1].departmentName || adminData.department || "";
+              adminData.departmentType = match[1].departmentType || adminData.departmentType || "";
+            }
+          }
+        }
+
         setCurrentUser(adminData);
 
-        const [coursesSnap, usersSnap, assignmentsSnap, completedSnap] = await Promise.all([
+        const [coursesSnap, usersSnap, assignmentsSnap, completedSnap] = await Promise.allSettled([
           get(ref(database, "courses")),
           get(ref(database, "users")),
           get(ref(database, "userAssignments")),
           get(ref(database, "completedCourses")),
         ]);
 
-        const allCourses = coursesSnap.exists()
-          ? Object.entries(coursesSnap.val()).map(([id, c]) => ({ id, ...c }))
+        const allCourses = coursesSnap.status === "fulfilled" && coursesSnap.value.exists()
+          ? Object.entries(coursesSnap.value.val()).map(([id, c]) => ({ id, ...c }))
           : [];
 
-        const canAssignAll = adminData.role === "superAdmin" || adminData.role === "admin";
+        const allUsers = usersSnap.status === "fulfilled" && usersSnap.value.exists()
+          ? Object.entries(usersSnap.value.val()).map(([id, u]) => ({ id, ...u }))
+          : [];
+
+        const assignmentsData = assignmentsSnap.status === "fulfilled" && assignmentsSnap.value.exists()
+          ? assignmentsSnap.value.val()
+          : {};
+
+        const completedData = completedSnap.status === "fulfilled" && completedSnap.value.exists()
+          ? completedSnap.value.val()
+          : {};
+
+        const canAssignAll = isSuperAdmin || isAdmin;
         const myCourses = canAssignAll
           ? allCourses
-          : allCourses.filter((c) => c.createdBy === adminData.id || c.department === adminData.department);
+          : allCourses.filter((c) => {
+              if (c.createdBy === adminData.id) return true;
+              if (adminData.department && c.department === adminData.department) return true;
+              if (adminData.departmentId && c.departmentId === adminData.departmentId) return true;
+              return false;
+            });
         myCourses.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
-        const allUsers = usersSnap.exists()
-          ? Object.entries(usersSnap.val()).map(([id, u]) => ({ id, ...u }))
-          : [];
-
         const visibleUsers = allUsers.filter((u) => {
-          const role = getField(u, ["role"]).toLowerCase();
-          if (adminData.role === "superAdmin") return true;
-          if (adminData.role === "admin") return role !== "superadmin";
-          if (adminData.role === "departmentAdmin") return !["superadmin", "admin", "departmentadmin"].includes(role);
+          const role = getField(u, ["role"]).toLowerCase().replace(/[\s_-]/g, "");
+          if (isSuperAdmin) return true;
+          if (isAdmin) return role !== "superadmin";
+          if (isDeptAdmin) {
+            if (["superadmin", "admin", "departmentadmin"].includes(role)) return false;
+            const userDept = (u.department || "").trim().toLowerCase();
+            const userDeptId = (u.departmentId || "").trim();
+            const myDept = (adminData.department || "").trim().toLowerCase();
+            const myDeptId = (adminData.departmentId || "").trim();
+            if (myDept && userDept === myDept) return true;
+            if (myDeptId && userDeptId === myDeptId) return true;
+            if (!myDept && !myDeptId) return true;
+            return false;
+          }
           return false;
         });
 
         setCourses(myCourses);
         setUsers(visibleUsers);
-        setAssignments(assignmentsSnap.exists() ? assignmentsSnap.val() : {});
-        setCompletedCourses(completedSnap.exists() ? completedSnap.val() : {});
+        setAssignments(assignmentsData);
+        setCompletedCourses(completedData);
 
         if (preSelectedCourseId) setSelectedCourseId(preSelectedCourseId);
         else if (myCourses.length > 0) setSelectedCourseId(myCourses[0].id);

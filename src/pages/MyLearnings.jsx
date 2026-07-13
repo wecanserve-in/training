@@ -198,7 +198,7 @@ const totalSeconds = progressValues.reduce((sum, item) => {
         (a, b) =>
           new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()
       )
-      .slice(0, 6);
+      .slice(0, 3);
   }, [progressValues, finalAttempts, videos, courses]);
 
  const activityData = useMemo(() => {

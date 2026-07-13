@@ -162,7 +162,7 @@ function AdminLayout() {
                 </NavLink>
 
                 <NavLink
-                  to="/admin/assignment-analytics"
+                  to="/admin/assigned-users"
                   onClick={closeMobileMenu}
                 >
                   Assigned Users

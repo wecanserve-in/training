@@ -5,6 +5,13 @@ import { ref, get } from "firebase/database";
 import { auth, database } from "../firebase";
 import "../styles/assignedCourses.css";
 
+import {
+  FaBookOpen,
+  FaClock,
+  FaCheckCircle,
+  FaCertificate,
+} from "react-icons/fa";
+
 function AssignedCourses() {
   const [courses, setCourses] = useState([]);
   const [courseVideosMap, setCourseVideosMap] = useState({});
@@ -85,9 +92,7 @@ function AssignedCourses() {
         const assignedCourses = assignedIds
           .map((courseId) => {
             const courseData = allCourses?.[courseId];
-
             if (!courseData) return null;
-
             return {
               id: courseId,
               ...courseData,
@@ -182,12 +187,9 @@ function AssignedCourses() {
     if (videos.length > 0) {
       const totalProgress = videos.reduce((sum, video) => {
         const progress = progressMap?.[video.id];
-
         if (progress?.completed) return sum + 100;
-
         return sum + Number(progress?.watchedPercent || 0);
       }, 0);
-
       return Math.max(0, Math.min(100, Math.round(totalProgress / videos.length)));
     }
 
@@ -202,18 +204,13 @@ function AssignedCourses() {
       return sum + Number(item?.watchedPercent || 0);
     }, 0);
 
-    return Math.max(
-      0,
-      Math.min(100, Math.round(total / courseProgressItems.length))
-    );
+    return Math.max(0, Math.min(100, Math.round(total / courseProgressItems.length)));
   };
 
   const getCourseStatus = (courseId) => {
     const progress = getCourseProgress(courseId);
-
     if (progress >= 100) return "completed";
     if (progress > 0) return "inProgress";
-
     return "notStarted";
   };
 
@@ -243,16 +240,21 @@ function AssignedCourses() {
 
   const getCourseType = (course) => {
     const videos = courseVideosMap[course.id] || [];
-
-    const firstType = videos.find((video) => video.metadata?.videoType)?.metadata
-      ?.videoType;
-
+    const firstType = videos.find((video) => video.metadata?.videoType)?.metadata?.videoType;
     return firstType || course.courseType || course.type || "Training";
   };
 
   const typeOptions = useMemo(() => {
     return [...new Set(courses.map((course) => getCourseType(course)).filter(Boolean))];
   }, [courses, courseVideosMap]);
+
+  const totalCourses = courses.length;
+  const completedCount = courses.filter((c) => getCourseProgress(c.id) >= 100).length;
+  const inProgressCount = courses.filter((c) => {
+    const p = getCourseProgress(c.id);
+    return p > 0 && p < 100;
+  }).length;
+  const notStartedCount = courses.filter((c) => getCourseProgress(c.id) === 0).length;
 
   const filteredCourses = useMemo(() => {
     return courses.filter((course) => {
@@ -298,6 +300,50 @@ function AssignedCourses() {
 
   return (
     <div className="assigned-courses-page">
+      <div className="assigned-header">
+        <h1>My Courses</h1>
+        <p>All your assigned training courses</p>
+      </div>
+
+      <div className="assigned-stats-row">
+        <div className="assigned-stat-card">
+          <div className="assigned-stat-icon blue">
+            <FaBookOpen />
+          </div>
+          <div className="assigned-stat-info">
+            <span>Total</span>
+            <strong>{totalCourses}</strong>
+          </div>
+        </div>
+        <div className="assigned-stat-card">
+          <div className="assigned-stat-icon yellow">
+            <FaClock />
+          </div>
+          <div className="assigned-stat-info">
+            <span>In Progress</span>
+            <strong>{inProgressCount}</strong>
+          </div>
+        </div>
+        <div className="assigned-stat-card">
+          <div className="assigned-stat-icon green">
+            <FaCheckCircle />
+          </div>
+          <div className="assigned-stat-info">
+            <span>Completed</span>
+            <strong>{completedCount}</strong>
+          </div>
+        </div>
+        <div className="assigned-stat-card">
+          <div className="assigned-stat-icon purple">
+            <FaCertificate />
+          </div>
+          <div className="assigned-stat-info">
+            <span>Not Started</span>
+            <strong>{notStartedCount}</strong>
+          </div>
+        </div>
+      </div>
+
       <div className="assigned-filter-bar">
         <input
           placeholder="Search your courses..."
@@ -382,7 +428,6 @@ function AssignedCourses() {
                 <div className="assigned-course-content">
                   <div className="assigned-course-title-row">
                     <h2>{getCourseTitle(course)}</h2>
-
                     <span className={`assigned-status-pill ${status}`}>
                       {getStatusLabel(status)}
                     </span>
@@ -402,7 +447,6 @@ function AssignedCourses() {
                     <div>
                       <span style={{ width: `${progress}%` }}></span>
                     </div>
-
                     <strong>{progress}%</strong>
                   </div>
                 </div>

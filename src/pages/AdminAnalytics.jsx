@@ -8,6 +8,7 @@ function AdminAnalytics() {
   const [courses, setCourses] = useState([]);
   const [completedCourses, setCompletedCourses] = useState({});
   const [results, setResults] = useState({});
+  const [loading, setLoading] = useState(true);
 
   const [filters, setFilters] = useState({
     zone: "",
@@ -16,32 +17,44 @@ function AdminAnalytics() {
     designation: "",
   });
 
+  const [showAllZones, setShowAllZones] = useState(false);
+  const [showAllDesignations, setShowAllDesignations] = useState(false);
+
   useEffect(() => {
     const fetchData = async () => {
-      const usersSnap = await get(ref(database, "users"));
-      const coursesSnap = await get(ref(database, "courses"));
-      const completedSnap = await get(ref(database, "completedCourses"));
-      const resultsSnap = await get(ref(database, "results"));
+      try {
+        const [usersSnap, coursesSnap, completedSnap, resultsSnap] =
+          await Promise.all([
+            get(ref(database, "users")),
+            get(ref(database, "courses")),
+            get(ref(database, "completedCourses")),
+            get(ref(database, "results")),
+          ]);
 
-      if (usersSnap.exists()) {
-        setUsers(
-          Object.entries(usersSnap.val())
-            .filter(([_, user]) => user.role !== "superAdmin")
-            .map(([id, user]) => ({ id, ...user }))
-        );
+        if (usersSnap.exists()) {
+          setUsers(
+            Object.entries(usersSnap.val())
+              .filter(([_, user]) => user.role !== "superAdmin")
+              .map(([id, user]) => ({ id, ...user }))
+          );
+        }
+
+        if (coursesSnap.exists()) {
+          setCourses(
+            Object.entries(coursesSnap.val()).map(([id, course]) => ({
+              id,
+              ...course,
+            }))
+          );
+        }
+
+        if (completedSnap.exists()) setCompletedCourses(completedSnap.val());
+        if (resultsSnap.exists()) setResults(resultsSnap.val());
+      } catch (e) {
+        console.error("Analytics fetch error:", e);
+      } finally {
+        setLoading(false);
       }
-
-      if (coursesSnap.exists()) {
-        setCourses(
-          Object.entries(coursesSnap.val()).map(([id, course]) => ({
-            id,
-            ...course,
-          }))
-        );
-      }
-
-      if (completedSnap.exists()) setCompletedCourses(completedSnap.val());
-      if (resultsSnap.exists()) setResults(resultsSnap.val());
     };
 
     fetchData();
@@ -109,8 +122,8 @@ function AdminAnalytics() {
     });
   };
 
-  const zonePerformance = buildPerformance("zone");
-  const designationPerformance = buildPerformance("designation");
+  const zonePerformance = buildPerformance("zone").sort((a, b) => b.percent - a.percent);
+  const designationPerformance = buildPerformance("designation").sort((a, b) => b.percent - a.percent);
 
   const topUsers = [...filteredUsers]
     .map((user) => {
@@ -133,70 +146,115 @@ function AdminAnalytics() {
     .sort((a, b) => b.pending - a.pending)
     .slice(0, 5);
 
+  if (loading) {
+    return (
+      <div className="admin-analytics-page">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", color: "#64748b", fontSize: "0.95rem" }}>
+          Loading analytics...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="admin-analytics-page">
-      <div className="admin-analytics-header">
-        <div>
-          <h1>Admin Analytics</h1>
-          <p>Track training progress, certificates and user performance.</p>
+      <section className="admin-analytics-hero">
+        <div className="admin-analytics-hero-left">
+          <div className="admin-analytics-hero-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 20V10" /><path d="M12 20V4" /><path d="M6 20v-6" />
+            </svg>
+          </div>
+          <div>
+            <h1>Training Analytics</h1>
+            <p>Track training progress, certificates and user performance.</p>
+          </div>
         </div>
-      </div>
+        <div className="admin-analytics-hero-right">
+          <div className="admin-analytics-hero-stat">
+            <strong>{filteredUsers.length}</strong>
+            <span>Users</span>
+          </div>
+          <div className="admin-analytics-hero-stat">
+            <strong>{courses.length}</strong>
+            <span>Courses</span>
+          </div>
+          <div className="admin-analytics-hero-stat cert">
+            <strong>{certificatesTotal}</strong>
+            <span>Certificates</span>
+          </div>
+        </div>
+      </section>
 
-      <div className="admin-analytics-kpis">
-        <div>
-          <span>Total Users</span>
-          <h2>{filteredUsers.length}</h2>
+      <section className="admin-analytics-kpi-row">
+        <div className="admin-analytics-kpi kpi-users">
+          <div className="admin-analytics-kpi-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </div>
+          <div>
+            <span>Total Users</span>
+            <strong>{filteredUsers.length}</strong>
+          </div>
         </div>
 
-        <div>
-          <span>Courses</span>
-          <h2>{courses.length}</h2>
+        <div className="admin-analytics-kpi kpi-completed">
+          <div className="admin-analytics-kpi-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          </div>
+          <div>
+            <span>Completed</span>
+            <strong>{completedTotal}</strong>
+          </div>
         </div>
 
-        <div>
-          <span>Completed</span>
-          <h2>{completedTotal}</h2>
+        <div className="admin-analytics-kpi kpi-pending">
+          <div className="admin-analytics-kpi-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+          <div>
+            <span>Pending</span>
+            <strong>{pendingTrainings}</strong>
+          </div>
         </div>
 
-        <div>
-          <span>Pending</span>
-          <h2>{pendingTrainings}</h2>
+        <div className="admin-analytics-kpi kpi-rate">
+          <div className="admin-analytics-kpi-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 20V10" /><path d="M12 20V4" /><path d="M6 20v-6" />
+            </svg>
+          </div>
+          <div>
+            <span>Completion</span>
+            <strong>{completionRate}%</strong>
+          </div>
         </div>
+      </section>
 
-        <div className="primary">
-          <span>Completion</span>
-          <h2>{completionRate}%</h2>
-        </div>
-
-        <div>
-          <span>Certificates</span>
-          <h2>{certificatesTotal}</h2>
-        </div>
-      </div>
-
-      <div className="admin-analytics-card">
-        <div className="admin-card-head">
+      <section className="admin-analytics-filters">
+        <div className="admin-analytics-filters-head">
           <div>
             <h2>Filters</h2>
             <p>Filter reports by location and designation.</p>
           </div>
-
           <button
+            className="admin-analytics-clear-btn"
             onClick={() =>
-              setFilters({
-                zone: "",
-                state: "",
-                cityArea: "",
-                designation: "",
-              })
+              setFilters({ zone: "", state: "", cityArea: "", designation: "" })
             }
           >
             Clear
           </button>
         </div>
-
-        <div className="admin-filter-grid">
+        <div className="admin-analytics-filters-row">
           <select
+            className="admin-analytics-filter-select"
             value={filters.zone}
             onChange={(e) => setFilters({ ...filters, zone: e.target.value })}
           >
@@ -207,6 +265,7 @@ function AdminAnalytics() {
           </select>
 
           <select
+            className="admin-analytics-filter-select"
             value={filters.state}
             onChange={(e) => setFilters({ ...filters, state: e.target.value })}
           >
@@ -217,6 +276,7 @@ function AdminAnalytics() {
           </select>
 
           <select
+            className="admin-analytics-filter-select"
             value={filters.cityArea}
             onChange={(e) =>
               setFilters({ ...filters, cityArea: e.target.value })
@@ -229,6 +289,7 @@ function AdminAnalytics() {
           </select>
 
           <select
+            className="admin-analytics-filter-select"
             value={filters.designation}
             onChange={(e) =>
               setFilters({ ...filters, designation: e.target.value })
@@ -240,80 +301,115 @@ function AdminAnalytics() {
             ))}
           </select>
         </div>
-      </div>
+      </section>
 
-      <div className="admin-analytics-grid">
-        <div className="admin-analytics-card">
-          <h2>Zone Performance</h2>
-
+      <section className="admin-analytics-perf-grid">
+        <div className="admin-analytics-perf-card">
+          <div className="admin-analytics-perf-head">
+            <h3>Zone Performance</h3>
+            {zonePerformance.length > 4 && (
+              <button
+                className="admin-analytics-viewall-btn"
+                onClick={() => setShowAllZones(!showAllZones)}
+              >
+                {showAllZones ? "Show Less" : "View All"}
+              </button>
+            )}
+          </div>
           <div className="admin-rank-list">
-            {zonePerformance.map((item) => (
-              <div className="admin-rank-row" key={item.name}>
-                <div>
-                  <strong>{item.name}</strong>
-                  <span>{item.percent}%</span>
+            {zonePerformance.length === 0 ? (
+              <p className="admin-analytics-empty">No zone data available.</p>
+            ) : (
+              (showAllZones ? zonePerformance : zonePerformance.slice(0, 4)).map((item) => (
+                <div className="admin-rank-row" key={item.name}>
+                  <div>
+                    <strong>{item.name}</strong>
+                    <span>{item.percent}%</span>
+                  </div>
+                  <div className="admin-rank-bar">
+                    <i style={{ width: `${item.percent}%` }}></i>
+                  </div>
                 </div>
-
-                <div className="admin-rank-bar">
-                  <i style={{ width: `${item.percent}%` }}></i>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
-        <div className="admin-analytics-card">
-          <h2>Designation Performance</h2>
-
+        <div className="admin-analytics-perf-card">
+          <div className="admin-analytics-perf-head">
+            <h3>Designation Performance</h3>
+            {designationPerformance.length > 4 && (
+              <button
+                className="admin-analytics-viewall-btn"
+                onClick={() => setShowAllDesignations(!showAllDesignations)}
+              >
+                {showAllDesignations ? "Show Less" : "View All"}
+              </button>
+            )}
+          </div>
           <div className="admin-rank-list">
-            {designationPerformance.map((item) => (
-              <div className="admin-rank-row" key={item.name}>
-                <div>
-                  <strong>{item.name}</strong>
-                  <span>{item.percent}%</span>
+            {designationPerformance.length === 0 ? (
+              <p className="admin-analytics-empty">No designation data available.</p>
+            ) : (
+              (showAllDesignations ? designationPerformance : designationPerformance.slice(0, 4)).map((item) => (
+                <div className="admin-rank-row" key={item.name}>
+                  <div>
+                    <strong>{item.name}</strong>
+                    <span>{item.percent}%</span>
+                  </div>
+                  <div className="admin-rank-bar">
+                    <i style={{ width: `${item.percent}%` }}></i>
+                  </div>
                 </div>
+              ))
+            )}
+          </div>
+        </div>
+      </section>
 
-                <div className="admin-rank-bar">
-                  <i style={{ width: `${item.percent}%` }}></i>
+      <section className="admin-analytics-users-grid">
+        <div className="admin-analytics-users-card">
+          <h3>Top Performing Users</h3>
+          <div className="admin-mini-user-list">
+            {topUsers.length === 0 ? (
+              <p className="admin-analytics-empty">No user data available.</p>
+            ) : (
+              topUsers.map((user) => (
+                <div className="admin-mini-user-row" key={user.id}>
+                  <strong>{user.name}</strong>
+                  <span>{user.designation}</span>
+                  <b>{user.percent}%</b>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="admin-analytics-grid">
-        <div className="admin-analytics-card">
-          <h2>Top Performing Users</h2>
-
-          <div className="mini-user-list">
-            {topUsers.map((user) => (
-              <div key={user.id}>
-                <strong>{user.name}</strong>
-                <span>{user.designation}</span>
-                <b>{user.percent}%</b>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
-        <div className="admin-analytics-card">
-          <h2>Low Engagement Users</h2>
-
-          <div className="mini-user-list">
-            {lowUsers.map((user) => (
-              <div key={user.id}>
-                <strong>{user.name}</strong>
-                <span>{user.designation}</span>
-                <b>{user.pending} pending</b>
-              </div>
-            ))}
+        <div className="admin-analytics-users-card">
+          <h3>Low Engagement Users</h3>
+          <div className="admin-mini-user-list">
+            {lowUsers.length === 0 ? (
+              <p className="admin-analytics-empty">No user data available.</p>
+            ) : (
+              lowUsers.map((user) => (
+                <div className="admin-mini-user-row" key={user.id}>
+                  <strong>{user.name}</strong>
+                  <span>{user.designation}</span>
+                  <b className="low">{user.pending} pending</b>
+                </div>
+              ))
+            )}
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="admin-analytics-card">
-        <h2>User Training Report</h2>
+      <section className="admin-analytics-card">
+        <div className="admin-analytics-card-head">
+          <div>
+            <h2>User Training Report</h2>
+            <p>Complete report of all users and their training status.</p>
+          </div>
+        </div>
 
         <div className="admin-analytics-table-wrap">
           <table>
@@ -342,8 +438,8 @@ function AdminAnalytics() {
 
                 return (
                   <tr key={user.id}>
-                    <td>{user.name}</td>
-                    <td>{user.email}</td>
+                    <td><strong>{user.name}</strong></td>
+                    <td style={{ color: "#94a3b8", fontSize: "0.78rem" }}>{user.email}</td>
                     <td>{user.designation}</td>
                     <td>{user.zone}</td>
                     <td>{user.state}</td>
@@ -351,7 +447,12 @@ function AdminAnalytics() {
                     <td>{completed}</td>
                     <td>{certificates}</td>
                     <td>
-                      <strong>{percent}%</strong>
+                      <div className="admin-pct-cell">
+                        <div className="admin-pct-bar">
+                          <span style={{ width: `${percent}%` }}></span>
+                        </div>
+                        <strong>{percent}%</strong>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -359,13 +460,15 @@ function AdminAnalytics() {
 
               {filteredUsers.length === 0 && (
                 <tr>
-                  <td colSpan="9">No users found.</td>
+                  <td colSpan="9">
+                    <p className="admin-analytics-empty">No users found.</p>
+                  </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

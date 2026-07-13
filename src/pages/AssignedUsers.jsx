@@ -32,7 +32,29 @@ function AssignedUsers() {
     const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
       if (!loggedUser) { setLoading(false); return; }
       try {
-        const [coursesSnap, usersSnap, assignmentsSnap, completedSnap, progressSnap] = await Promise.all([
+        const userSnap = await get(ref(database, `users/${loggedUser.uid}`));
+        const loggedUserData = userSnap.exists() ? { id: loggedUser.uid, ...userSnap.val() } : null;
+        const rawRole = String(loggedUserData?.role || "").toLowerCase().replace(/[\s_-]/g, "");
+        const isSuperAdmin = rawRole === "superadmin";
+        const isAdmin = rawRole === "admin";
+        const isDeptAdmin = rawRole === "departmentadmin";
+        let userDepartment = loggedUserData?.department || "";
+        let userDepartmentId = loggedUserData?.departmentId || "";
+
+        if (isDeptAdmin) {
+          const deptSnap = await get(ref(database, "departments"));
+          if (deptSnap.exists()) {
+            const match = Object.entries(deptSnap.val()).find(
+              ([, d]) => d.departmentAdminId === loggedUser.uid
+            );
+            if (match) {
+              userDepartmentId = userDepartmentId || match[0];
+              userDepartment = userDepartment || match[1].departmentName || "";
+            }
+          }
+        }
+
+        const [coursesSnap, usersSnap, assignmentsSnap, completedSnap, progressSnap] = await Promise.allSettled([
           get(ref(database, "courses")),
           get(ref(database, "users")),
           get(ref(database, "userAssignments")),
@@ -40,11 +62,49 @@ function AssignedUsers() {
           get(ref(database, "progress")),
         ]);
 
-        if (coursesSnap.exists()) setCourses(Object.entries(coursesSnap.val()).map(([id, c]) => ({ id, ...c })));
-        if (usersSnap.exists()) setUsers(Object.entries(usersSnap.val()).map(([id, u]) => ({ id, uid: u.uid || id, ...u })));
-        if (assignmentsSnap.exists()) setAssignments(assignmentsSnap.val());
-        if (completedSnap.exists()) setCompletedCourses(completedSnap.val());
-        if (progressSnap.exists()) setProgress(progressSnap.val());
+        if (coursesSnap.status === "fulfilled" && coursesSnap.value.exists()) {
+          const allCourses = Object.entries(coursesSnap.value.val()).map(([id, c]) => ({ id, ...c }));
+          if (isDeptAdmin) {
+            setCourses(allCourses.filter((c) => {
+              if (c.createdBy === loggedUser.uid) return true;
+              if (userDepartment && c.department === userDepartment) return true;
+              if (userDepartmentId && c.departmentId === userDepartmentId) return true;
+              return false;
+            }));
+          } else {
+            setCourses(allCourses);
+          }
+        }
+
+        if (usersSnap.status === "fulfilled" && usersSnap.value.exists()) {
+          const allUsers = Object.entries(usersSnap.value.val()).map(([id, u]) => ({ id, uid: u.uid || id, ...u }));
+          const getField = (obj, keys) => {
+            for (const k of keys) { if (obj?.[k]) return String(obj[k]).trim(); }
+            return "";
+          };
+          const visibleUsers = allUsers.filter((u) => {
+            const role = getField(u, ["role"]).toLowerCase().replace(/[\s_-]/g, "");
+            if (isSuperAdmin) return true;
+            if (isAdmin) return role !== "superadmin";
+            if (isDeptAdmin) {
+              if (["superadmin", "admin", "departmentadmin"].includes(role)) return false;
+              const userDept = (u.department || "").trim().toLowerCase();
+              const uDeptId = (u.departmentId || "").trim();
+              const myDept = userDepartment.trim().toLowerCase();
+              const myDeptId = userDepartmentId.trim();
+              if (myDept && userDept === myDept) return true;
+              if (myDeptId && uDeptId === myDeptId) return true;
+              if (!myDept && !myDeptId) return true;
+              return false;
+            }
+            return false;
+          });
+          setUsers(visibleUsers);
+        }
+
+        if (assignmentsSnap.status === "fulfilled" && assignmentsSnap.value.exists()) setAssignments(assignmentsSnap.value.val());
+        if (completedSnap.status === "fulfilled" && completedSnap.value.exists()) setCompletedCourses(completedSnap.value.val());
+        if (progressSnap.status === "fulfilled" && progressSnap.value.exists()) setProgress(progressSnap.value.val());
       } catch (e) { console.error(e); } finally { setLoading(false); }
     });
     return () => unsubscribe();

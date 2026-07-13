@@ -9,6 +9,8 @@ import "../styles/videolibrary.css";
 
 function DepartmentUploadVideo() {
   const [currentUser, setCurrentUser] = useState(null);
+  const [departments, setDepartments] = useState([]);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
   const [department, setDepartment] = useState("");
   const [departmentType, setDepartmentType] = useState("");
 
@@ -61,24 +63,9 @@ function DepartmentUploadVideo() {
           label: "Organ Name",
           required: true,
           options: [
-            "Breast",
-            "Lung",
-            "Colon",
-            "Rectum",
-            "Liver",
-            "Kidney",
-            "Prostate",
-            "Cervix",
-            "Ovary",
-            "Brain",
-            "Blood",
-            "Bone",
-            "Skin",
-            "Head & Neck",
-            "Stomach",
-            "Pancreas",
-            "General Oncology",
-            "Other",
+            "Breast", "Lung", "Colon", "Rectum", "Liver", "Kidney",
+            "Prostate", "Cervix", "Ovary", "Brain", "Blood", "Bone",
+            "Skin", "Head & Neck", "Stomach", "Pancreas", "General Oncology", "Other",
           ],
         },
         {
@@ -92,20 +79,10 @@ function DepartmentUploadVideo() {
           label: "Specify",
           required: true,
           options: [
-            "Cancer Overview",
-            "Disease Understanding",
-            "Organ Structure",
-            "Chemotherapy",
-            "Targeted Therapy",
-            "Immunotherapy",
-            "Hormonal Therapy",
-            "Supportive Care",
-            "Product Introduction",
-            "Dosage",
-            "Storage",
-            "Handling",
-            "FAQs",
-            "Other",
+            "Cancer Overview", "Disease Understanding", "Organ Structure",
+            "Chemotherapy", "Targeted Therapy", "Immunotherapy", "Hormonal Therapy",
+            "Supportive Care", "Product Introduction", "Dosage", "Storage",
+            "Handling", "FAQs", "Other",
           ],
         },
         {
@@ -113,22 +90,10 @@ function DepartmentUploadVideo() {
           label: "Product Generic Name",
           required: false,
           options: [
-            "Abiraterone",
-            "Paclitaxel",
-            "Docetaxel",
-            "Carboplatin",
-            "Cisplatin",
-            "Capecitabine",
-            "Gemcitabine",
-            "Oxaliplatin",
-            "Irinotecan",
-            "Etoposide",
-            "Doxorubicin",
-            "Cyclophosphamide",
-            "Methotrexate",
-            "Imatinib",
-            "Temozolomide",
-            "Other",
+            "Abiraterone", "Paclitaxel", "Docetaxel", "Carboplatin", "Cisplatin",
+            "Capecitabine", "Gemcitabine", "Oxaliplatin", "Irinotecan", "Etoposide",
+            "Doxorubicin", "Cyclophosphamide", "Methotrexate", "Imatinib",
+            "Temozolomide", "Other",
           ],
         },
         {
@@ -140,7 +105,6 @@ function DepartmentUploadVideo() {
       ],
       tagOptions: ["Anatomy", "Therapy", "Product", "Doctor Education", "Sales Support", "Internal Training", "GMP"],
     },
-
     "Sales & Marketing": {
       label: "Sales Training Filters",
       fields: [
@@ -150,11 +114,9 @@ function DepartmentUploadVideo() {
           required: true,
           options: ["Product Training", "Doctor Pitch", "Objection Handling", "Market Training", "Other"],
         },
-
       ],
       tagOptions: ["Sales", "Marketing", "Product", "Doctor Pitch", "Objection Handling"],
     },
-
     "Quality Assurance & Quality Control": {
       label: "QA/QC Filters",
       fields: [
@@ -164,11 +126,9 @@ function DepartmentUploadVideo() {
           required: true,
           options: ["QA", "QC", "Documentation", "Audit", "SOP", "Other"],
         },
-
       ],
       tagOptions: ["QA", "QC", "SOP", "Audit", "Compliance"],
     },
-
     "Research & Development": {
       label: "R&D Filters",
       fields: [
@@ -178,15 +138,14 @@ function DepartmentUploadVideo() {
           required: true,
           options: ["Research", "Formulation", "Clinical", "Product Science", "Other"],
         },
-
       ],
       tagOptions: ["Research", "Formulation", "Clinical", "Innovation"],
     },
-
     "Admin & Operations": defaultConfig,
   };
 
   const activeConfig = departmentFieldConfig[departmentType] || defaultConfig;
+  const isDeptAdmin = String(currentUser?.role || "").toLowerCase().replace(/[\s_-]/g, "") === "departmentadmin";
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
@@ -202,30 +161,79 @@ function DepartmentUploadVideo() {
       };
 
       setCurrentUser(userData);
-      setDepartment(userData.department || "");
-      setDepartmentType(userData.departmentType || "");
+
+      if (String(userData.role || "").toLowerCase().replace(/[\s_-]/g, "") === "departmentadmin") {
+        let deptName = userData.department || "";
+        let deptType = userData.departmentType || "";
+        let deptId = userData.departmentId || "";
+
+        if (!deptName || !deptType || !deptId) {
+          const deptSnap = await get(ref(database, "departments"));
+          if (deptSnap.exists()) {
+            const depts = deptSnap.val();
+            const match = Object.entries(depts).find(
+              ([, d]) => d.departmentAdminId === loggedUser.uid
+            );
+            if (match) {
+              deptId = deptId || match[0];
+              deptName = deptName || match[1].departmentName || "";
+              deptType = deptType || match[1].departmentType || "";
+            }
+          }
+        }
+
+        setDepartment(deptName);
+        setDepartmentType(deptType);
+        setSelectedDepartmentId(deptId);
+      }
     });
 
     return () => unsubscribe();
   }, []);
 
   useEffect(() => {
+    if (String(currentUser?.role || "").toLowerCase().replace(/[\s_-]/g, "") === "departmentadmin") return;
+
+    const fetchDepartments = async () => {
+      const snap = await get(ref(database, "departments"));
+      if (!snap.exists()) return;
+
+      const data = snap.val();
+      const list = Object.entries(data).map(([id, dept]) => ({
+        id,
+        name: dept.departmentName,
+        type: dept.departmentType,
+      }));
+
+      setDepartments(list);
+    };
+
+    fetchDepartments();
+  }, [currentUser]);
+
+  useEffect(() => {
     setMetadata({});
     setTags([]);
   }, [departmentType]);
 
+  const handleDepartmentChange = (deptId) => {
+    setSelectedDepartmentId(deptId);
+    const dept = departments.find((d) => d.id === deptId);
+    if (dept) {
+      setDepartment(dept.name);
+      setDepartmentType(dept.type);
+    }
+  };
+
   const getVideoDuration = (file) => {
     return new Promise((resolve) => {
       if (!file) return resolve(0);
-
       const video = document.createElement("video");
       video.preload = "metadata";
-
       video.onloadedmetadata = () => {
         window.URL.revokeObjectURL(video.src);
         resolve(Math.round(video.duration || 0));
       };
-
       video.onerror = () => resolve(0);
       video.src = URL.createObjectURL(file);
     });
@@ -234,67 +242,32 @@ function DepartmentUploadVideo() {
   const buildCloudinaryThumbnail = (publicId) => {
     const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
     if (!cloudName || !publicId) return "";
-
     return `https://res.cloudinary.com/${cloudName}/video/upload/so_2,w_800,h_450,c_fill,q_auto,f_jpg/${publicId}.jpg`;
   };
 
   const uploadFileToCloudinary = async (file, resourceType, folderName) => {
     const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
     const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-
-    if (!cloudName || !uploadPreset) {
-      throw new Error("Cloudinary env variables missing.");
-    }
+    if (!cloudName || !uploadPreset) throw new Error("Cloudinary env variables missing.");
 
     const formData = new FormData();
     formData.append("file", file);
     formData.append("upload_preset", uploadPreset);
     formData.append("folder", folderName);
 
-    console.log("Cloud Name:", cloudName);
-    console.log("Upload Preset:", uploadPreset);
-    console.log("Resource Type:", resourceType);
-    console.log("Folder:", folderName);
-    console.log("File:", file);
-    console.log(
-      `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`
-    );
-
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`,
-      {
-        method: "POST",
-        body: formData,
-      }
+      { method: "POST", body: formData }
     );
 
     const responseText = await response.text();
-
-    console.log("Raw Cloudinary Response:", responseText);
-
     let data = {};
-
-    try {
-      data = JSON.parse(responseText);
-    } catch (e) {
-      console.error(e);
-      throw new Error("Cloudinary did not return valid JSON.");
-    }
-
-    console.log("Cloudinary Response:", data);
-    console.log("HTTP Status:", response.status);
+    try { data = JSON.parse(responseText); } catch { throw new Error("Cloudinary did not return valid JSON."); }
 
     if (!response.ok || !data.secure_url) {
-      console.error(data);
-
-      throw new Error(
-        data?.error?.message ||
-        `Upload failed (${response.status})`
-      );
+      throw new Error(data?.error?.message || `Upload failed (${response.status})`);
     }
-
     return data;
-
   };
 
   const uploadAssets = async () => {
@@ -302,9 +275,7 @@ function DepartmentUploadVideo() {
     setModalMessage("Uploading video...");
 
     const videoData = await uploadFileToCloudinary(
-      videoFile,
-      "video",
-      `training-portal/videos/${department || "General"}`
+      videoFile, "video", `training-portal/videos/${department || "General"}`
     );
 
     let thumbnailUrl = buildCloudinaryThumbnail(videoData.public_id);
@@ -313,13 +284,9 @@ function DepartmentUploadVideo() {
     if (thumbnailFile) {
       setUploadStatus("Uploading thumbnail...");
       setModalMessage("Uploading thumbnail...");
-
       const thumbnailData = await uploadFileToCloudinary(
-        thumbnailFile,
-        "image",
-        `training-portal/thumbnails/${department || "General"}`
+        thumbnailFile, "image", `training-portal/thumbnails/${department || "General"}`
       );
-
       thumbnailUrl = thumbnailData.secure_url;
       thumbnailPublicId = thumbnailData.public_id || "";
     }
@@ -343,17 +310,13 @@ function DepartmentUploadVideo() {
       migrationReady: true,
     };
   };
+
   const updateMetadata = (key, value) => {
-    setMetadata((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+    setMetadata((prev) => ({ ...prev, [key]: value }));
   };
 
   const toggleTag = (tag) => {
-    setTags((prev) =>
-      prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag]
-    );
+    setTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]);
   };
 
   const resetQuestionForm = () => {
@@ -370,7 +333,6 @@ function DepartmentUploadVideo() {
       alert("Please complete question and all options.");
       return;
     }
-
     setQuizQuestions((prev) => [
       ...prev,
       {
@@ -381,7 +343,6 @@ function DepartmentUploadVideo() {
         uploadedVia: "manual",
       },
     ]);
-
     resetQuestionForm();
   };
 
@@ -392,32 +353,18 @@ function DepartmentUploadVideo() {
   const downloadQuizTemplate = () => {
     const worksheetData = [
       ["Question", "OptionA", "OptionB", "OptionC", "OptionD", "CorrectAnswer"],
-      [
-        "What is the main objective of this video?",
-        "Understand the topic",
-        "Review company process",
-        "Product learning",
-        "None",
-        "A",
-      ],
+      ["What is the main objective of this video?", "Understand the topic", "Review company process", "Product learning", "None", "A"],
     ];
-
     const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
     const workbook = XLSX.utils.book_new();
-
     XLSX.utils.book_append_sheet(workbook, worksheet, "Quiz Questions");
     XLSX.writeFile(workbook, "Quiz_Template.xlsx");
   };
 
   const uploadQuizExcel = (selectedFile = excelFile) => {
-    if (!selectedFile) {
-      alert("Please select Excel file first.");
-      return;
-
-    }
+    if (!selectedFile) { alert("Please select Excel file first."); return; }
 
     const reader = new FileReader();
-
     reader.onload = (event) => {
       try {
         const data = new Uint8Array(event.target.result);
@@ -426,7 +373,6 @@ function DepartmentUploadVideo() {
         const rows = XLSX.utils.sheet_to_json(worksheet);
 
         const uploadedQuestions = [];
-
         rows.forEach((row) => {
           const q = row.Question || row.question;
           const a = row.OptionA || row.optionA;
@@ -434,12 +380,10 @@ function DepartmentUploadVideo() {
           const c = row.OptionC || row.optionC;
           const d = row.OptionD || row.optionD;
           const correct = row.CorrectAnswer || row.correctAnswer;
-
           if (!q || !a || !b || !c || !d || !correct) return;
 
           let finalCorrectAnswer = String(correct).trim();
           const key = String(correct).trim().toUpperCase();
-
           if (key === "A") finalCorrectAnswer = String(a).trim();
           if (key === "B") finalCorrectAnswer = String(b).trim();
           if (key === "C") finalCorrectAnswer = String(c).trim();
@@ -456,52 +400,31 @@ function DepartmentUploadVideo() {
 
         setQuizQuestions((prev) => [...prev, ...uploadedQuestions]);
         setExcelFile(null);
-
-        setSuccessMessage(
-          `${uploadedQuestions.length} questions imported successfully.`
-        );
-
+        setSuccessMessage(`${uploadedQuestions.length} questions imported successfully.`);
         setShowSuccessModal(true);
       } catch {
-        setSuccessMessage(
-          "Unable to read Excel file."
-        );
-
+        setSuccessMessage("Unable to read Excel file.");
         setShowSuccessModal(true);
       }
     };
-
     reader.readAsArrayBuffer(selectedFile);
   };
 
   const validateMetadata = () => {
-    const missingField = activeConfig.fields.find((field) => {
-      return field.required && !metadata[field.key];
-    });
-
-    if (missingField) {
-      alert(`Please select ${missingField.label}.`);
-      return false;
-    }
-
+    const missingField = activeConfig.fields.find((field) => field.required && !metadata[field.key]);
+    if (missingField) { alert(`Please select ${missingField.label}.`); return false; }
     return true;
   };
 
   const saveVideo = async (e) => {
     e.preventDefault();
 
-    if (!title || !description || !videoFile) {
-      alert("Please fill title, description and video file.");
-      return;
-    }
-
+    if (!department) { alert("Please select a department."); return; }
+    if (!title || !description || !videoFile) { alert("Please fill title, description and video file."); return; }
     if (!validateMetadata()) return;
 
     if (quizQuestions.length === 0) {
-      const confirmSave = window.confirm(
-        "No quiz questions added. Do you still want to save this video?"
-      );
-
+      const confirmSave = window.confirm("No quiz questions added. Do you still want to save this video?");
       if (!confirmSave) return;
     }
 
@@ -524,12 +447,11 @@ function DepartmentUploadVideo() {
         description: description.trim(),
         department,
         departmentType,
+        departmentId: selectedDepartmentId,
         metadata,
         tags,
-
         totalQuizQuestions: quizQuestions.length,
         hasQuiz: quizQuestions.length > 0,
-
         storageProvider: uploaded.storageProvider,
         provider: uploaded.provider,
         assetType: uploaded.assetType,
@@ -539,13 +461,11 @@ function DepartmentUploadVideo() {
         providerPublicId: uploaded.providerPublicId,
         cloudinaryPublicId: uploaded.cloudinaryPublicId,
         thumbnailProviderPublicId: uploaded.thumbnailProviderPublicId,
-
         durationSeconds: uploaded.durationSeconds,
         fileSizeBytes: uploaded.fileSizeBytes,
         videoFileName: uploaded.videoFileName,
         thumbnailFileName: uploaded.thumbnailFileName,
         migrationReady: true,
-
         createdBy: currentUser?.id || "",
         createdByName: currentUser?.name || "",
         createdAt: new Date().toISOString(),
@@ -563,9 +483,6 @@ function DepartmentUploadVideo() {
         });
       }
 
-      alert("Training video saved successfully.");
-
-
       setTitle("");
       setDescription("");
       setVideoFile(null);
@@ -576,8 +493,12 @@ function DepartmentUploadVideo() {
       setExcelFile(null);
       setUploadStatus("");
       resetQuestionForm();
+
+      setSuccessMessage("Training video saved successfully.");
+      setShowSuccessModal(true);
     } catch (error) {
-      alert(error.message);
+      setSuccessMessage(error.message || "Upload failed.");
+      setShowSuccessModal(true);
     } finally {
       setUploading(false);
       setShowUploadModal(false);
@@ -594,7 +515,6 @@ function DepartmentUploadVideo() {
           <h1>Add Training Video</h1>
           <p>Simple flow: details, filters, files, quiz, then save.</p>
         </div>
-
         <Link
           to={
             currentUser?.role === "superAdmin"
@@ -619,11 +539,37 @@ function DepartmentUploadVideo() {
             </div>
           </div>
 
-          <div className="department-type-pill">
-            <span>Department</span>
-            <strong>{department || "-"}</strong>
-            <small>{departmentType || "No department type selected"}</small>
-          </div>
+          {!isDeptAdmin ? (
+            <div className="department-type-pill">
+              <span>Department</span>
+              <select
+                value={selectedDepartmentId}
+                onChange={(e) => handleDepartmentChange(e.target.value)}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  fontWeight: 600,
+                  color: "#059669",
+                  fontSize: "0.85rem",
+                  padding: 0,
+                  flex: 1,
+                }}
+              >
+                <option value="">Select Department</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name} ({d.type})
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="department-type-pill">
+              <span>Department</span>
+              <strong>{department || "-"}</strong>
+              <small>{departmentType || "No department type selected"}</small>
+            </div>
+          )}
 
           <input
             placeholder="Video Title *"
@@ -642,7 +588,7 @@ function DepartmentUploadVideo() {
             <span>2</span>
             <div>
               <h2>{activeConfig.label}</h2>
-              <p>Only select what is useful for finding this video later.</p>
+              <p>Select filters for finding this video later.</p>
             </div>
           </div>
 
@@ -657,11 +603,8 @@ function DepartmentUploadVideo() {
                 <option value="">
                   {field.required ? `Select ${field.label} *` : `Select ${field.label}`}
                 </option>
-
                 {field.options.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
+                  <option key={option} value={option}>{option}</option>
                 ))}
               </select>
             ))}
@@ -669,7 +612,6 @@ function DepartmentUploadVideo() {
 
           <div className="tag-picker">
             <label>Tags</label>
-
             <div>
               {activeConfig.tagOptions.map((tag) => (
                 <button
@@ -682,7 +624,6 @@ function DepartmentUploadVideo() {
                 </button>
               ))}
             </div>
-
             {selectedTags && <p>Selected: {selectedTags}</p>}
           </div>
 
@@ -695,79 +636,49 @@ function DepartmentUploadVideo() {
           </div>
 
           <div className="upload-flow">
-
             <div className="upload-flow-item">
-
               <div className="upload-step-no">1</div>
-
               <div className="upload-flow-content">
                 <h3>Upload Training Video *</h3>
                 <p>Select the main training video file.</p>
-
                 <label className="vertical-upload-box">
                   <input
                     type="file"
                     accept="video/*"
-                    onChange={(e) =>
-                      setVideoFile(e.target.files?.[0] || null)
-                    }
+                    onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
                   />
-
-                  <div className="upload-placeholder">
+                  <div className={`upload-placeholder ${videoFile ? "has-file" : ""}`}>
                     <FaVideo />
-
-                    <span>
-                      {videoFile
-                        ? videoFile.name
-                        : "Click to upload video"}
-                    </span>
-
+                    <span>{videoFile ? videoFile.name : "Click to upload video"}</span>
                     <small>MP4, MOV supported</small>
                   </div>
                 </label>
               </div>
-
             </div>
 
             <div className="upload-divider"></div>
 
             <div className="upload-flow-item">
-
               <div className="upload-step-no">2</div>
-
               <div className="upload-flow-content">
-
                 <h3>Upload Thumbnail</h3>
-
                 <p>Optional. System can auto-generate one.</p>
-
                 <label className="vertical-upload-box">
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) =>
-                      setThumbnailFile(e.target.files?.[0] || null)
-                    }
+                    onChange={(e) => setThumbnailFile(e.target.files?.[0] || null)}
                   />
-
-                  <div className="upload-placeholder">
+                  <div className={`upload-placeholder ${thumbnailFile ? "has-file" : ""}`}>
                     <FaImage />
-
-                    <span>
-                      {thumbnailFile
-                        ? thumbnailFile.name
-                        : "Click to upload thumbnail"}
-                    </span>
-
+                    <span>{thumbnailFile ? thumbnailFile.name : "Click to upload thumbnail"}</span>
                     <small>PNG, JPG supported</small>
                   </div>
                 </label>
-
               </div>
-
             </div>
-
           </div>
+
           {uploadStatus && <p className="upload-status">{uploadStatus}</p>}
         </div>
 
@@ -781,64 +692,35 @@ function DepartmentUploadVideo() {
           </div>
 
           <div className="quiz-flow-container">
-
             <div className="quiz-step-card">
-
               <div className="step-badge">1</div>
-
               <div className="step-info">
                 <h4>Download Sample</h4>
                 <p>Download the sample Excel format.</p>
-
-                <button
-                  type="button"
-                  className="outline-action-btn"
-                  onClick={downloadQuizTemplate}
-                >
+                <button type="button" className="outline-action-btn" onClick={downloadQuizTemplate}>
                   Download Sample
                 </button>
               </div>
-
             </div>
-
             <div className="quiz-step-card">
-
               <div className="step-badge">2</div>
-
               <div className="step-info">
-
                 <h4>Upload Filled Excel</h4>
-
                 <label className="excel-upload-box">
-
                   <input
                     type="file"
                     accept=".xlsx,.xls,.csv"
                     onChange={(e) => {
-
                       const file = e.target.files?.[0];
-
                       if (!file) return;
-
                       setExcelFile(file);
-
                       uploadQuizExcel(file);
-
                     }}
                   />
-                  <span>
-                    {excelFile
-                      ? excelFile.name
-                      : "Click here to choose Excel file"}
-                  </span>
-
+                  <span>{excelFile ? excelFile.name : "Click here to choose Excel file"}</span>
                 </label>
-
               </div>
-
             </div>
-
-
           </div>
 
           <textarea
@@ -870,19 +752,13 @@ function DepartmentUploadVideo() {
           {quizQuestions.length > 0 && (
             <div className="library-question-list">
               <h3>Questions Added: {quizQuestions.length}</h3>
-
               {quizQuestions.map((item, index) => (
                 <div className="library-question-row" key={index}>
                   <div>
-                    <strong>
-                      {index + 1}. {item.question}
-                    </strong>
+                    <strong>{index + 1}. {item.question}</strong>
                     <p>Correct: {item.correctAnswer}</p>
                   </div>
-
-                  <button type="button" onClick={() => removeQuizQuestion(index)}>
-                    Remove
-                  </button>
+                  <button type="button" onClick={() => removeQuizQuestion(index)}>Remove</button>
                 </div>
               ))}
             </div>
@@ -898,45 +774,24 @@ function DepartmentUploadVideo() {
 
       {showUploadModal && (
         <div className="upload-modal-overlay">
-
           <div className="upload-modal-card">
-
             <div className="circle-loader"></div>
-
             <h3>Uploading Training Video</h3>
-
             <p>{modalMessage}</p>
-
           </div>
-
         </div>
       )}
 
       {showSuccessModal && (
         <div className="success-modal-overlay">
-
           <div className="success-modal">
-
-            <div className="success-check">
-              ✓
-            </div>
-
+            <div className="success-check">✓</div>
             <h3>Done</h3>
-
             <p>{successMessage}</p>
-
-            <button
-              type="button"
-              onClick={() => setShowSuccessModal(false)}
-            >
-              Okay
-            </button>
-
+            <button type="button" onClick={() => setShowSuccessModal(false)}>Okay</button>
           </div>
-
         </div>
       )}
-
     </div>
   );
 }

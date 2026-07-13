@@ -5,6 +5,12 @@ import { ref, get } from "firebase/database";
 import { auth, database } from "../firebase";
 import "../styles/certificates.css";
 
+import {
+  FaCertificate,
+  FaCalendarCheck,
+  FaStar,
+} from "react-icons/fa";
+
 function Certificates() {
   const [certificates, setCertificates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -71,13 +77,14 @@ function Certificates() {
 
   const formatDate = (date) => {
     if (!date) return "-";
-
     return new Date(date).toLocaleDateString("en-IN", {
       day: "2-digit",
       month: "short",
       year: "numeric",
     });
   };
+
+  const totalCertificates = certificates.length;
 
   if (loading) {
     return <h2 className="dashboard-loading">Loading Certificates...</h2>;
@@ -87,12 +94,50 @@ function Certificates() {
     <div className="certificates-page">
       <div className="certificates-header">
         <div>
-          <span>Achievements</span>
           <h1>My Certificates</h1>
           <p>View and download your earned course certificates.</p>
         </div>
+        <strong>{totalCertificates} Earned</strong>
+      </div>
 
-        <strong>{certificates.length} Earned</strong>
+      <div className="cert-stats-row">
+        <div className="cert-stat-card">
+          <div className="cert-stat-icon green">
+            <FaCertificate />
+          </div>
+          <div className="cert-stat-info">
+            <span>Total Earned</span>
+            <strong>{totalCertificates}</strong>
+          </div>
+        </div>
+        <div className="cert-stat-card">
+          <div className="cert-stat-icon blue">
+            <FaCalendarCheck />
+          </div>
+          <div className="cert-stat-info">
+            <span>This Month</span>
+            <strong>{
+              certificates.filter((c) => {
+                const d = new Date(c.completedAt || c.attempt?.submittedAt);
+                const now = new Date();
+                return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+              }).length
+            }</strong>
+          </div>
+        </div>
+        <div className="cert-stat-card">
+          <div className="cert-stat-icon purple">
+            <FaStar />
+          </div>
+          <div className="cert-stat-info">
+            <span>Avg Score</span>
+            <strong>{
+              certificates.length > 0
+                ? Math.round(certificates.reduce((sum, c) => sum + (c.attempt?.score || 0), 0) / certificates.length)
+                : 0
+            }%</strong>
+          </div>
+        </div>
       </div>
 
       {certificates.length === 0 ? (
@@ -121,9 +166,7 @@ function Certificates() {
             const completedDate =
               item.completedAt || item.attempt?.submittedAt || item.attempt?.completedAt;
 
-            const certificateId = `CERT-${item.attemptId
-              .slice(-8)
-              .toUpperCase()}`;
+            const certificateId = `CERT-${item.attemptId.slice(-8).toUpperCase()}`;
 
             return (
               <div className="certificate-card" key={item.attemptId}>
@@ -132,7 +175,6 @@ function Certificates() {
                     src="/certificate/certificate.png"
                     alt="Certificate Preview"
                   />
-
                   <div className="certificate-overlay">
                     <h3>{studentName}</h3>
                     <p>{courseTitle}</p>
@@ -143,8 +185,8 @@ function Certificates() {
                   <h2>{courseTitle}</h2>
 
                   <div className="certificate-meta">
-                    <span>Score: {score}%</span>
-                    <span>Date: {formatDate(completedDate)}</span>
+                    <span><strong>Score:</strong> {score}%</span>
+                    <span><strong>Date:</strong> {formatDate(completedDate)}</span>
                   </div>
 
                   <div className="certificate-id">{certificateId}</div>

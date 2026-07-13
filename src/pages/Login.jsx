@@ -170,7 +170,7 @@ function Login() {
               <span>Develop.</span>
               <br />
 
-              Perform.
+              <span className="accent-red">Perform.</span>
             </h1>
 
             <p>

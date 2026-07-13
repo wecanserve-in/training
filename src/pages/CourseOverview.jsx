@@ -298,9 +298,8 @@ function CourseOverview() {
                           <h4>{video.title || video.videoTitle}</h4>
                           <p>{video.description || "No description"}</p>
                           
-                          {/* ✅ Badge will now show up perfectly */}
                           {vQuestionsCount > 0 && (
-                            <span style={{ fontSize: "11px", color: "#dc2626", fontWeight: "bold" }}>
+                            <span className="quiz-badge">
                               Has Revision Quiz ({vQuestionsCount})
                             </span>
                           )}

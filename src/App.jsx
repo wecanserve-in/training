@@ -115,6 +115,7 @@ function App() {
           <Route path="courses" element={<DepartmentCourses />} />
           <Route path="add-course" element={<AddCourse />} />
           <Route path="assignments" element={<DepartmentAssignTraining />} />
+          <Route path="assigned-users" element={<AssignedUsers />} />
 
           <Route path="video-library" element={<DepartmentVideoLibrary />} />
           <Route path="video-library/upload" element={<DepartmentUploadVideo />} />
@@ -157,6 +158,7 @@ function App() {
           <Route path="courses/create" element={<AddCourse />} />
 
           <Route path="assignments" element={<DepartmentAssignTraining />} />
+          <Route path="assigned-users" element={<AssignedUsers />} />
           <Route path="analytics" element={<DepartmentTrainingAnalytics />} />
 
           <Route path="video-library" element={<DepartmentVideoLibrary />} />

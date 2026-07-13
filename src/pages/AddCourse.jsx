@@ -4,7 +4,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { get, push, ref, set } from "firebase/database";
 import * as XLSX from "xlsx";
 import { auth, database } from "../firebase";
-import "../styles/addvideo.css";
+import "../styles/coursewizard.css";
 
 function AddCourse() {
   const navigate = useNavigate();
@@ -13,6 +13,7 @@ function AddCourse() {
   const [currentUser, setCurrentUser] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
 
+  const [departments, setDepartments] = useState([]);
   const [department, setDepartment] = useState("");
   const [departmentType, setDepartmentType] = useState("");
 
@@ -44,12 +45,20 @@ function AddCourse() {
   const [uploadStatus, setUploadStatus] = useState("");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+
   const steps = [
     { id: 1, label: "Course" },
     { id: 2, label: "Videos" },
     { id: 3, label: "Quiz" },
     { id: 4, label: "Save" },
   ];
+
+  const checkIsDeptAdmin = (user) => {
+    const r = String(user?.role || "").trim().toLowerCase();
+    return r === "departmentadmin" || r === "department admin" || r === "department_admin" || r === "deptadmin" || r === "dept admin";
+  };
+
+  const isDeptAdmin = checkIsDeptAdmin(currentUser);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
@@ -73,13 +82,13 @@ function AddCourse() {
       };
 
       setCurrentUser(userData);
-      if (userData.role === "departmentAdmin") {
+
+      if (checkIsDeptAdmin(userData)) {
         setDepartment(userData.department || "");
         setDepartmentType(userData.departmentType || "");
-      } else {
-        setDepartment("");
-        setDepartmentType("");
       }
+
+      await loadDepartments();
       await loadVideoLibrary(userData);
       setLoadingUser(false);
     });
@@ -95,6 +104,21 @@ function AddCourse() {
     };
   }, [thumbnailPreview]);
 
+  const loadDepartments = async () => {
+    try {
+      const snap = await get(ref(database, "departments"));
+      if (snap.exists()) {
+        const data = Object.entries(snap.val()).map(([id, dept]) => ({
+          id,
+          ...dept,
+        }));
+        setDepartments(data);
+      }
+    } catch (e) {
+      console.error("Failed to load departments:", e);
+    }
+  };
+
   const loadVideoLibrary = async (userData) => {
     const snap = await get(ref(database, "videoLibrary"));
 
@@ -108,17 +132,20 @@ function AddCourse() {
       ...video,
     }));
 
-    const ownVideos = data.filter((video) => {
-      return (
-        video.createdBy === userData.id ||
-        video.department === userData.department ||
-        video.departmentType === userData.departmentType
+    let filtered;
+    if (checkIsDeptAdmin(userData)) {
+      filtered = data.filter(
+        (v) =>
+          v.department === userData.department ||
+          v.departmentType === userData.departmentType ||
+          v.createdBy === userData.id
       );
-    });
+    } else {
+      filtered = data;
+    }
 
-    ownVideos.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-
-    setVideoLibrary(ownVideos);
+    filtered.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+    setVideoLibrary(filtered);
   };
 
   const uploadImageToCloudinary = async (file) => {
@@ -138,10 +165,7 @@ function AddCourse() {
 
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-      {
-        method: "POST",
-        body: formData,
-      }
+      { method: "POST", body: formData }
     );
 
     const data = await response.json();
@@ -155,34 +179,25 @@ function AddCourse() {
 
   const organOptions = useMemo(() => {
     return [
-      ...new Set(videoLibrary.map((video) => video.metadata?.organName).filter(Boolean)),
+      ...new Set(videoLibrary.map((v) => v.metadata?.organName).filter(Boolean)),
     ];
   }, [videoLibrary]);
 
   const filteredVideos = useMemo(() => {
-    const searchValue = videoSearch.toLowerCase();
+    const search = videoSearch.toLowerCase();
+    return videoLibrary.filter((v) => {
+      const organName = v.metadata?.organName || "";
+      const videoType = v.metadata?.videoType || "";
+      const genericName = v.metadata?.genericName || "";
+      const typeSpecific = v.metadata?.typeSpecific || "";
 
-    return videoLibrary.filter((video) => {
-      const organName = video.metadata?.organName || "";
-      const videoType = video.metadata?.videoType || "";
-      const genericName = video.metadata?.genericName || "";
-      const typeSpecific = video.metadata?.typeSpecific || "";
-
-      const combinedText = [
-        video.title,
-        video.description,
-        organName,
-        videoType,
-        genericName,
-        typeSpecific,
-        ...(video.tags || []),
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
+      const text = [
+        v.title, v.description, organName, videoType, genericName, typeSpecific,
+        ...(v.tags || []),
+      ].filter(Boolean).join(" ").toLowerCase();
 
       return (
-        combinedText.includes(searchValue) &&
+        text.includes(search) &&
         (filterType ? videoType === filterType : true) &&
         (filterOrgan ? organName === filterOrgan : true)
       );
@@ -191,24 +206,22 @@ function AddCourse() {
 
   const selectedVideos = useMemo(() => {
     return selectedVideoIds
-      .map((id) => videoLibrary.find((video) => video.id === id))
+      .map((id) => videoLibrary.find((v) => v.id === id))
       .filter(Boolean);
   }, [selectedVideoIds, videoLibrary]);
 
   const allFilteredSelected =
     filteredVideos.length > 0 &&
-    filteredVideos.every((video) => selectedVideoIds.includes(video.id));
+    filteredVideos.every((v) => selectedVideoIds.includes(v.id));
 
   const toggleFilteredSelection = () => {
-    const filteredIds = filteredVideos.map((video) => video.id);
-
+    const ids = filteredVideos.map((v) => v.id);
     if (allFilteredSelected) {
-      const filteredSet = new Set(filteredIds);
-      setSelectedVideoIds((prev) => prev.filter((id) => !filteredSet.has(id)));
-      return;
+      const set = new Set(ids);
+      setSelectedVideoIds((prev) => prev.filter((id) => !set.has(id)));
+    } else {
+      setSelectedVideoIds((prev) => Array.from(new Set([...prev, ...ids])));
     }
-
-    setSelectedVideoIds((prev) => Array.from(new Set([...prev, ...filteredIds])));
   };
 
   const toggleVideo = (videoId) => {
@@ -221,12 +234,10 @@ function AddCourse() {
 
   const handleThumbnailChange = (file) => {
     setThumbnailFile(file || null);
-
     if (!file) {
       setThumbnailPreview("");
       return;
     }
-
     setThumbnailPreview(URL.createObjectURL(file));
   };
 
@@ -244,7 +255,6 @@ function AddCourse() {
       alert("Please complete question and all options.");
       return;
     }
-
     setQuestions((prev) => [
       ...prev,
       {
@@ -255,7 +265,6 @@ function AddCourse() {
         uploadedVia: "manual",
       },
     ]);
-
     resetQuestionForm();
   };
 
@@ -264,7 +273,7 @@ function AddCourse() {
   };
 
   const downloadTemplate = () => {
-    const worksheetData = [
+    const ws = XLSX.utils.aoa_to_sheet([
       ["Question", "OptionA", "OptionB", "OptionC", "OptionD", "CorrectAnswer"],
       [
         "What is the main objective of this course?",
@@ -274,37 +283,25 @@ function AddCourse() {
         "None",
         "A",
       ],
-    ];
-
-    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-    const workbook = XLSX.utils.book_new();
-
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Questions");
-    XLSX.writeFile(workbook, "Course_Quiz_Template.xlsx");
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Questions");
+    XLSX.writeFile(wb, "Course_Quiz_Template.xlsx");
   };
 
   const handleExcelUpload = (selectedFile = excelFile) => {
-
     if (!selectedFile) return;
 
     const reader = new FileReader();
-
     reader.onload = (event) => {
-
       try {
-
         const data = new Uint8Array(event.target.result);
-
         const workbook = XLSX.read(data, { type: "array" });
-
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-
         const rows = XLSX.utils.sheet_to_json(worksheet);
 
-        const uploadedQuestions = [];
-
+        const uploaded = [];
         rows.forEach((row) => {
-
           const q = row.Question || row.question;
           const a = row.OptionA || row.optionA;
           const b = row.OptionB || row.optionB;
@@ -314,74 +311,51 @@ function AddCourse() {
 
           if (!q || !a || !b || !c || !d || !correct) return;
 
-          let finalCorrectAnswer = String(correct).trim();
-          const key = String(correct).trim().toUpperCase();
+          let finalAnswer = String(correct).trim();
+          const key = finalAnswer.toUpperCase();
+          if (key === "A") finalAnswer = String(a).trim();
+          if (key === "B") finalAnswer = String(b).trim();
+          if (key === "C") finalAnswer = String(c).trim();
+          if (key === "D") finalAnswer = String(d).trim();
 
-          if (key === "A") finalCorrectAnswer = String(a).trim();
-          if (key === "B") finalCorrectAnswer = String(b).trim();
-          if (key === "C") finalCorrectAnswer = String(c).trim();
-          if (key === "D") finalCorrectAnswer = String(d).trim();
-
-          uploadedQuestions.push({
+          uploaded.push({
             question: String(q).trim(),
-            options: [
-              String(a).trim(),
-              String(b).trim(),
-              String(c).trim(),
-              String(d).trim(),
-            ],
-            correctAnswer: finalCorrectAnswer,
+            options: [String(a).trim(), String(b).trim(), String(c).trim(), String(d).trim()],
+            correctAnswer: finalAnswer,
             createdAt: new Date().toISOString(),
             uploadedVia: "excel",
           });
-
         });
 
-        setQuestions((prev) => [...prev, ...uploadedQuestions]);
-
+        setQuestions((prev) => [...prev, ...uploaded]);
         setExcelFile(null);
-
-        setSuccessMessage(
-          `${uploadedQuestions.length} questions imported successfully.`
-        );
-
+        setSuccessMessage(`${uploaded.length} questions imported successfully.`);
         setShowSuccessModal(true);
-
       } catch {
-
         setSuccessMessage("Unable to read Excel file.");
-
         setShowSuccessModal(true);
-
       }
-
     };
-
     reader.readAsArrayBuffer(selectedFile);
-
   };
 
   const goNext = () => {
     if (step === 1 && (!department || !title.trim() || !overview.trim())) {
-      alert("Please add course title and overview.");
+      alert("Please fill course title, department and overview.");
       return;
     }
-
     if (step === 2 && selectedVideoIds.length === 0) {
       alert("Please select at least one video.");
       return;
     }
-
     if (step === 3) {
       const score = Number(passingScore);
       const duration = Number(testDuration);
-
       if (score < 0 || score > 100 || duration < 5) {
-        alert("Passing score must be between 0-100 and duration should be at least 5 seconds.");
+        alert("Passing score must be 0-100 and duration at least 5 seconds.");
         return;
       }
     }
-
     setStep((prev) => Math.min(prev + 1, 4));
   };
 
@@ -395,13 +369,13 @@ function AddCourse() {
       setSaving(true);
       setUploadStatus("Saving course...");
 
-      const uploadedThumbnailUrl = thumbnailFile
+      const thumbUrl = thumbnailFile
         ? await uploadImageToCloudinary(thumbnailFile)
         : "";
 
       const finalThumbnail =
-        uploadedThumbnailUrl ||
-        selectedVideos.find((video) => video.thumbnailUrl)?.thumbnailUrl ||
+        thumbUrl ||
+        selectedVideos.find((v) => v.thumbnailUrl)?.thumbnailUrl ||
         "";
 
       const courseRef = push(ref(database, "courses"));
@@ -413,34 +387,29 @@ function AddCourse() {
         overview: overview.trim(),
         courseThumbnail: finalThumbnail,
         thumbnailUrl: finalThumbnail,
-
         department,
         departmentType,
-
         videoIds: selectedVideoIds,
         totalVideos: selectedVideoIds.length,
-
         passingScore: Number(passingScore),
         testDuration: Number(testDuration),
         totalQuestions: questions.length,
-
         createdBy: currentUser?.id || "",
         createdByName: currentUser?.name || "",
         createdByEmail: currentUser?.email || "",
         createdByRole: currentUser?.role || "",
-
         status: "active",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
 
       await Promise.all(
-        selectedVideos.map((video, index) =>
+        selectedVideos.map((video, i) =>
           set(ref(database, `courseVideos/${courseId}/${video.id}`), {
             ...video,
             courseId,
             courseTitle: title.trim(),
-            order: index + 1,
+            order: i + 1,
             addedAt: new Date().toISOString(),
           })
         )
@@ -460,7 +429,8 @@ function AddCourse() {
       }
 
       alert("Course created successfully.");
-      navigate("/department-admin/courses");
+      const prefix = isDeptAdmin ? "/department-admin" : "/admin";
+      navigate(`${prefix}/courses`);
     } catch (error) {
       console.error(error);
       alert(error.message || "Failed to save course.");
@@ -471,16 +441,19 @@ function AddCourse() {
   };
 
   if (loadingUser) {
-    return <div className="admin-form-container">Loading...</div>;
+    return (
+      <div className="course-wizard-page" style={{ display: "grid", placeItems: "center", minHeight: "60vh" }}>
+        <p style={{ color: "#64748b" }}>Loading...</p>
+      </div>
+    );
   }
 
   return (
-    <div className="admin-form-container course-wizard-page">
+    <div className="course-wizard-page">
       <div className="wizard-topbar">
         <button type="button" className="btn-admin-back" onClick={() => navigate(-1)}>
           ← Back
         </button>
-
         <img src="/Logo.webp" alt="Logo" className="wizard-logo" />
       </div>
 
@@ -497,8 +470,7 @@ function AddCourse() {
             <button
               key={item.id}
               type="button"
-              className={`wizard-step-circle ${step === item.id ? "active" : ""} ${step > item.id ? "completed" : ""
-                }`}
+              className={`wizard-step-circle ${step === item.id ? "active" : ""} ${step > item.id ? "completed" : ""}`}
               onClick={() => item.id < step && setStep(item.id)}
             >
               <span className="circle-number">{step > item.id ? "✓" : item.id}</span>
@@ -515,21 +487,25 @@ function AddCourse() {
             </div>
 
             <div className="admin-input-group">
-              <label className="admin-field-label">Department</label>
-              {currentUser?.role === "departmentAdmin" ? (
+              <label className="admin-field-label">Department *</label>
+              {isDeptAdmin ? (
                 <input value={department} className="admin-form-input" disabled />
               ) : (
                 <select
                   value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
+                  onChange={(e) => {
+                    const sel = departments.find((d) => d.departmentName === e.target.value);
+                    setDepartment(e.target.value);
+                    setDepartmentType(sel?.departmentType || "");
+                  }}
                   className="admin-form-input"
                 >
                   <option value="">Select Department</option>
-                  <option value="Sales">Sales</option>
-                  <option value="Marketing">Marketing</option>
-                  <option value="HR">HR</option>
-                  <option value="Production">Production</option>
-                  <option value="Accounts">Accounts</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.departmentName}>
+                      {d.departmentName}
+                    </option>
+                  ))}
                 </select>
               )}
             </div>
@@ -560,14 +536,12 @@ function AddCourse() {
                 <h3>Course Thumbnail</h3>
                 <p>Optional. If skipped, first selected video thumbnail will be used.</p>
               </div>
-
               <label className="course-thumb-picker">
                 {thumbnailPreview ? (
-                  <img src={thumbnailPreview} alt="Course thumbnail preview" />
+                  <img src={thumbnailPreview} alt="Thumbnail preview" />
                 ) : (
-                  <span>+ Upload Thumbnail</span>
+                  <span>+ Upload</span>
                 )}
-
                 <input
                   type="file"
                   accept="image/*"
@@ -578,7 +552,7 @@ function AddCourse() {
 
             <div className="admin-form-submit-zone">
               <button type="button" className="btn-admin-submit-form" onClick={goNext}>
-                Continue
+                Continue →
               </button>
             </div>
           </div>
@@ -594,11 +568,10 @@ function AddCourse() {
             <div className="course-video-toolbar">
               <input
                 type="text"
-                placeholder="Search title, organ, type, generic, tags..."
+                placeholder="Search title, organ, type..."
                 value={videoSearch}
                 onChange={(e) => setVideoSearch(e.target.value)}
               />
-
               <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
                 <option value="">All Types</option>
                 <option value="Anatomy">Anatomy</option>
@@ -606,31 +579,24 @@ function AddCourse() {
                 <option value="Product">Product</option>
                 <option value="Other">Other</option>
               </select>
-
               <select value={filterOrgan} onChange={(e) => setFilterOrgan(e.target.value)}>
                 <option value="">All Organs</option>
-                {organOptions.map((organ) => (
-                  <option key={organ} value={organ}>
-                    {organ}
-                  </option>
+                {organOptions.map((o) => (
+                  <option key={o} value={o}>{o}</option>
                 ))}
               </select>
             </div>
 
             <div className="bulk-select-row">
-              <p>
-                {selectedVideoIds.length} selected • {filteredVideos.length} showing
-              </p>
-
+              <p>{selectedVideoIds.length} selected • {filteredVideos.length} showing</p>
               <button type="button" onClick={toggleFilteredSelection}>
-                {allFilteredSelected ? "Unselect Filtered" : "Select Filtered"}
+                {allFilteredSelected ? "Unselect All" : "Select All"}
               </button>
             </div>
 
             <div className="course-video-select-list">
               {filteredVideos.map((video) => {
                 const selected = selectedVideoIds.includes(video.id);
-
                 return (
                   <button
                     type="button"
@@ -645,38 +611,33 @@ function AddCourse() {
                         <div>No Thumbnail</div>
                       )}
                     </div>
-
                     <div className="course-video-info">
                       <h3>{video.title}</h3>
-                      <p>{video.description || "No description added."}</p>
-
+                      <p>{video.description || "No description"}</p>
                       <div className="course-video-tags">
                         {video.metadata?.organName && <span>{video.metadata.organName}</span>}
                         {video.metadata?.videoType && <span>{video.metadata.videoType}</span>}
                         {video.metadata?.genericName && <span>{video.metadata.genericName}</span>}
                       </div>
                     </div>
-
                     <span className="select-check">{selected ? "✓" : ""}</span>
                   </button>
                 );
               })}
-
               {filteredVideos.length === 0 && (
                 <div className="empty-course-state">
                   <h3>No videos found</h3>
-                  <p>Upload videos in Video Library first or change filters.</p>
+                  <p>Upload videos first or change filters.</p>
                 </div>
               )}
             </div>
 
             <div className="admin-form-submit-zone">
               <button type="button" className="btn-admin-back" onClick={() => setStep(1)}>
-                Back
+                ← Back
               </button>
-
               <button type="button" className="btn-admin-submit-form" onClick={goNext}>
-                Continue
+                Continue →
               </button>
             </div>
           </div>
@@ -701,7 +662,6 @@ function AddCourse() {
                   className="admin-form-input"
                 />
               </div>
-
               <div className="admin-input-group">
                 <label className="admin-field-label">Quiz Duration (Seconds)</label>
                 <input
@@ -715,51 +675,39 @@ function AddCourse() {
             </div>
 
             <div className="simple-quiz-upload">
-              <div>
-                <h3>Bulk Add Questions</h3>
-                <p>Download sample, fill it and upload questions.</p>
+              <div className="simple-quiz-upload-top">
+                <h3>Bulk Upload</h3>
+                <div className="simple-quiz-actions">
+                  <button type="button" onClick={downloadTemplate}>
+                    Download Sample
+                  </button>
+                  <label>
+                    Upload Excel
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setExcelFile(file);
+                        handleExcelUpload(file);
+                      }}
+                    />
+                  </label>
+                </div>
               </div>
-
-              <div className="simple-quiz-actions">
-                <button type="button" onClick={downloadTemplate}>
-                  Download Sample
-                </button>
-
-                <label>
-                  Choose Excel
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls,.csv"
-                    onChange={(e) => {
-
-                      const file = e.target.files?.[0];
-
-                      if (!file) return;
-
-                      setExcelFile(file);
-
-                      handleExcelUpload(file);
-
-                    }}
-                  />
-                </label>
-
-
-              </div>
-
-              {excelFile && <small>Selected: {excelFile.name}</small>}
             </div>
 
             <div className="manual-divider">
-              <span>Or add one question manually</span>
+              <span>Or add manually</span>
             </div>
 
             <textarea
-              placeholder="Question"
+              placeholder="Enter question..."
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               className="admin-form-textarea"
-              rows="3"
+              rows="2"
             />
 
             <div className="admin-form-row-split">
@@ -777,7 +725,7 @@ function AddCourse() {
               onChange={(e) => setCorrectAnswer(e.target.value)}
               className="admin-form-input"
             >
-              <option value="">Correct Answer</option>
+              <option value="">Select Correct Answer</option>
               {optionA && <option value={optionA}>A: {optionA}</option>}
               {optionB && <option value={optionB}>B: {optionB}</option>}
               {optionC && <option value={optionC}>C: {optionC}</option>}
@@ -788,30 +736,29 @@ function AddCourse() {
               + Add Question
             </button>
 
-            <div className="added-list-box">
-              <h3>Questions Added: {questions.length}</h3>
-
-              {questions.map((item, index) => (
-                <div key={`${item.question}-${index}`} className="added-row">
-                  <div>
-                    <strong>{index + 1}. {item.question}</strong>
-                    <p>Correct: {item.correctAnswer}</p>
+            {questions.length > 0 && (
+              <div className="added-list-box">
+                <h3>Questions Added: {questions.length}</h3>
+                {questions.map((item, index) => (
+                  <div key={`${item.question}-${index}`} className="added-row">
+                    <div>
+                      <strong>{index + 1}. {item.question}</strong>
+                      <p>Correct: {item.correctAnswer}</p>
+                    </div>
+                    <button type="button" onClick={() => removeQuestion(index)} className="btn-remove-small">
+                      Remove
+                    </button>
                   </div>
-
-                  <button type="button" onClick={() => removeQuestion(index)} className="btn-remove-small">
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             <div className="admin-form-submit-zone">
               <button type="button" className="btn-admin-back" onClick={() => setStep(2)}>
-                Back
+                ← Back
               </button>
-
               <button type="button" className="btn-admin-submit-form" onClick={goNext}>
-                Continue
+                Continue →
               </button>
             </div>
           </div>
@@ -821,24 +768,51 @@ function AddCourse() {
           <div className="wizard-section">
             <div className="section-mini-title">
               <span>Step 04</span>
-              <h2>Ready to Save</h2>
+              <h2>Review & Save</h2>
             </div>
 
             <div className="review-box">
               <h3>{title}</h3>
-              <p>{overview}</p>
-              <p><strong>Videos:</strong> {selectedVideoIds.length}</p>
-              <p><strong>Questions:</strong> {questions.length}</p>
-              <p><strong>Passing Score:</strong> {passingScore}%</p>
-              <p><strong>Quiz Duration:</strong> {testDuration} seconds</p>
-              {uploadStatus && <p>{uploadStatus}</p>}
+
+              <div className="review-grid">
+                <div className="review-item">
+                  <span className="label">Department</span>
+                  <span className="value">{department || "-"}</span>
+                </div>
+                <div className="review-item">
+                  <span className="label">Videos</span>
+                  <span className="value green">{selectedVideoIds.length}</span>
+                </div>
+                <div className="review-item">
+                  <span className="label">Questions</span>
+                  <span className="value yellow">{questions.length}</span>
+                </div>
+                <div className="review-item">
+                  <span className="label">Passing Score</span>
+                  <span className="value">{passingScore}%</span>
+                </div>
+                <div className="review-item">
+                  <span className="label">Duration</span>
+                  <span className="value">{testDuration}s</span>
+                </div>
+                <div className="review-item">
+                  <span className="label">Thumbnail</span>
+                  <span className="value">{thumbnailFile ? "Custom" : "Auto"}</span>
+                </div>
+
+                <div className="review-overview">
+                  <span className="label">Overview</span>
+                  <p className="value">{overview}</p>
+                </div>
+              </div>
+
+              {uploadStatus && <p style={{ color: "#059669", fontSize: "0.82rem", margin: "6px 0 0" }}>{uploadStatus}</p>}
             </div>
 
             <div className="admin-form-submit-zone">
               <button type="button" className="btn-admin-back" onClick={() => setStep(3)}>
-                Back
+                ← Back
               </button>
-
               <button
                 type="button"
                 className="btn-admin-submit-form"
@@ -853,30 +827,16 @@ function AddCourse() {
       </div>
 
       {showSuccessModal && (
-
-        <div className="success-modal-overlay">
-
-          <div className="success-modal">
-
-            <div className="success-check">
-              ✓
-            </div>
-
+        <div className="success-modal-overlay" onClick={() => setShowSuccessModal(false)}>
+          <div className="success-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="success-check">✓</div>
             <h3>Done</h3>
-
             <p>{successMessage}</p>
-
-            <button
-              type="button"
-              onClick={() => setShowSuccessModal(false)}
-            >
+            <button type="button" onClick={() => setShowSuccessModal(false)}>
               Okay
             </button>
-
           </div>
-
         </div>
-
       )}
     </div>
   );
