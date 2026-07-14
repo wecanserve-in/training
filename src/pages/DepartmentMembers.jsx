@@ -261,6 +261,7 @@ function DepartmentMembers() {
             course.createdBy === currentUser?.id ||
             course.createdById === currentUser?.id ||
             sameText(course.createdByEmail, currentUser?.email) ||
+            (currentUser?.departmentId && course.departmentId === currentUser.departmentId) ||
             sameText(getDepartmentName(course), departmentName)
           );
         });

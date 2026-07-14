@@ -3,6 +3,115 @@ import { ref, get, push, set, remove, update } from "firebase/database";
 import { database } from "../firebase";
 import "../styles/managedepartments.css";
 
+const cascadeDepartmentRename = async (deptId, oldName, newName, oldType, newType) => {
+  if (oldName === newName && oldType === newType) return;
+
+  const updates = {};
+
+  const [usersSnap, coursesSnap, videoLibSnap, assignmentsSnap, questionsSnap, quizzesSnap] = await Promise.all([
+    get(ref(database, "users")),
+    get(ref(database, "courses")),
+    get(ref(database, "videoLibrary")),
+    get(ref(database, "userAssignments")),
+    get(ref(database, "questions")),
+    get(ref(database, "videoQuizzes")),
+  ]);
+
+  if (usersSnap.exists()) {
+    const users = usersSnap.val();
+    Object.entries(users).forEach(([uid, user]) => {
+      const matchesDept = user.departmentId === deptId ||
+        String(user.department || "").trim().toLowerCase() === String(oldName).trim().toLowerCase();
+      if (matchesDept) {
+        updates[`users/${uid}/department`] = newName;
+        updates[`users/${uid}/departmentType`] = newType;
+      }
+    });
+  }
+
+  if (coursesSnap.exists()) {
+    const courses = coursesSnap.val();
+    Object.entries(courses).forEach(([courseId, course]) => {
+      const matchesDept = course.departmentId === deptId ||
+        String(course.department || "").trim().toLowerCase() === String(oldName).trim().toLowerCase();
+      if (matchesDept) {
+        updates[`courses/${courseId}/department`] = newName;
+        updates[`courses/${courseId}/departmentType`] = newType;
+        updates[`courses/${courseId}/departmentId`] = deptId;
+      }
+    });
+  }
+
+  if (videoLibSnap.exists()) {
+    const videos = videoLibSnap.val();
+    Object.entries(videos).forEach(([videoId, video]) => {
+      const matchesDept = video.departmentId === deptId ||
+        String(video.department || "").trim().toLowerCase() === String(oldName).trim().toLowerCase();
+      if (matchesDept) {
+        updates[`videoLibrary/${videoId}/department`] = newName;
+        updates[`videoLibrary/${videoId}/departmentType`] = newType;
+        updates[`videoLibrary/${videoId}/departmentId`] = deptId;
+      }
+    });
+  }
+
+  if (assignmentsSnap.exists()) {
+    const allAssignments = assignmentsSnap.val();
+    Object.entries(allAssignments).forEach(([userId, userCourses]) => {
+      if (userCourses && typeof userCourses === "object") {
+        Object.entries(userCourses).forEach(([courseId, assignment]) => {
+          if (assignment && typeof assignment === "object") {
+            const matchesDept = String(assignment.department || "").trim().toLowerCase() === String(oldName).trim().toLowerCase();
+            if (matchesDept) {
+              updates[`userAssignments/${userId}/${courseId}/department`] = newName;
+              updates[`userAssignments/${userId}/${courseId}/departmentId`] = deptId;
+            }
+          }
+        });
+      }
+    });
+  }
+
+  if (questionsSnap.exists()) {
+    const allQuestions = questionsSnap.val();
+    Object.entries(allQuestions).forEach(([courseId, courseQuestions]) => {
+      if (courseQuestions && typeof courseQuestions === "object") {
+        Object.entries(courseQuestions).forEach(([qId, question]) => {
+          if (question && typeof question === "object") {
+            const matchesDept = String(question.department || "").trim().toLowerCase() === String(oldName).trim().toLowerCase();
+            if (matchesDept) {
+              updates[`questions/${courseId}/${qId}/department`] = newName;
+              updates[`questions/${courseId}/${qId}/departmentType`] = newType;
+              updates[`questions/${courseId}/${qId}/departmentId`] = deptId;
+            }
+          }
+        });
+      }
+    });
+  }
+
+  if (quizzesSnap.exists()) {
+    const allQuizzes = quizzesSnap.val();
+    Object.entries(allQuizzes).forEach(([videoId, videoQuestions]) => {
+      if (videoQuestions && typeof videoQuestions === "object") {
+        Object.entries(videoQuestions).forEach(([qId, question]) => {
+          if (question && typeof question === "object") {
+            const matchesDept = String(question.department || "").trim().toLowerCase() === String(oldName).trim().toLowerCase();
+            if (matchesDept) {
+              updates[`videoQuizzes/${videoId}/${qId}/department`] = newName;
+              updates[`videoQuizzes/${videoId}/${qId}/departmentType`] = newType;
+            }
+          }
+        });
+      }
+    });
+  }
+
+  if (Object.keys(updates).length > 0) {
+    await update(ref(database), updates);
+  }
+};
+
 function ManageDepartments() {
   const [departments, setDepartments] = useState([]);
   const [members, setMembers] = useState([]);
@@ -81,6 +190,9 @@ function ManageDepartments() {
       let departmentId = editingDepartment?.id;
 
       if (editingDepartment) {
+        const oldName = editingDepartment.departmentName || "";
+        const oldType = editingDepartment.departmentType || "";
+
         await update(ref(database, `departments/${editingDepartment.id}`), {
           departmentName,
           departmentType,
@@ -91,6 +203,17 @@ function ManageDepartments() {
           departmentAdminSeniority: admin.seniority || "",
           updatedAt: new Date().toISOString(),
         });
+
+        if (oldName !== departmentName || oldType !== departmentType) {
+          await cascadeDepartmentRename(
+            editingDepartment.id,
+            oldName,
+            departmentName,
+            oldType,
+            departmentType
+          );
+        }
+
         if (editingDepartment.departmentAdminId && editingDepartment.departmentAdminId !== admin.id) {
           await update(ref(database, `users/${editingDepartment.departmentAdminId}`), {
             role: "user", departmentId: "", department: "", departmentType: "",
@@ -114,6 +237,22 @@ function ManageDepartments() {
       await update(ref(database, `users/${admin.id}`), {
         role: "departmentAdmin", departmentId, department: departmentName, departmentType,
       });
+
+      if (!editingDepartment) {
+        const existingUsersSnap = await get(ref(database, "users"));
+        if (existingUsersSnap.exists()) {
+          const userUpdates = {};
+          Object.entries(existingUsersSnap.val()).forEach(([uid, user]) => {
+            if (uid !== admin.id && String(user.department || "").trim().toLowerCase() === String(departmentName).trim().toLowerCase() && !user.departmentId) {
+              userUpdates[`users/${uid}/departmentId`] = departmentId;
+              userUpdates[`users/${uid}/departmentType`] = departmentType;
+            }
+          });
+          if (Object.keys(userUpdates).length > 0) {
+            await update(ref(database), userUpdates);
+          }
+        }
+      }
 
       resetForm();
       await loadData();

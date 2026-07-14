@@ -67,8 +67,8 @@ function AssignedUsers() {
           if (isDeptAdmin) {
             setCourses(allCourses.filter((c) => {
               if (c.createdBy === loggedUser.uid) return true;
-              if (userDepartment && c.department === userDepartment) return true;
               if (userDepartmentId && c.departmentId === userDepartmentId) return true;
+              if (userDepartment && c.department === userDepartment) return true;
               return false;
             }));
           } else {

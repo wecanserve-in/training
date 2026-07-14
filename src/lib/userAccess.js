@@ -37,6 +37,7 @@ export const buildUserProfile = (firebaseUser, profileData = {}) => {
         name,
         role: profileData.role || firebaseUser.role || "",
         department: profileData.department || "",
+        departmentId: profileData.departmentId || "",
         designation: profileData.designation || "",
     };
 };

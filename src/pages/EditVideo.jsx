@@ -8,11 +8,11 @@ function EditVideo() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const departments = ["Sales", "Marketing", "HR", "Production", "Accounts"];
-
+  const [departments, setDepartments] = useState([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [department, setDepartment] = useState("");
+  const [departmentId, setDepartmentId] = useState("");
   const [videoSlug, setVideoSlug] = useState("");
   const [passingScore, setPassingScore] = useState(70);
   const [testDuration, setTestDuration] = useState(60);
@@ -20,6 +20,17 @@ function EditVideo() {
 
   useEffect(() => {
     const fetchVideo = async () => {
+      const deptSnap = await get(ref(database, "departments"));
+      if (deptSnap.exists()) {
+        const deptData = deptSnap.val();
+        setDepartments(
+          Object.entries(deptData).map(([id, dept]) => ({
+            id,
+            departmentName: dept.departmentName,
+          }))
+        );
+      }
+
       const snapshot = await get(ref(database, `videos/${id}`));
 
       if (snapshot.exists()) {
@@ -28,6 +39,7 @@ function EditVideo() {
         setTitle(video.title || "");
         setDescription(video.description || "");
         setDepartment(video.department || "");
+        setDepartmentId(video.departmentId || "");
 
         const dbUrl = video.videoUrl || "";
         const extractedSlug = dbUrl.replace(/^\/videos\//, "");
@@ -59,6 +71,7 @@ function EditVideo() {
         title,
         description,
         department,
+        departmentId,
         videoUrl: finalVideoUrl,
         passingScore: Number(passingScore),
         testDuration: Number(testDuration),
@@ -121,14 +134,18 @@ function EditVideo() {
             <label className="admin-field-label">Department</label>
             <select
               value={department}
-              onChange={(e) => setDepartment(e.target.value)}
+              onChange={(e) => {
+                const selectedDept = departments.find((d) => d.departmentName === e.target.value);
+                setDepartment(e.target.value);
+                setDepartmentId(selectedDept?.id || "");
+              }}
               className="admin-form-input"
               required
             >
               <option value="">Select Department</option>
               {departments.map((dept) => (
-                <option key={dept} value={dept}>
-                  {dept}
+                <option key={dept.id} value={dept.departmentName}>
+                  {dept.departmentName}
                 </option>
               ))}
             </select>

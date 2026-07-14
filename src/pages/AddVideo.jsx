@@ -8,8 +8,7 @@ import "../styles/addvideo.css";
 function AddVideo() {
   const navigate = useNavigate();
 
-  const departments = ["Sales", "Marketing", "HR", "Production", "Accounts"];
-
+  const [departments, setDepartments] = useState([]);
   const [courses, setCourses] = useState([]);
   const [filteredCourses, setFilteredCourses] = useState([]);
   const [availableVideos, setAvailableVideos] = useState([]);
@@ -17,6 +16,7 @@ function AddVideo() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [department, setDepartment] = useState("");
+  const [departmentId, setDepartmentId] = useState("");
   const [courseId, setCourseId] = useState("");
   const [courseTitle, setCourseTitle] = useState("");
   const [videoSlug, setVideoSlug] = useState("");
@@ -25,6 +25,17 @@ function AddVideo() {
 
   useEffect(() => {
     const fetchCourses = async () => {
+      const deptSnap = await get(ref(database, "departments"));
+      if (deptSnap.exists()) {
+        const deptData = deptSnap.val();
+        setDepartments(
+          Object.entries(deptData).map(([id, dept]) => ({
+            id,
+            departmentName: dept.departmentName,
+          }))
+        );
+      }
+
       const snapshot = await get(ref(database, "courses"));
 
       if (snapshot.exists()) {
@@ -43,19 +54,22 @@ function AddVideo() {
   }, []);
 
   const handleDepartmentChange = (e) => {
-    const selectedDepartment = e.target.value;
+    const selectedDepartmentName = e.target.value;
+    const selectedDept = departments.find((d) => d.departmentName === selectedDepartmentName);
 
-    setDepartment(selectedDepartment);
+    setDepartment(selectedDepartmentName);
+    setDepartmentId(selectedDept?.id || "");
     setCourseId("");
     setCourseTitle("");
     setVideoSlug("");
 
     const matchedCourses = courses.filter(
-      (course) => course.department === selectedDepartment
+      (course) => course.department === selectedDepartmentName ||
+        (selectedDept?.id && course.departmentId === selectedDept.id)
     );
 
     setFilteredCourses(matchedCourses);
-    setAvailableVideos(departmentVideos[selectedDepartment] || []);
+    setAvailableVideos(departmentVideos[selectedDepartmentName] || []);
   };
 
   const handleCourseChange = (e) => {
@@ -95,6 +109,7 @@ function AddVideo() {
         title: title.trim(),
         description: description.trim(),
         department,
+        departmentId,
         courseId,
         courseTitle,
         videoFileName: videoSlug,
@@ -141,8 +156,8 @@ function AddVideo() {
               <option value="">Select Department</option>
 
               {departments.map((dept) => (
-                <option key={dept} value={dept}>
-                  {dept}
+                <option key={dept.id} value={dept.departmentName}>
+                  {dept.departmentName}
                 </option>
               ))}
             </select>

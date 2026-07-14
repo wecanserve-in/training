@@ -196,6 +196,7 @@ function DepartmentAdminDashboard() {
             course.createdBy === currentUser?.id ||
             course.createdById === currentUser?.id ||
             sameText(course.createdByEmail, currentUser?.email) ||
+            (currentUser?.departmentId && course.departmentId === currentUser.departmentId) ||
             sameText(getDepartmentName(course), departmentName)
           );
         });
@@ -223,6 +224,7 @@ function DepartmentAdminDashboard() {
         video.createdBy === currentUser?.id ||
         video.createdById === currentUser?.id ||
         sameText(video.createdByEmail, currentUser?.email) ||
+        (currentUser?.departmentId && video.departmentId === currentUser.departmentId) ||
         sameText(getDepartmentName(video), departmentName)
       );
     });

@@ -37,7 +37,10 @@ function DepartmentCourses() {
     if (role === "superadmin" || role === "admin") {
       visibleCourses = allCourses;
     } else if (role === "departmentadmin") {
-      visibleCourses = allCourses.filter((course) => course.department === user.department);
+      visibleCourses = allCourses.filter((course) =>
+        course.departmentId === user.departmentId ||
+        course.department === user.department
+      );
     } else {
       const assignedCourseIds = user.assignedCourses || [];
       visibleCourses = allCourses.filter((course) => assignedCourseIds.includes(course.id));

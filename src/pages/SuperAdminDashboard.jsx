@@ -77,7 +77,8 @@ function SuperAdminDashboard() {
         const departmentSet = new Set();
 
         normalUsers.forEach((user) => {
-          if (user.department) departmentSet.add(user.department);
+          const deptKey = user.departmentId || user.department;
+          if (deptKey) departmentSet.add(deptKey);
         });
 
         let assignedCourses = 0;
@@ -112,18 +113,19 @@ function SuperAdminDashboard() {
         const deptMap = {};
 
         normalUsers.forEach((user) => {
-          const dept = user.department || "Not Assigned";
+          const deptKey = user.departmentId || user.department || "Not Assigned";
 
-          if (!deptMap[dept]) {
-            deptMap[dept] = {
-              department: dept,
+          if (!deptMap[deptKey]) {
+            deptMap[deptKey] = {
+              department: user.department || "Not Assigned",
+              departmentId: user.departmentId || "",
               users: 0,
               assigned: 0,
               completed: 0,
             };
           }
 
-          deptMap[dept].users += 1;
+          deptMap[deptKey].users += 1;
 
           const userAssignments =
             assignmentsData[user.uid] || assignmentsData[user.id] || {};
@@ -131,11 +133,11 @@ function SuperAdminDashboard() {
           const userCompleted =
             completedData[user.uid] || completedData[user.id] || {};
 
-          deptMap[dept].assigned += Object.values(userAssignments).filter(
+          deptMap[deptKey].assigned += Object.values(userAssignments).filter(
             (item) => item?.assigned
           ).length;
 
-          deptMap[dept].completed += Object.keys(userCompleted || {}).length;
+          deptMap[deptKey].completed += Object.keys(userCompleted || {}).length;
         });
 
         const deptRows = Object.values(deptMap)

@@ -467,7 +467,8 @@
 }
 
 .gradient-yellow { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
-.gradient-pink { background: linear-gradient(135deg, #ec4899, #f472b6); }
+.gradient-pink { background: linear-gradient(135deg, #af4040, #ff3e3e);
+}
 
 .gradient-card-content strong {
   display: block;

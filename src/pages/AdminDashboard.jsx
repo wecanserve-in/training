@@ -197,7 +197,9 @@ function AdminDashboard() {
       departments.slice(0, 5).map((dept) => {
         const name = dept.departmentName || dept.name || dept.title || "";
         const deptUsers = learners.filter(
-          (u) => String(u.department || "").trim().toLowerCase() === String(name).trim().toLowerCase()
+          (u) =>
+            (dept.id && u.departmentId === dept.id) ||
+            String(u.department || "").trim().toLowerCase() === String(name).trim().toLowerCase()
         );
         const a = deptUsers.reduce((t, u) => t + getAssignedCount(u.id), 0);
         const c = deptUsers.reduce((t, u) => t + getCompletedCount(u.id), 0);

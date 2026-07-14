@@ -6,8 +6,7 @@ import { database } from "../firebase";
 import "../styles/addquestion.css";
 
 function AddQuestion() {
-  const departments = ["Sales", "Marketing", "HR", "Production", "Accounts"];
-
+  const [departments, setDepartments] = useState([]);
   const [courses, setCourses] = useState([]);
   const [videos, setVideos] = useState([]);
 
@@ -15,6 +14,7 @@ function AddQuestion() {
   const [filteredVideos, setFilteredVideos] = useState([]);
 
   const [department, setDepartment] = useState("");
+  const [departmentId, setDepartmentId] = useState("");
   const [courseId, setCourseId] = useState("");
   const [videoId, setVideoId] = useState("");
 
@@ -30,6 +30,18 @@ function AddQuestion() {
 
   useEffect(() => {
     const fetchData = async () => {
+      const deptSnap = await get(ref(database, "departments"));
+      if (deptSnap.exists()) {
+        const deptData = deptSnap.val();
+        setDepartments(
+          Object.entries(deptData).map(([id, dept]) => ({
+            id,
+            departmentName: dept.departmentName,
+            departmentType: dept.departmentType,
+          }))
+        );
+      }
+
       const coursesSnap = await get(ref(database, "courses"));
 
       if (coursesSnap.exists()) {
@@ -61,15 +73,18 @@ function AddQuestion() {
   }, []);
 
   const handleDepartmentChange = (e) => {
-    const selectedDepartment = e.target.value;
+    const selectedDepartmentName = e.target.value;
+    const selectedDept = departments.find((d) => d.departmentName === selectedDepartmentName);
 
-    setDepartment(selectedDepartment);
+    setDepartment(selectedDepartmentName);
+    setDepartmentId(selectedDept?.id || "");
     setCourseId("");
     setVideoId("");
     setFilteredVideos([]);
 
     const matchedCourses = courses.filter(
-      (course) => course.department === selectedDepartment
+      (course) => course.department === selectedDepartmentName ||
+        (selectedDept?.id && course.departmentId === selectedDept.id)
     );
 
     setFilteredCourses(matchedCourses);
@@ -136,6 +151,7 @@ function AddQuestion() {
 
     await push(ref(database, `questions/${videoId}`), {
       department,
+      departmentId,
       courseId,
       videoId,
       question,
@@ -225,6 +241,7 @@ function AddQuestion() {
 
           await push(ref(database, `questions/${videoId}`), {
             department,
+            departmentId,
             courseId,
             videoId,
             question: q,
@@ -280,8 +297,8 @@ function AddQuestion() {
             <option value="">Select Department</option>
 
             {departments.map((dept) => (
-              <option key={dept} value={dept}>
-                {dept}
+              <option key={dept.id} value={dept.departmentName}>
+                {dept.departmentName}
               </option>
             ))}
           </select>

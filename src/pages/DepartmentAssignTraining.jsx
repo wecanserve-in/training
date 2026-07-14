@@ -101,8 +101,8 @@ function DepartmentAssignTraining() {
           ? allCourses
           : allCourses.filter((c) => {
               if (c.createdBy === adminData.id) return true;
-              if (adminData.department && c.department === adminData.department) return true;
               if (adminData.departmentId && c.departmentId === adminData.departmentId) return true;
+              if (adminData.department && c.department === adminData.department) return true;
               return false;
             });
         myCourses.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
@@ -216,6 +216,7 @@ function DepartmentAssignTraining() {
             courseTitle: selectedCourse?.title || "",
             courseThumbnail: selectedCourse?.thumbnailUrl || selectedCourse?.courseThumbnail || "",
             department: selectedCourse?.department || currentUser?.department || "",
+            departmentId: selectedCourse?.departmentId || currentUser?.departmentId || "",
             assignedBy: currentUser?.id || "",
             assignedByName: currentUser?.name || "",
             assignedAt: new Date().toISOString(),

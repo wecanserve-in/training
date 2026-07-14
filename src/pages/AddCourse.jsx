@@ -15,6 +15,7 @@ function AddCourse() {
 
   const [departments, setDepartments] = useState([]);
   const [department, setDepartment] = useState("");
+  const [departmentId, setDepartmentId] = useState("");
   const [departmentType, setDepartmentType] = useState("");
 
   const [title, setTitle] = useState("");
@@ -86,6 +87,7 @@ function AddCourse() {
       if (checkIsDeptAdmin(userData)) {
         setDepartment(userData.department || "");
         setDepartmentType(userData.departmentType || "");
+        setDepartmentId(userData.departmentId || "");
       }
 
       await loadDepartments();
@@ -138,6 +140,7 @@ function AddCourse() {
         (v) =>
           v.department === userData.department ||
           v.departmentType === userData.departmentType ||
+          (userData.departmentId && v.departmentId === userData.departmentId) ||
           v.createdBy === userData.id
       );
     } else {
@@ -388,6 +391,7 @@ function AddCourse() {
         courseThumbnail: finalThumbnail,
         thumbnailUrl: finalThumbnail,
         department,
+        departmentId,
         departmentType,
         videoIds: selectedVideoIds,
         totalVideos: selectedVideoIds.length,
@@ -418,6 +422,7 @@ function AddCourse() {
       for (const q of questions) {
         await push(ref(database, `questions/${courseId}`), {
           department,
+          departmentId,
           departmentType,
           courseId,
           question: q.question,
@@ -496,6 +501,7 @@ function AddCourse() {
                   onChange={(e) => {
                     const sel = departments.find((d) => d.departmentName === e.target.value);
                     setDepartment(e.target.value);
+                    setDepartmentId(sel?.id || "");
                     setDepartmentType(sel?.departmentType || "");
                   }}
                   className="admin-form-input"

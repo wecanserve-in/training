@@ -81,6 +81,7 @@ function DepartmentTrainingAnalytics() {
               (course) =>
                 course.createdBy === adminData.id ||
                 course.createdByEmail === adminData.email ||
+                (adminData.departmentId && course.departmentId === adminData.departmentId) ||
                 course.department === adminData.department
             );
 

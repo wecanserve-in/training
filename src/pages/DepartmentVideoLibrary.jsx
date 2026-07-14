@@ -36,6 +36,7 @@ function DepartmentVideoLibrary() {
     return (
       video.createdBy === userData.id ||
       normalizeText(video.createdByEmail) === normalizeText(userData.email) ||
+      (userData.departmentId && video.departmentId === userData.departmentId) ||
       normalizeText(video.department) === normalizeText(userData.department) ||
       normalizeText(video.departmentType) === normalizeText(userData.departmentType)
     );
