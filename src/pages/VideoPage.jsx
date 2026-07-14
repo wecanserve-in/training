@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ref, get, update, push } from "firebase/database";
+import { ref, get, update, push, runTransaction } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, database } from "../firebase";
 import "../styles/videopage.css";
@@ -15,6 +15,7 @@ function VideoPage() {
   const resumeTimeRef = useRef(0);
   const hasResumedRef = useRef(false);
   const lastVideoSecondRef = useRef(0);
+  const lastLoggedWatchedCountRef = useRef(0);
 
   const [video, setVideo] = useState(null);
   const [course, setCourse] = useState(null);
@@ -44,6 +45,7 @@ function VideoPage() {
     resumeTimeRef.current = 0;
     hasResumedRef.current = false;
     lastVideoSecondRef.current = 0;
+    lastLoggedWatchedCountRef.current = 0;
 
     setVideo(null);
     setCourse(null);
@@ -186,6 +188,7 @@ function VideoPage() {
           watchedSecondsRef.current = new Set(
             Object.keys(currentProgress.watchedSeconds).map(Number)
           );
+          lastLoggedWatchedCountRef.current = watchedSecondsRef.current.size;
         }
 
         setWatchPercent(
@@ -334,9 +337,41 @@ function VideoPage() {
       ...(completed && { completedAt: new Date().toISOString() }),
     };
 
+    const nowIso = new Date().toISOString();
+    const localDayKey = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+
+    const currentWatchedCount = watchedSecondsRef.current.size;
+    const newlyWatchedSeconds = Math.max(
+      0,
+      currentWatchedCount - lastLoggedWatchedCountRef.current
+    );
+
     await update(ref(database), {
       [`progress/${user.uid}/${video.id}`]: progressData,
     });
+
+    if (newlyWatchedSeconds > 0) {
+      const activityBase = `learningActivity/${user.uid}/${localDayKey}/${video.id}`;
+
+      await runTransaction(
+        ref(database, `${activityBase}/seconds`),
+        (current) => Number(current || 0) + newlyWatchedSeconds
+      );
+
+      await update(ref(database), {
+        [`${activityBase}/videoId`]: video.id,
+        [`${activityBase}/courseId`]: video.courseId,
+        [`${activityBase}/videoTitle`]: video.title || video.videoTitle || "",
+        [`${activityBase}/updatedAt`]: nowIso,
+      });
+
+      lastLoggedWatchedCountRef.current = currentWatchedCount;
+    }
 
     setProgressMap((prev) => ({
       ...prev,
@@ -362,11 +397,17 @@ function VideoPage() {
     const duration = Math.floor(e.target.duration || 0);
     if (!duration) return;
 
-    const start = Math.min(lastVideoSecondRef.current, currentSecond);
-    const end = Math.max(lastVideoSecondRef.current, currentSecond);
+    const previousSecond = lastVideoSecondRef.current;
+    const movement = currentSecond - previousSecond;
 
-    for (let second = start; second <= end; second += 1) {
-      watchedSecondsRef.current.add(second);
+    // Count only real playback progression. A large jump is a seek and must not
+    // mark all skipped seconds as watched.
+    if (movement >= 0 && movement <= 2) {
+      for (let second = previousSecond; second <= currentSecond; second += 1) {
+        watchedSecondsRef.current.add(second);
+      }
+    } else {
+      watchedSecondsRef.current.add(currentSecond);
     }
 
     lastVideoSecondRef.current = currentSecond;

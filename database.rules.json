@@ -9,21 +9,27 @@
         "role": {
           ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50 && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin')"
         },
+
         "department": {
           ".validate": "newData.isString() && newData.val().length <= 200 && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin')"
         },
+
         "departmentId": {
           ".validate": "newData.isString() && newData.val().length <= 200 && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin')"
         },
+
         "departmentType": {
           ".validate": "newData.isString() && newData.val().length <= 200 && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin')"
         },
+
         "status": {
           ".validate": "newData.isString() && (newData.val() === 'active' || newData.val() === 'inactive') && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin')"
         },
+
         "name": {
           ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200"
         },
+
         "email": {
           ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 254 && newData.val().matches(/^[^@]+@[^@]+\\.[^@]+$/)"
         }
@@ -67,16 +73,19 @@
 
     "videoQuizAttempts": {
       "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
+        ".read": "auth != null && (auth.uid === $uid || root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin')",
         ".write": "auth != null && auth.uid === $uid"
       }
     },
 
     "userAssignments": {
       ".read": "auth != null",
+
       "$uid": {
         ".read": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin' || auth.uid === $uid)",
-        ".write": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin' || auth.uid === $uid)",
+
+        ".write": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin')",
+
         "$courseId": {
           ".validate": "newData.hasChildren(['assigned'])"
         }
@@ -85,46 +94,108 @@
 
     "assignments": {
       ".read": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin')",
+
       ".write": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin')"
     },
 
     "completedCourses": {
       ".read": "auth != null",
+
       "$uid": {
         ".read": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin' || auth.uid === $uid)",
+
         ".write": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin' || auth.uid === $uid)"
       }
     },
 
     "progress": {
       ".read": "auth != null",
+
       "$uid": {
         ".read": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin' || auth.uid === $uid)",
+
         ".write": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin' || auth.uid === $uid)"
+      }
+    },
+
+    "learningActivity": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin')",
+
+        ".write": "auth != null && auth.uid === $uid",
+
+        "$date": {
+          "$videoId": {
+            ".validate": "newData.hasChildren(['videoId', 'courseId', 'seconds', 'updatedAt'])",
+
+            "videoId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+
+            "courseId": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+
+            "videoTitle": {
+              ".validate": "!newData.exists() || newData.isString()"
+            },
+
+            "courseTitle": {
+              ".validate": "!newData.exists() || newData.isString()"
+            },
+
+            "seconds": {
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+
+            "watchedPercent": {
+              ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0 && newData.val() <= 100)"
+            },
+
+            "completed": {
+              ".validate": "!newData.exists() || newData.isBoolean()"
+            },
+
+            "updatedAt": {
+              ".validate": "newData.isString() && newData.val().length > 0"
+            },
+
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
       }
     },
 
     "results": {
       ".read": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin')",
+
       "$uid": {
         ".read": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin' || auth.uid === $uid)",
+
         ".write": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin' || auth.uid === $uid)"
       }
     },
 
     "attempts": {
       ".read": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin')",
+
       "$uid": {
         ".read": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || auth.uid === $uid)",
+
         ".write": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || auth.uid === $uid)"
       }
     },
 
     "master": {
       ".read": "auth != null",
+
       ".write": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin')",
+
       "designations": {
         ".read": "auth != null",
+
         ".write": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin')"
       }
     }

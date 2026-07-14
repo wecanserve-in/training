@@ -18,6 +18,8 @@ function MyLearnings() {
   const [completedCourses, setCompletedCourses] = useState({});
   const [courses, setCourses] = useState({});
   const [videos, setVideos] = useState({});
+  const [learningActivity, setLearningActivity] = useState({});
+  const [videoQuizAttempts, setVideoQuizAttempts] = useState([]);
   const [range, setRange] = useState(30);
   const [loading, setLoading] = useState(true);
 
@@ -36,6 +38,8 @@ function MyLearnings() {
           coursesSnap,
           videosSnap,
           videoLibrarySnap,
+          activitySnap,
+          videoQuizAttemptsSnap,
         ] = await Promise.all([
           get(ref(database, `progress/${user.uid}`)),
           get(ref(database, `attempts/${user.uid}`)),
@@ -43,6 +47,8 @@ function MyLearnings() {
           get(ref(database, "courses")),
           get(ref(database, "videos")),
           get(ref(database, "videoLibrary")),
+          get(ref(database, `learningActivity/${user.uid}`)),
+          get(ref(database, `videoQuizAttempts/${user.uid}`)),
         ]);
 
         const progressData = progressSnap.exists() ? progressSnap.val() : {};
@@ -61,6 +67,15 @@ function MyLearnings() {
         setCompletedCourses(completedData);
         setCourses(coursesData);
         setVideos(mergedVideos);
+        setLearningActivity(activitySnap.exists() ? activitySnap.val() : {});
+
+        const revisionAttempts = videoQuizAttemptsSnap.exists()
+          ? Object.entries(videoQuizAttemptsSnap.val()).map(([attemptId, item]) => ({
+              id: attemptId,
+              ...item,
+            }))
+          : [];
+        setVideoQuizAttempts(revisionAttempts);
 
         if (attemptsSnap.exists()) {
           const allAttempts = attemptsSnap.val();
@@ -103,6 +118,31 @@ function MyLearnings() {
     return attempts.filter((item) => item.courseId && !item.videoId);
   }, [attempts]);
 
+  const getAttemptPercent = (item) => {
+    const rawScore = Number(item?.score ?? item?.correct ?? 0);
+    const total = Number(item?.total ?? item?.totalQuestions ?? 0);
+
+    if (total > 0 && rawScore <= total) {
+      return Math.round((rawScore / total) * 100);
+    }
+
+    return Math.max(0, Math.min(100, Math.round(rawScore)));
+  };
+
+  const latestFinalAttemptByCourse = useMemo(() => {
+    const latest = {};
+
+    finalAttempts.forEach((attempt) => {
+      const current = latest[attempt.courseId];
+      const attemptTime = new Date(attempt.submittedAt || 0).getTime();
+      const currentTime = new Date(current?.submittedAt || 0).getTime();
+
+      if (!current || attemptTime > currentTime) latest[attempt.courseId] = attempt;
+    });
+
+    return latest;
+  }, [finalAttempts]);
+
   const completedCourseValues = useMemo(() => {
     return Object.entries(completedCourses || {}).map(([courseId, item]) => ({
       courseId,
@@ -132,18 +172,33 @@ const totalSeconds = progressValues.reduce((sum, item) => {
 
     const completedVideos = progressValues.filter((item) => item.completed).length;
 
-    const coursesCompleted = completedCourseValues.filter(
-      (item) => item.passed || item.completed
-    ).length;
+    const completedCourseIds = new Set(
+      completedCourseValues
+        .filter((item) => item.passed || item.completed)
+        .map((item) => item.courseId)
+    );
+
+    Object.values(latestFinalAttemptByCourse).forEach((attempt) => {
+      if (attempt.passed || getAttemptPercent(attempt) >= Number(attempt.passPercentage || 0)) {
+        completedCourseIds.add(attempt.courseId);
+      }
+    });
+
+    const coursesCompleted = completedCourseIds.size;
 
     const certificatesEarned = completedCourseValues.filter(
-      (item) => item.passed && item.attemptId
+      (item) =>
+        item.certificateUrl ||
+        item.certificateId ||
+        item.certificateIssuedAt ||
+        item.issuedAt ||
+        (item.passed && item.attemptId)
     ).length;
 
     const avgScore =
       finalAttempts.length > 0
         ? Math.round(
-            finalAttempts.reduce((sum, item) => sum + Number(item.score || 0), 0) /
+            finalAttempts.reduce((sum, item) => sum + getAttemptPercent(item), 0) /
               finalAttempts.length
           )
         : 0;
@@ -161,99 +216,138 @@ const totalSeconds = progressValues.reduce((sum, item) => {
       coursesCompleted,
       certificatesEarned,
     };
-  }, [progressValues, finalAttempts, completedCourseValues]);
+  }, [progressValues, finalAttempts, completedCourseValues, latestFinalAttemptByCourse]);
 
   const recentActivities = useMemo(() => {
     const videoActivities = progressValues
       .map((item) => {
         const videoData = videos[item.videoId] || {};
         const courseData = courses[item.courseId] || {};
+        const completed = Boolean(item.completed);
 
         return {
-          id: item.videoId,
-          type: item.completed ? "Video Completed" : "Video Watched",
-          title: item.videoTitle || videoData.title || videoData.videoTitle || "Training Video",
+          id: `video-${item.videoId}`,
+          type: completed ? "Video Completed" : "Video Progress",
+          title:
+            item.videoTitle ||
+            videoData.title ||
+            videoData.videoTitle ||
+            "Training Video",
           subtitle:
             courseData.title ||
             courseData.courseTitle ||
             item.courseTitle ||
             "Training Course",
-          date: item.completedAt || item.updatedAt,
-          value: `${Math.round(Number(item.watchedPercent || 0))}%`,
+          date: completed ? item.completedAt || item.updatedAt : item.updatedAt,
+          value: `${completed ? 100 : Math.round(Number(item.watchedPercent || 0))}%`,
         };
       })
       .filter((item) => item.date);
 
-    const testActivities = finalAttempts.map((item) => ({
-      id: item.id,
-      type: "Final Test",
-      title: item.courseTitle || courses[item.courseId]?.title || "Course Test",
-      subtitle: item.passed ? "Passed" : "Failed",
-      date: item.submittedAt,
-      value: `${item.score || 0}%`,
-    }));
+    const testActivities = finalAttempts
+      .filter((item) => item.submittedAt)
+      .map((item) => ({
+        id: `final-${item.id}`,
+        type: "Final Test",
+        title:
+          item.courseTitle ||
+          courses[item.courseId]?.title ||
+          courses[item.courseId]?.courseTitle ||
+          "Course Test",
+        subtitle: item.passed ? "Passed" : "Attempt completed",
+        date: item.submittedAt,
+        value: `${getAttemptPercent(item)}%`,
+      }));
 
-    return [...videoActivities, ...testActivities]
+    const revisionActivities = videoQuizAttempts
+      .filter((item) => item.submittedAt)
+      .map((item) => ({
+        id: `revision-${item.id}`,
+        type: "Revision Quiz",
+        title:
+          item.videoTitle ||
+          videos[item.videoId]?.title ||
+          videos[item.videoId]?.videoTitle ||
+          "Video Revision Quiz",
+        subtitle:
+          courses[item.courseId]?.title ||
+          courses[item.courseId]?.courseTitle ||
+          "Training Course",
+        date: item.submittedAt,
+        value: `${Number(item.correct || 0)}/${Number(item.total || 0)}`,
+      }));
+
+    return [...videoActivities, ...revisionActivities, ...testActivities]
       .sort(
         (a, b) =>
           new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()
       )
-      .slice(0, 3);
-  }, [progressValues, finalAttempts, videos, courses]);
+      .slice(0, 5);
+  }, [progressValues, finalAttempts, videoQuizAttempts, videos, courses]);
 
  const activityData = useMemo(() => {
-  const today = new Date();
-  const days = [];
-
-  for (let i = range - 1; i >= 0; i--) {
-    const date = new Date(today);
-    date.setDate(today.getDate() - i);
-
-    const key = date.toISOString().slice(0, 10);
-
-    days.push({
-      key,
-      label: date.toLocaleDateString("en-IN", {
-        day: "2-digit",
-        month: "short",
-      }),
-      seconds: 0,
+    const today = new Date();
+    const days = [];
+    const dateFormatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
     });
-  }
 
-  const dayMap = {};
+    for (let i = range - 1; i >= 0; i -= 1) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - i);
+      const key = dateFormatter.format(date);
 
-  days.forEach((day) => {
-    dayMap[day.key] = day;
-  });
+      days.push({
+        key,
+        label: date.toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          timeZone: "Asia/Kolkata",
+        }),
+        seconds: 0,
+      });
+    }
 
-  progressValues.forEach((item) => {
-    const dateSource = item.updatedAt || item.completedAt;
-    if (!dateSource) return;
+    const dayMap = Object.fromEntries(days.map((day) => [day.key, day]));
+    const activityDays = Object.keys(learningActivity || {});
 
-    const dateKey = new Date(dateSource).toISOString().slice(0, 10);
-    if (!dayMap[dateKey]) return;
+    if (activityDays.length > 0) {
+      activityDays.forEach((dayKey) => {
+        if (!dayMap[dayKey]) return;
 
-    const watchedSecondsCount = item.watchedSeconds
-      ? Object.keys(item.watchedSeconds).length
-      : 0;
+        Object.values(learningActivity[dayKey] || {}).forEach((entry) => {
+          dayMap[dayKey].seconds += Number(entry?.seconds || 0);
+        });
+      });
+    } else {
+      // Legacy fallback: old progress records do not contain daily history.
+      // Show each video's cumulative time only on its latest saved date.
+      progressValues.forEach((item) => {
+        const dateSource = item.completedAt || item.updatedAt;
+        if (!dateSource) return;
 
-    const duration = Number(item.duration || 0);
-    const watchedPercent = Number(item.watchedPercent || 0);
+        const dateKey = dateFormatter.format(new Date(dateSource));
+        if (!dayMap[dateKey]) return;
 
-    const watchedSeconds =
-      duration > 0
-        ? Math.max(watchedSecondsCount, duration * (watchedPercent / 100))
-        : watchedSecondsCount;
+        const watchedSecondsCount = item.watchedSeconds
+          ? Object.keys(item.watchedSeconds).length
+          : 0;
+        const duration = Number(item.duration || 0);
+        const watchedPercent = Number(item.watchedPercent || 0);
+        const estimated = duration > 0 ? duration * (watchedPercent / 100) : 0;
 
-    dayMap[dateKey].seconds += watchedSeconds;
-  });
+        dayMap[dateKey].seconds += Math.max(watchedSecondsCount, estimated);
+      });
+    }
 
-  return days.map((day) => ({
-    ...day,
-    hours: Number((day.seconds / 3600).toFixed(2)),
-  }));
-}, [progressValues, range]);
+    return days.map((day) => ({
+      ...day,
+      hours: Number((day.seconds / 3600).toFixed(2)),
+    }));
+  }, [learningActivity, progressValues, range]);
 
   const maxHours = useMemo(() => {
     const max = Math.max(...activityData.map((item) => item.hours), 1);
