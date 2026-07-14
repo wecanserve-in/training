@@ -16,6 +16,9 @@ function VideoPage() {
   const hasResumedRef = useRef(false);
   const lastVideoSecondRef = useRef(0);
   const lastLoggedWatchedCountRef = useRef(0);
+  const furthestAllowedTimeRef = useRef(0);
+  const isSeekingRef = useRef(false);
+  const seekStartTimeRef = useRef(0);
 
   const [video, setVideo] = useState(null);
   const [course, setCourse] = useState(null);
@@ -38,6 +41,7 @@ function VideoPage() {
   const [quizPreviouslyCompleted, setQuizPreviouslyCompleted] = useState(false);
   const [previousScore, setPreviousScore] = useState({ correct: 0, total: 0 });
   const [viewingScore, setViewingScore] = useState(false);
+  const [finalCourseResult, setFinalCourseResult] = useState(null);
 
   useEffect(() => {
     watchedSecondsRef.current = new Set();
@@ -46,6 +50,9 @@ function VideoPage() {
     hasResumedRef.current = false;
     lastVideoSecondRef.current = 0;
     lastLoggedWatchedCountRef.current = 0;
+    furthestAllowedTimeRef.current = 0;
+    isSeekingRef.current = false;
+    seekStartTimeRef.current = 0;
 
     setVideo(null);
     setCourse(null);
@@ -66,18 +73,31 @@ function VideoPage() {
     setQuizPreviouslyCompleted(false);
     setPreviousScore({ correct: 0, total: 0 });
     setViewingScore(false);
+    setFinalCourseResult(null);
     setLoading(true);
 
     const fetchData = async (user) => {
       try {
-        const [oldVideosSnap, videoLibrarySnap, courseVideosSnap, progressSnap, videoQuizzesSnap, quizAttemptsSnap] =
-          await Promise.all([
+        const [
+          oldVideosSnap,
+          videoLibrarySnap,
+          courseVideosSnap,
+          progressSnap,
+          videoQuizzesSnap,
+          quizAttemptsSnap,
+          completedCourseSnap,
+          finalAttemptsSnap,
+          resultsSnap,
+        ] = await Promise.all([
             get(ref(database, "videos")),
             get(ref(database, "videoLibrary")),
             get(ref(database, "courseVideos")),
             get(ref(database, `progress/${user.uid}`)),
             get(ref(database, "videoQuizzes")),
             get(ref(database, `videoQuizAttempts/${user.uid}`)),
+            get(ref(database, `completedCourses/${user.uid}`)),
+            get(ref(database, `attempts/${user.uid}`)),
+            get(ref(database, `results/${user.uid}`)),
           ]);
 
         const oldVideos = oldVideosSnap.exists()
@@ -189,6 +209,15 @@ function VideoPage() {
             Object.keys(currentProgress.watchedSeconds).map(Number)
           );
           lastLoggedWatchedCountRef.current = watchedSecondsRef.current.size;
+
+          const watchedList = [...watchedSecondsRef.current].filter(
+            (second) => Number.isFinite(second)
+          );
+
+          furthestAllowedTimeRef.current =
+            watchedList.length > 0
+              ? Math.max(...watchedList)
+              : 0;
         }
 
         setWatchPercent(
@@ -296,6 +325,63 @@ function VideoPage() {
           }
         }
 
+        const completedCoursesData = completedCourseSnap.exists()
+          ? completedCourseSnap.val()
+          : {};
+        const finalAttemptsData = finalAttemptsSnap.exists()
+          ? finalAttemptsSnap.val()
+          : {};
+        const resultsData = resultsSnap.exists() ? resultsSnap.val() : {};
+
+        const completedRecord = completedCoursesData?.[resolvedCourseId] || null;
+
+        const finalRecords = [
+          ...Object.entries(finalAttemptsData || {}).map(([attemptId, item]) => ({
+            id: attemptId,
+            ...(item || {}),
+          })),
+          ...Object.entries(resultsData || {}).map(([resultId, item]) => ({
+            id: resultId,
+            ...(item || {}),
+          })),
+        ].filter(
+          (item) => item.courseId === resolvedCourseId && !item.videoId
+        );
+
+        const latestPassed = finalRecords
+          .filter(
+            (item) =>
+              item.passed === true ||
+              item.isPassed === true ||
+              String(item.status || "").toLowerCase() === "passed"
+          )
+          .sort(
+            (a, b) =>
+              new Date(b.submittedAt || b.completedAt || b.createdAt || 0) -
+              new Date(a.submittedAt || a.completedAt || a.createdAt || 0)
+          )[0];
+
+        if (completedRecord || latestPassed) {
+          const source = latestPassed || completedRecord || {};
+          const rawScore = Number(
+            source.score ?? source.percentage ?? source.correct ?? 0
+          );
+          const total = Number(
+            source.total ?? source.totalQuestions ?? 0
+          );
+          const percentage =
+            total > 0 && rawScore <= total
+              ? Math.round((rawScore / total) * 100)
+              : Math.max(0, Math.min(100, Math.round(rawScore)));
+
+          setFinalCourseResult({
+            passed: true,
+            score: rawScore,
+            total,
+            percentage,
+          });
+        }
+
         setLoading(false);
       } catch (error) {
         console.error(error);
@@ -388,42 +474,99 @@ function VideoPage() {
       const safeResumeTime = Math.min(resumeTimeRef.current, duration - 2);
       if (safeResumeTime > 0) e.target.currentTime = safeResumeTime;
       lastVideoSecondRef.current = Math.floor(safeResumeTime);
+      furthestAllowedTimeRef.current = Math.max(
+        furthestAllowedTimeRef.current,
+        Math.floor(safeResumeTime)
+      );
       hasResumedRef.current = true;
     }
   };
 
   const handleVideoProgress = async (e) => {
-    const currentSecond = Math.floor(e.target.currentTime || 0);
-    const duration = Math.floor(e.target.duration || 0);
-    if (!duration) return;
+    const player = e.target;
+    const currentTime = Number(player.currentTime || 0);
+    const currentSecond = Math.floor(currentTime);
+    const duration = Math.floor(player.duration || 0);
+
+    if (!duration || isSeekingRef.current) return;
 
     const previousSecond = lastVideoSecondRef.current;
     const movement = currentSecond - previousSecond;
 
-    // Count only real playback progression. A large jump is a seek and must not
-    // mark all skipped seconds as watched.
+    /*
+     * Count only natural playback.
+     * Browser timeupdate normally moves by a small amount.
+     * A larger jump is treated as a seek and does not unlock skipped time.
+     */
     if (movement >= 0 && movement <= 2) {
-      for (let second = previousSecond; second <= currentSecond; second += 1) {
+      for (
+        let second = Math.max(0, previousSecond);
+        second <= currentSecond;
+        second += 1
+      ) {
         watchedSecondsRef.current.add(second);
       }
-    } else {
-      watchedSecondsRef.current.add(currentSecond);
+
+      furthestAllowedTimeRef.current = Math.max(
+        furthestAllowedTimeRef.current,
+        currentTime
+      );
     }
 
     lastVideoSecondRef.current = currentSecond;
 
+    const watchedSeconds = Math.min(
+      watchedSecondsRef.current.size,
+      duration
+    );
+
     const percent = Math.min(
       100,
-      Math.floor((watchedSecondsRef.current.size / duration) * 100)
+      Math.floor((watchedSeconds / duration) * 100)
     );
 
     setWatchPercent(percent);
 
     const now = Date.now();
+
     if (now - lastSavedRef.current > 4000) {
       lastSavedRef.current = now;
-      await saveProgress(percent, false, e.target.currentTime);
+      await saveProgress(percent, false, currentTime);
     }
+  };
+
+  const handleSeeking = (e) => {
+    isSeekingRef.current = true;
+    seekStartTimeRef.current = lastVideoSecondRef.current;
+
+    const requestedTime = Number(e.target.currentTime || 0);
+    const maxAllowed = Math.min(
+      Number(e.target.duration || 0),
+      furthestAllowedTimeRef.current + 2
+    );
+
+    /*
+     * Rewatching already watched portions is allowed.
+     * Jumping beyond the furthest genuinely watched position is blocked.
+     */
+    if (requestedTime > maxAllowed) {
+      e.target.currentTime = Math.max(0, furthestAllowedTimeRef.current);
+    }
+  };
+
+  const handleSeeked = (e) => {
+    const actualTime = Number(e.target.currentTime || 0);
+    const maxAllowed = Math.min(
+      Number(e.target.duration || 0),
+      furthestAllowedTimeRef.current + 2
+    );
+
+    if (actualTime > maxAllowed) {
+      e.target.currentTime = Math.max(0, furthestAllowedTimeRef.current);
+    }
+
+    lastVideoSecondRef.current = Math.floor(e.target.currentTime || 0);
+    isSeekingRef.current = false;
   };
 
   const handleVideoPause = async (e) => {
@@ -435,17 +578,35 @@ function VideoPage() {
   const currentIndex = lessons.findIndex((lesson) => lesson.id === video?.id);
 
   const isVideoCompleted =
-    watchPercent >= 90 || progressMap?.[video?.id]?.completed;
+    watchPercent >= 98 || progressMap?.[video?.id]?.completed;
+
+  const getLessonProgressPercent = (lesson) => {
+    if (lesson.id === video?.id) {
+      return isVideoCompleted ? 100 : Math.max(0, Math.min(100, watchPercent));
+    }
+
+    const lessonProgress = progressMap?.[lesson.id];
+
+    if (lessonProgress?.completed) return 100;
+
+    return Math.max(
+      0,
+      Math.min(100, Number(lessonProgress?.watchedPercent || 0))
+    );
+  };
 
   const completedLessonsCount = lessons.filter(
-    (l) =>
-      progressMap?.[l.id]?.completed ||
-      (l.id === video?.id && isVideoCompleted)
+    (lesson) => getLessonProgressPercent(lesson) >= 100
   ).length;
 
   const courseOverallProgress =
     lessons.length > 0
-      ? Math.floor((completedLessonsCount / lessons.length) * 100)
+      ? Math.floor(
+          lessons.reduce(
+            (sum, lesson) => sum + getLessonProgressPercent(lesson),
+            0
+          ) / lessons.length
+        )
       : 0;
 
   const allCourseVideosCompleted =
@@ -470,9 +631,36 @@ function VideoPage() {
   };
 
   const handleVideoEnd = async () => {
+    const duration = Math.floor(videoRef.current?.duration || videoDuration || 0);
+    const watchedSeconds = watchedSecondsRef.current.size;
+    const requiredSeconds = Math.max(1, Math.floor(duration * 0.98));
+
+    /*
+     * Ending the player is not enough.
+     * The user must genuinely watch at least 98% of the video duration.
+     */
+    if (watchedSeconds < requiredSeconds) {
+      const actualPercent =
+        duration > 0
+          ? Math.floor((watchedSeconds / duration) * 100)
+          : watchPercent;
+
+      setWatchPercent(actualPercent);
+      await saveProgress(actualPercent, false, furthestAllowedTimeRef.current);
+
+      if (videoRef.current) {
+        videoRef.current.currentTime = Math.max(
+          0,
+          furthestAllowedTimeRef.current
+        );
+      }
+
+      alert("Please watch the complete video without skipping.");
+      return;
+    }
+
     await markCurrentVideoComplete();
 
-    // Correct order: lesson video -> this video's revision quiz -> next lesson/final test.
     if (quizQuestions.length > 0 && !quizPreviouslyCompleted) {
       handleStartQuiz();
       return;
@@ -630,10 +818,15 @@ function VideoPage() {
         <div className="course-complete-modal-backdrop">
           <div className="course-complete-modal">
             <div className="modal-success-icon">✓</div>
-            <h2>Course videos completed</h2>
+            <h2>
+              {finalCourseResult?.passed
+                ? "Course Successfully Completed"
+                : "Course videos completed"}
+            </h2>
             <p>
-              You have completed all videos in this course. You can now take
-              the final course test.
+              {finalCourseResult?.passed
+                ? `You have already passed this course with ${finalCourseResult.percentage}%.`
+                : "You have completed all videos in this course. You can now take the final course test."}
             </p>
             <div className="modal-actions">
               <button
@@ -644,9 +837,15 @@ function VideoPage() {
               </button>
               <button
                 className="modal-primary-btn"
-                onClick={() => navigate(`../quiz/${courseId}`)}
+                onClick={() =>
+                  navigate(
+                    finalCourseResult?.passed
+                      ? `../quiz/${courseId}?mode=result`
+                      : `../quiz/${courseId}`
+                  )
+                }
               >
-                Start Final Test
+                {finalCourseResult?.passed ? "View Marks" : "Start Final Test"}
               </button>
             </div>
           </div>
@@ -850,9 +1049,11 @@ function VideoPage() {
               key={video.id}
               ref={videoRef}
               controls
-              controlsList="nodownload"
+              controlsList="nodownload noplaybackrate"
               onLoadedMetadata={handleLoadedMetadata}
               onTimeUpdate={handleVideoProgress}
+              onSeeking={handleSeeking}
+              onSeeked={handleSeeked}
               onPause={handleVideoPause}
               onEnded={handleVideoEnd}
               className="video-player-frame"
@@ -1024,7 +1225,21 @@ function VideoPage() {
 
           <div className="quiz-card">
             <h2>Course Final Test</h2>
-            {allCourseVideosCompleted ? (
+            {finalCourseResult?.passed ? (
+              <>
+                <p>
+                  Course passed with {finalCourseResult.percentage}%.
+                </p>
+                <button
+                  className="quiz-btn active"
+                  onClick={() =>
+                    navigate(`../quiz/${courseId}?mode=result`)
+                  }
+                >
+                  View Marks
+                </button>
+              </>
+            ) : allCourseVideosCompleted ? (
               <>
                 <p>All lessons completed.</p>
                 <button

@@ -326,3 +326,152 @@
     padding: 12px;
   }
 }
+
+/* =========================================
+   FINAL COURSE COMPLETION CARD
+========================================= */
+
+.course-final-test-card {
+  margin-top: 22px;
+  padding: 28px 30px;
+  border-radius: 18px;
+  background: #ffffff;
+  border: 1px solid #dce9e4;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  box-shadow: 0 8px 24px rgba(15, 118, 89, 0.08);
+}
+
+.course-final-test-card.course-final-test-passed {
+  background: linear-gradient(135deg, #f0fdf8 0%, #ecfdf5 100%);
+  border: 1px solid #b7ecd8;
+}
+
+.course-complete-icon {
+  width: 54px;
+  height: 54px;
+  min-width: 54px;
+  border-radius: 50%;
+  background: #07966f;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: 800;
+  box-shadow: 0 8px 18px rgba(7, 150, 111, 0.22);
+}
+
+.course-final-content {
+  flex: 1;
+}
+
+.course-complete-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  margin-bottom: 10px;
+  border-radius: 999px;
+  background: #dff8ee;
+  color: #07825f;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.course-final-test-card h2 {
+  margin: 0 0 8px;
+  color: #10233f;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.course-final-test-card p {
+  margin: 0;
+  max-width: 720px;
+  color: #65758b;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.course-final-score-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.course-final-score-box {
+  min-width: 150px;
+  padding: 16px 20px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #cdeadd;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.course-final-score-box strong {
+  color: #078c68;
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.course-final-score-box span {
+  color: #7a899c;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.course-view-marks-btn,
+.course-start-test-btn {
+  min-width: 145px;
+  min-height: 46px;
+  padding: 11px 22px;
+  border: none;
+  border-radius: 12px;
+  background: #07966f;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.22s ease;
+  box-shadow: 0 8px 18px rgba(7, 150, 111, 0.18);
+}
+
+.course-view-marks-btn:hover,
+.course-start-test-btn:hover {
+  background: #067d5e;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(7, 150, 111, 0.24);
+}
+
+.course-final-test-card a {
+  text-decoration: none;
+}
+
+@media (max-width: 700px) {
+  .course-final-test-card {
+    padding: 22px 18px;
+    flex-direction: column;
+  }
+
+  .course-final-score-row {
+    width: 100%;
+  }
+
+  .course-final-score-box {
+    flex: 1;
+    min-width: 130px;
+  }
+
+  .course-view-marks-btn,
+  .course-start-test-btn {
+    width: 100%;
+  }
+}

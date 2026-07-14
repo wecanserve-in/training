@@ -12,6 +12,63 @@ import {
 } from "react-icons/fa";
 import "../styles/mylearnings.css";
 
+const getProgressWatchedSeconds = (item) => {
+  const watchedSecondsCount =
+    item?.watchedSeconds && typeof item.watchedSeconds === "object"
+      ? Object.keys(item.watchedSeconds).length
+      : 0;
+
+  const duration = Number(item?.duration || 0);
+  const watchedPercent = Math.max(
+    0,
+    Math.min(100, Number(item?.watchedPercent || 0))
+  );
+
+  const estimatedSeconds =
+    duration > 0 ? Math.round(duration * (watchedPercent / 100)) : 0;
+
+  return Math.max(watchedSecondsCount, estimatedSeconds);
+};
+
+const collectActivitySeconds = (value) => {
+  if (!value || typeof value !== "object") return 0;
+
+  // Supports both:
+  // date/videoId/{ seconds }
+  // date/videoId/pushId/{ seconds }
+  if (Object.prototype.hasOwnProperty.call(value, "seconds")) {
+    const seconds = Number(value.seconds || 0);
+    return Number.isFinite(seconds) && seconds > 0 ? seconds : 0;
+  }
+
+  return Object.values(value).reduce(
+    (sum, child) => sum + collectActivitySeconds(child),
+    0
+  );
+};
+
+const formatDuration = (totalSeconds) => {
+  const safeSeconds = Math.max(0, Math.round(Number(totalSeconds || 0)));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  if (minutes > 0) return `${minutes}m`;
+  return safeSeconds > 0 ? "<1m" : "0m";
+};
+
+const formatAxisDuration = (seconds) => {
+  const safeSeconds = Math.max(0, Number(seconds || 0));
+
+  if (safeSeconds >= 3600) {
+    const hours = safeSeconds / 3600;
+    return `${Number.isInteger(hours) ? hours : hours.toFixed(1)}h`;
+  }
+
+  const minutes = Math.round(safeSeconds / 60);
+  return `${minutes}m`;
+};
+
 function MyLearnings() {
   const [progress, setProgress] = useState({});
   const [attempts, setAttempts] = useState([]);
@@ -151,24 +208,24 @@ function MyLearnings() {
   }, [completedCourses]);
 
   const stats = useMemo(() => {
-const totalSeconds = progressValues.reduce((sum, item) => {
-  const watchedSecondsCount = item.watchedSeconds
-    ? Object.keys(item.watchedSeconds).length
-    : 0;
+    const activityTotalSeconds = Object.values(
+      learningActivity || {}
+    ).reduce(
+      (sum, dayData) => sum + collectActivitySeconds(dayData),
+      0
+    );
 
-  const duration = Number(item.duration || 0);
-  const watchedPercent = Number(item.watchedPercent || 0);
+    const progressTotalSeconds = progressValues.reduce(
+      (sum, item) => sum + getProgressWatchedSeconds(item),
+      0
+    );
 
-  const estimatedSeconds =
-    duration > 0
-      ? duration * (watchedPercent / 100)
-      : 0;
-
-  return sum + Math.max(watchedSecondsCount, estimatedSeconds);
-}, 0);
-
-    const totalHours = Math.floor(totalSeconds / 3600);
-    const totalMinutes = Math.floor((totalSeconds % 3600) / 60);
+    // New tracking uses learningActivity. Legacy users fall back to progress.
+    // Never add both because that would double-count watched time.
+    const totalSeconds =
+      activityTotalSeconds > 0
+        ? activityTotalSeconds
+        : progressTotalSeconds;
 
     const completedVideos = progressValues.filter((item) => item.completed).length;
 
@@ -208,7 +265,7 @@ const totalSeconds = progressValues.reduce((sum, item) => {
     ).length;
 
     return {
-      totalTime: `${totalHours}h ${totalMinutes}m`,
+      totalTime: formatDuration(totalSeconds),
       completedVideos,
       inProgressVideos,
       finalTestsTaken: finalAttempts.length,
@@ -216,7 +273,13 @@ const totalSeconds = progressValues.reduce((sum, item) => {
       coursesCompleted,
       certificatesEarned,
     };
-  }, [progressValues, finalAttempts, completedCourseValues, latestFinalAttemptByCourse]);
+  }, [
+    progressValues,
+    finalAttempts,
+    completedCourseValues,
+    latestFinalAttemptByCourse,
+    learningActivity,
+  ]);
 
   const recentActivities = useMemo(() => {
     const videoActivities = progressValues
@@ -318,9 +381,9 @@ const totalSeconds = progressValues.reduce((sum, item) => {
       activityDays.forEach((dayKey) => {
         if (!dayMap[dayKey]) return;
 
-        Object.values(learningActivity[dayKey] || {}).forEach((entry) => {
-          dayMap[dayKey].seconds += Number(entry?.seconds || 0);
-        });
+        dayMap[dayKey].seconds += collectActivitySeconds(
+          learningActivity[dayKey]
+        );
       });
     } else {
       // Legacy fallback: old progress records do not contain daily history.
@@ -332,26 +395,35 @@ const totalSeconds = progressValues.reduce((sum, item) => {
         const dateKey = dateFormatter.format(new Date(dateSource));
         if (!dayMap[dateKey]) return;
 
-        const watchedSecondsCount = item.watchedSeconds
-          ? Object.keys(item.watchedSeconds).length
-          : 0;
-        const duration = Number(item.duration || 0);
-        const watchedPercent = Number(item.watchedPercent || 0);
-        const estimated = duration > 0 ? duration * (watchedPercent / 100) : 0;
-
-        dayMap[dateKey].seconds += Math.max(watchedSecondsCount, estimated);
+        dayMap[dateKey].seconds += getProgressWatchedSeconds(item);
       });
     }
 
     return days.map((day) => ({
       ...day,
-      hours: Number((day.seconds / 3600).toFixed(2)),
+      seconds: Math.max(0, Math.round(day.seconds)),
     }));
   }, [learningActivity, progressValues, range]);
 
-  const maxHours = useMemo(() => {
-    const max = Math.max(...activityData.map((item) => item.hours), 1);
-    return Math.ceil(max);
+  const maxChartSeconds = useMemo(() => {
+    const rawMax = Math.max(
+      ...activityData.map((item) => item.seconds),
+      0
+    );
+
+    if (rawMax <= 0) return 60;
+
+    // Round the graph ceiling to a readable interval.
+    const interval =
+      rawMax <= 5 * 60
+        ? 60
+        : rawMax <= 30 * 60
+          ? 5 * 60
+          : rawMax <= 2 * 3600
+            ? 15 * 60
+            : 3600;
+
+    return Math.ceil(rawMax / interval) * interval;
   }, [activityData]);
 
   const chartPoints = useMemo(() => {
@@ -370,7 +442,7 @@ const totalSeconds = progressValues.reduce((sum, item) => {
       const y =
         height -
         paddingY -
-        (item.hours / maxHours) * (height - paddingY * 2);
+        (item.seconds / maxChartSeconds) * (height - paddingY * 2);
 
       return {
         ...item,
@@ -378,7 +450,7 @@ const totalSeconds = progressValues.reduce((sum, item) => {
         y,
       };
     });
-  }, [activityData, maxHours]);
+  }, [activityData, maxChartSeconds]);
 
   const pathD = useMemo(() => {
     return chartPoints
@@ -501,10 +573,10 @@ const totalSeconds = progressValues.reduce((sum, item) => {
 
           <div className="activity-chart">
             <div className="chart-y-axis">
-              <span>{maxHours}h</span>
-              <span>{Math.round(maxHours * 0.66)}h</span>
-              <span>{Math.round(maxHours * 0.33)}h</span>
-              <span>0h</span>
+              <span>{formatAxisDuration(maxChartSeconds)}</span>
+              <span>{formatAxisDuration(maxChartSeconds * 0.66)}</span>
+              <span>{formatAxisDuration(maxChartSeconds * 0.33)}</span>
+              <span>0m</span>
             </div>
 
             <div className="chart-area">
@@ -532,8 +604,10 @@ const totalSeconds = progressValues.reduce((sum, item) => {
             </div>
           </div>
 
-          {progressValues.length === 0 && (
-            <p className="learning-empty-note">No learning activity recorded yet.</p>
+          {activityData.every((item) => item.seconds === 0) && (
+            <p className="learning-empty-note">
+              No learning activity recorded in this period.
+            </p>
           )}
         </div>
 

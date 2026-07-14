@@ -146,6 +146,9 @@ function DepartmentUploadVideo() {
 
   const activeConfig = departmentFieldConfig[departmentType] || defaultConfig;
   const isDeptAdmin = String(currentUser?.role || "").toLowerCase().replace(/[\s_-]/g, "") === "departmentadmin";
+  const normalizedRole = String(currentUser?.role || "")
+  .toLowerCase()
+  .replace(/[\s_-]/g, "");
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
@@ -509,24 +512,30 @@ function DepartmentUploadVideo() {
 
   return (
     <div className="video-library-page">
+
       <div className="video-library-header">
         <div>
           <span>Upload Training</span>
           <h1>Add Training Video</h1>
           <p>Simple flow: details, filters, files, quiz, then save.</p>
         </div>
-        <Link
-          to={
-            currentUser?.role === "superAdmin"
-              ? "/super-admin/video-library"
-              : currentUser?.role === "admin"
-                ? "/admin/video-library"
-                : "/department-admin/video-library"
-          }
-          className="view-library-btn"
-        >
-          View Library
-        </Link>
+       <Link
+  to={
+    !currentUser
+      ? "#"
+      : normalizedRole === "superadmin"
+      ? "/super-admin/video-library"
+      : normalizedRole === "admin"
+      ? "/admin/video-library"
+      : "/department-admin/video-library"
+  }
+  className="view-library-btn"
+  onClick={(e) => {
+    if (!currentUser) e.preventDefault();
+  }}
+>
+  View Library
+</Link>
       </div>
 
       <form className="video-upload-layout" onSubmit={saveVideo}>

@@ -12,6 +12,7 @@ function CourseDetails() {
   const [course, setCourse] = useState(null);
   const [videos, setVideos] = useState([]);
   const [progressMap, setProgressMap] = useState({});
+  const [finalResult, setFinalResult] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,12 +29,18 @@ function CourseDetails() {
           oldVideosSnap,
           courseVideosSnap,
           videoLibrarySnap,
+          completedCourseSnap,
+          attemptsSnap,
+          resultsSnap,
         ] = await Promise.all([
           get(ref(database, `courses/${id}`)),
           get(ref(database, `progress/${user.uid}`)),
           get(ref(database, "videos")),
           get(ref(database, "courseVideos")),
           get(ref(database, "videoLibrary")),
+          get(ref(database, `completedCourses/${user.uid}/${id}`)),
+          get(ref(database, `attempts/${user.uid}`)),
+          get(ref(database, `results/${user.uid}`)),
         ]);
 
         if (!courseSnap.exists()) {
@@ -76,9 +83,14 @@ function CourseDetails() {
               ...video,
             })
           );
-        } else if (Array.isArray(courseData.videoIds) && courseData.videoIds.length > 0) {
+        } else if (
+          Array.isArray(courseData.videoIds) &&
+          courseData.videoIds.length > 0
+        ) {
           finalVideos = courseData.videoIds
-            .map((videoId) => libraryVideos.find((video) => video.id === videoId))
+            .map((videoId) =>
+              libraryVideos.find((video) => video.id === videoId)
+            )
             .filter(Boolean);
         } else {
           finalVideos = oldVideos.filter((video) => video.courseId === id);
@@ -101,14 +113,90 @@ function CourseDetails() {
               id: video.videoId || video.id,
             };
           })
-          .sort((a, b) => {
-            return (
+          .sort(
+            (a, b) =>
               Number(a.order || 0) - Number(b.order || 0) ||
               new Date(a.createdAt || 0) - new Date(b.createdAt || 0)
-            );
-          });
+          );
 
         setVideos(finalVideos);
+
+        const completedRecord = completedCourseSnap.exists()
+          ? completedCourseSnap.val()
+          : null;
+
+        const attemptsData = attemptsSnap.exists() ? attemptsSnap.val() : {};
+        const resultsData = resultsSnap.exists() ? resultsSnap.val() : {};
+
+        const allFinalRecords = [
+          ...Object.entries(attemptsData || {}).map(([attemptId, item]) => ({
+            id: attemptId,
+            source: "attempts",
+            ...(item || {}),
+          })),
+          ...Object.entries(resultsData || {}).map(([resultId, item]) => ({
+            id: resultId,
+            source: "results",
+            ...(item || {}),
+          })),
+        ].filter((item) => item.courseId === id && !item.videoId);
+
+        const latestPassedRecord = allFinalRecords
+          .filter(
+            (item) =>
+              item.passed === true ||
+              item.isPassed === true ||
+              String(item.status || "").toLowerCase() === "passed"
+          )
+          .sort(
+            (a, b) =>
+              new Date(b.submittedAt || b.completedAt || b.createdAt || 0) -
+              new Date(a.submittedAt || a.completedAt || a.createdAt || 0)
+          )[0];
+
+        const coursePassed =
+          Boolean(completedRecord) ||
+          Boolean(latestPassedRecord);
+
+        if (coursePassed) {
+          const source = latestPassedRecord || completedRecord || {};
+          const rawScore = Number(
+            source.score ??
+              source.percentage ??
+              source.correct ??
+              completedRecord?.score ??
+              completedRecord?.percentage ??
+              0
+          );
+          const total = Number(
+            source.total ??
+              source.totalQuestions ??
+              completedRecord?.total ??
+              completedRecord?.totalQuestions ??
+              0
+          );
+
+          const percentage =
+            total > 0 && rawScore <= total
+              ? Math.round((rawScore / total) * 100)
+              : Math.max(0, Math.min(100, Math.round(rawScore)));
+
+          setFinalResult({
+            passed: true,
+            score: rawScore,
+            total,
+            percentage,
+            submittedAt:
+              source.submittedAt ||
+              source.completedAt ||
+              source.createdAt ||
+              completedRecord?.completedAt ||
+              completedRecord?.createdAt ||
+              "",
+          });
+        } else {
+          setFinalResult(null);
+        }
       } catch (err) {
         console.error(err);
         alert("Failed to load course");
@@ -130,16 +218,13 @@ function CourseDetails() {
 
   const nextUnlockedIndex = completedCount;
 
-  const getThumbnail = (video) => {
-    return (
-      video.thumbnailUrl ||
-      video.thumbnail ||
-      video.imageUrl ||
-      video.coverImage ||
-      video.courseThumbnail ||
-      ""
-    );
-  };
+  const getThumbnail = (video) =>
+    video.thumbnailUrl ||
+    video.thumbnail ||
+    video.imageUrl ||
+    video.coverImage ||
+    video.courseThumbnail ||
+    "";
 
   const courseTitle = course?.title || course?.courseTitle || "";
 
@@ -147,7 +232,10 @@ function CourseDetails() {
     course?.description || course?.courseDescription || course?.overview || "";
 
   const passingScore =
-    course?.passingScore || course?.passPercentage || course?.minimumPassingScore || "";
+    course?.passingScore ||
+    course?.passPercentage ||
+    course?.minimumPassingScore ||
+    "";
 
   if (loading) {
     return <h2 className="course-loading">Loading course...</h2>;
@@ -165,15 +253,17 @@ function CourseDetails() {
       <section className="course-hero">
         <div>
           <p className="course-label">Course Overview</p>
-
           <h1>{courseTitle}</h1>
 
-          {courseDescription && <p className="course-desc">{courseDescription}</p>}
+          {courseDescription && (
+            <p className="course-desc">{courseDescription}</p>
+          )}
 
           <div className="course-meta">
             <span>{videos.length} Videos</span>
             <span>{progressPercent}% Completed</span>
             {passingScore && <span>{passingScore}% Passing Score</span>}
+            {finalResult?.passed && <span>✓ Course Passed</span>}
           </div>
         </div>
 
@@ -205,14 +295,21 @@ function CourseDetails() {
                 >
                   <div className="video-thumb">
                     {thumbnail ? (
-                      <img src={thumbnail} alt={video.title || "Video thumbnail"} />
+                      <img
+                        src={thumbnail}
+                        alt={video.title || "Video thumbnail"}
+                      />
                     ) : (
                       <span>{index + 1}</span>
                     )}
                   </div>
 
                   <div className="video-info">
-                    <h3>{video.title || video.videoTitle || `Video ${index + 1}`}</h3>
+                    <h3>
+                      {video.title ||
+                        video.videoTitle ||
+                        `Video ${index + 1}`}
+                    </h3>
 
                     {(video.description || video.videoDescription) && (
                       <p>{video.description || video.videoDescription}</p>
@@ -222,8 +319,8 @@ function CourseDetails() {
                       {isCompleted
                         ? "Completed"
                         : isUnlocked
-                        ? "Available"
-                        : "Locked"}
+                          ? "Available"
+                          : "Locked"}
                     </div>
                   </div>
 
@@ -244,14 +341,70 @@ function CourseDetails() {
           )}
         </div>
 
-        {progressPercent >= 100 && (
-  <div className="course-final-test-card">
-    <h2>Course Videos Completed</h2>
-    <p>You can now take the final course test.</p>
+       {progressPercent >= 100 && (
+  <div
+    className={`course-final-test-card ${
+      finalResult?.passed ? "course-final-test-passed" : ""
+    }`}
+  >
+    {finalResult?.passed ? (
+      <>
+        <div className="course-complete-icon">✓</div>
 
-    <Link to={`../quiz/${course.id}`}>
-      <button>Start Final Test</button>
-    </Link>
+        <div className="course-final-content">
+          <span className="course-complete-label">
+            Course Completed
+          </span>
+
+          <h2>Course Successfully Completed</h2>
+
+          <p>
+            Congratulations! You have successfully passed the final
+            course test. This test cannot be attempted again.
+          </p>
+
+          <div className="course-final-score-row">
+            <div className="course-final-score-box">
+              <strong>{finalResult.percentage}%</strong>
+              <span>Final Score</span>
+            </div>
+
+          
+          </div>
+
+          <button
+            type="button"
+            className="course-view-marks-btn"
+            onClick={() =>
+              navigate(`../quiz/${course.id}?mode=result`)
+            }
+          >
+            View Marks
+          </button>
+        </div>
+      </>
+    ) : (
+      <>
+        <div className="course-final-content">
+          <span className="course-complete-label">
+            Final Assessment
+          </span>
+
+          <h2>Course Videos Completed</h2>
+
+          <p>
+            You have completed all course videos. You can now take
+            the final course test.
+          </p>
+
+          <Link to={`../quiz/${course.id}`}>
+            <button className="course-start-test-btn">
+              Start Final Test
+            </button>
+          </Link>
+        </div>
+      </>
+    )}
   </div>
 )}
       </section>
