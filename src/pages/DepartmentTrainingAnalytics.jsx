@@ -93,20 +93,23 @@ function DepartmentTrainingAnalytics() {
 
         const canSeeAllUsers =
           adminData.role === "admin" ||
-          adminData.role === "superAdmin";
+          adminData.role === "superAdmin" ||
+          adminData.role === "superadmin" ||
+          adminData.role === "departmentAdmin";
 
         const visibleUsers = canSeeAllUsers
           ? allUsers.filter(
               (u) =>
                 u.role !== "admin" &&
-                u.role !== "superAdmin"
+                u.role !== "superAdmin" &&
+                u.role !== "superadmin"
             )
           : allUsers.filter(
               (u) =>
                 u.role !== "admin" &&
                 u.role !== "superAdmin" &&
-                u.role !== "departmentAdmin" &&
-                u.department === adminData.department
+                u.role !== "superadmin" &&
+                u.role !== "departmentAdmin"
             );
 
         setCourses(visibleCourses);

@@ -88,16 +88,9 @@ function AssignedUsers() {
             if (isAdmin) return role !== "superadmin";
             if (isDeptAdmin) {
               if (["superadmin", "admin", "departmentadmin"].includes(role)) return false;
-              const userDept = (u.department || "").trim().toLowerCase();
-              const uDeptId = (u.departmentId || "").trim();
-              const myDept = userDepartment.trim().toLowerCase();
-              const myDeptId = userDepartmentId.trim();
-              if (myDept && userDept === myDept) return true;
-              if (myDeptId && uDeptId === myDeptId) return true;
-              if (!myDept && !myDeptId) return true;
-              return false;
+              return true;
             }
-            return false;
+            return true;
           });
           setUsers(visibleUsers);
         }

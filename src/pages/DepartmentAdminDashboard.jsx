@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { get, onValue, ref } from "firebase/database";
 import { auth, database } from "../firebase";
-import "../styles/departmentadmin.css";
+import "../styles/superadmin.css";
 
 function DepartmentAdminDashboard() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -419,185 +419,335 @@ function DepartmentAdminDashboard() {
 
   if (loading) {
     return (
-      <div className="dept-dashboard-page">
-        <div className="dept-loading-card">
-          <h2>Loading dashboard...</h2>
-        </div>
+      <div className="super-loading">
+        <h2>Loading dashboard...</h2>
       </div>
     );
   }
 
   return (
-    <div className="dept-dashboard-page">
-      <div className="dept-dashboard-header">
-        <div>
-          <span>Department Dashboard</span>
+    <div className="super-dashboard">
+      <section className="dash-hero">
+        <div className="hero-content">
           <h1>{departmentName || "Department"} Overview</h1>
-          <p>
-            Real Firebase stats based on userAssignments, completedCourses and
-            progress.
-          </p>
+          <p>Real Firebase stats based on userAssignments, completedCourses and progress.</p>
+          <div className="hero-stats">
+            <div className="hero-stat">
+              <div className="hero-stat-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <div>
+                <strong>{users.length}</strong>
+                <span>Users</span>
+              </div>
+            </div>
+            <div className="hero-stat">
+              <div className="hero-stat-icon admins-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              </div>
+              <div>
+                <strong>{courses.length}</strong>
+                <span>Courses</span>
+              </div>
+            </div>
+            <div className="hero-stat">
+              <div className="hero-stat-icon dept-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              </div>
+              <div>
+                <strong>{videos.length}</strong>
+                <span>Videos</span>
+              </div>
+            </div>
+          </div>
         </div>
-
-        <button type="button" onClick={downloadReport}>
-          Export Report
-        </button>
-      </div>
-
-      <div className="dept-kpi-grid">
-        <div className="dept-kpi-card">
-          <span>Total Assignable Users</span>
-          <h3>{users.length}</h3>
-          <p>All normal users</p>
+        <div className="hero-decoration">
+          <div className="hero-circle-1"></div>
+          <div className="hero-circle-2"></div>
         </div>
+      </section>
 
-        <div className="dept-kpi-card">
-          <span>Total Courses</span>
-          <h3>{courses.length}</h3>
-          <p>Visible courses</p>
-        </div>
-
-        <div className="dept-kpi-card">
-          <span>Total Videos</span>
-          <h3>{videos.length}</h3>
-          <p>Video library</p>
-        </div>
-
-        <div className="dept-kpi-card">
-          <span>Assigned</span>
-          <h3>{totalAssigned}</h3>
-          <p>User-course assignments</p>
-        </div>
-
-        <div className="dept-kpi-card success">
-          <span>Completed</span>
-          <h3>{totalCompleted}</h3>
-          <p>Completed trainings</p>
-        </div>
-
-        <div className="dept-kpi-card progress">
-          <span>In Progress</span>
-          <h3>{totalInProgress}</h3>
-          <p>Started trainings</p>
-        </div>
-
-        <div className="dept-kpi-card warning">
-          <span>Pending</span>
-          <h3>{totalPending}</h3>
-          <p>In progress + not started</p>
-        </div>
-
-        <div className="dept-kpi-card primary">
-          <span>Completion Rate</span>
-          <h3>{completionRate}%</h3>
-          <p>Completed / assigned</p>
-        </div>
-      </div>
-
-      <div className="dept-large-card">
-        <div className="dept-section-head">
-          <div>
-            <span>Course Overview</span>
-            <h2>Latest 2 Courses</h2>
+      <section className="dash-stat-cards">
+        <div className="stat-card stat-courses">
+          <div className="stat-card-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <div className="stat-card-info">
+            <span>Assigned</span>
+            <strong>{totalAssigned}</strong>
           </div>
         </div>
 
-        {courseOverview.length === 0 ? (
-          <div className="dept-empty-row">No course data found.</div>
-        ) : (
-          <div className="dept-course-card-grid">
-            {courseOverview.map((course) => (
-              <div className="dept-course-card" key={course.id}>
-                <div className="dept-course-title-row">
-                  <h3>{course.title}</h3>
-                  <strong>{course.rate}%</strong>
+        <div className="stat-card stat-completed">
+          <div className="stat-card-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div className="stat-card-info">
+            <span>Completed</span>
+            <strong>{totalCompleted}</strong>
+          </div>
+        </div>
+
+        <div className="stat-card stat-progress">
+          <div className="stat-card-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </div>
+          <div className="stat-card-info">
+            <span>In Progress</span>
+            <strong>{totalInProgress}</strong>
+          </div>
+        </div>
+
+        <div className="stat-card stat-cert">
+          <div className="stat-card-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+          </div>
+          <div className="stat-card-info">
+            <span>Pending</span>
+            <strong>{totalPending}</strong>
+          </div>
+        </div>
+
+        <div className="stat-card stat-rate">
+          <div className="stat-card-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+          </div>
+          <div className="stat-card-info">
+            <span>Completion Rate</span>
+            <strong>{completionRate}%</strong>
+          </div>
+        </div>
+      </section>
+
+      <section className="dash-content-row">
+        <div className="dash-card courses-card">
+          <div className="card-head">
+            <div>
+              <h2>Course Overview</h2>
+              <p>Latest courses with assignment stats</p>
+            </div>
+          </div>
+
+          <div className="course-list">
+            {courseOverview.length === 0 ? (
+              <p className="empty-text">No course data available yet.</p>
+            ) : (
+              courseOverview.map((course, i) => {
+                const colors = ["#f59e0b", "#3b82f6", "#10b981", "#8b5cf6", "#ec4899"];
+                const letter = course.title?.charAt(0)?.toUpperCase() || "C";
+                return (
+                  <div className="course-row" key={course.id}>
+                    <div className="course-avatar" style={{ background: colors[i % colors.length] }}>
+                      {letter}
+                    </div>
+                    <div className="course-info">
+                      <h3>{course.title}</h3>
+                      <span>{course.assigned} Assigned &bull; {course.completed} Done</span>
+                    </div>
+                    <div className="course-progress-wrap">
+                      <div className="course-progress-bar">
+                        <span style={{ width: `${course.rate}%` }}></span>
+                      </div>
+                      <strong>{course.rate}%</strong>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        <div className="dash-card quick-card-side">
+          <div className="quick-side-header">
+            <h2>Department Summary</h2>
+            <p>Quick overview of your department</p>
+          </div>
+
+          <div className="quick-mini-cards">
+            <div className="quick-mini">
+              <strong>{totalAssigned}</strong>
+              <span>Assigned</span>
+            </div>
+            <div className="quick-mini">
+              <strong>{totalCompleted}</strong>
+              <span>Completed</span>
+            </div>
+            <div className="quick-mini">
+              <strong>{totalInProgress}</strong>
+              <span>In Progress</span>
+            </div>
+            <div className="quick-mini">
+              <strong>{courses.length}</strong>
+              <span>Courses</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="dash-gradient-cards">
+        <div className="gradient-card gradient-yellow">
+          <div className="gradient-card-content">
+            <strong>{totalCompleted}+</strong>
+            <span>Completed Courses</span>
+            <p>Users finishing training</p>
+          </div>
+          <div className="gradient-card-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+        </div>
+
+        <div className="gradient-card gradient-pink">
+          <div className="gradient-card-content">
+            <strong>{courses.length}+</strong>
+            <span>Training Courses</span>
+            <p>Available for learning</p>
+          </div>
+          <div className="gradient-card-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </div>
+        </div>
+      </section>
+
+      <section className="dash-bottom-row">
+        <div className="dash-card pass-card">
+          <div className="card-title-row">
+            <h2>Completion Rate</h2>
+          </div>
+          <div className="pass-donut-wrap">
+            <svg className="pass-donut" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="50" fill="none" stroke="#e8f5ee" strokeWidth="12" />
+              <circle
+                cx="60" cy="60" r="50" fill="none"
+                stroke="#22c55e"
+                strokeWidth="12"
+                strokeDasharray={`${completionRate * 3.14} ${314 - completionRate * 3.14}`}
+                strokeDashoffset="78.5"
+                strokeLinecap="round"
+              />
+            </svg>
+            <div className="pass-donut-center">
+              <strong>{completionRate}%</strong>
+            </div>
+          </div>
+          <p>{totalCompleted} of {totalAssigned} completed</p>
+        </div>
+
+        <div className="dash-card alerts-card">
+          <div className="card-title-row">
+            <h2>Training Alerts</h2>
+          </div>
+
+          {totalPending > 0 && (
+            <div className="alert-row warning">
+              <span>Pending Courses</span>
+              <strong>{totalPending}</strong>
+            </div>
+          )}
+          <div className={`alert-row ${completionRate >= 50 ? "success" : "warning"}`}>
+            <span>Completion Rate</span>
+            <strong>{completionRate}%</strong>
+          </div>
+          <div className="alert-row success">
+            <span>Courses Available</span>
+            <strong>{courses.length}</strong>
+          </div>
+        </div>
+
+        <div className="dash-card department-card">
+          <div className="card-title-row">
+            <h2>User Progress</h2>
+          </div>
+
+          {userRows.length === 0 ? (
+            <p className="empty-text">No assigned users yet.</p>
+          ) : (
+            userRows.slice(0, 5).map((user, index) => (
+              <div className="dept-row" key={user.id}>
+                <div>
+                  <span>{index + 1}. {user.name}</span>
+                  <strong>{user.rate}%</strong>
                 </div>
-
-                <div className="dept-progress-line">
-                  <div>
-                    <span style={{ width: `${course.rate}%` }}></span>
-                  </div>
-                </div>
-
-                <div className="dept-course-stats">
-                  <div>
-                    <span>Assigned</span>
-                    <b>{course.assigned}</b>
-                  </div>
-
-                  <div>
-                    <span>Completed</span>
-                    <b>{course.completed}</b>
-                  </div>
-
-                  <div>
-                    <span>In Progress</span>
-                    <b>{course.inProgress}</b>
-                  </div>
-
-                  <div>
-                    <span>Not Started</span>
-                    <b>{course.notStarted}</b>
-                  </div>
+                <div className="dept-track">
+                  <span style={{ width: `${user.rate}%` }}></span>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="dept-large-card">
-        <div className="dept-section-head">
-          <div>
-            <span>Users</span>
-            <h2>Assigned User Progress</h2>
-          </div>
+            ))
+          )}
         </div>
+      </section>
 
-        <div className="dept-table-wrap">
-          <table className="dept-table">
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Email</th>
-                <th>Department</th>
-                <th>Designation</th>
-                <th>Assigned</th>
-                <th>Completed</th>
-                <th>In Progress</th>
-                <th>Not Started</th>
-                <th>Completion</th>
-              </tr>
-            </thead>
+      <section className="dash-content-row" style={{ padding: "0 24px 28px" }}>
+        <div className="dash-card courses-card" style={{ gridColumn: "1 / -1" }}>
+          <div className="card-head">
+            <div>
+              <h2>Assigned User Progress</h2>
+              <p>Detailed breakdown of all assigned users</p>
+            </div>
+            <button
+              type="button"
+              onClick={downloadReport}
+              style={{
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                color: "#2563eb",
+                textDecoration: "none",
+                padding: "3px 10px",
+                borderRadius: "6px",
+                background: "#eff6ff",
+                border: "none",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Export Report
+            </button>
+          </div>
 
-            <tbody>
-              {userRows.length > 0 ? (
-                userRows.map((user) => (
-                  <tr key={user.id}>
-                    <td>
-                      <strong>{user.name}</strong>
-                    </td>
-                    <td>{user.email}</td>
-                    <td>{user.department}</td>
-                    <td>{user.designation}</td>
-                    <td>{user.assigned}</td>
-                    <td>{user.completed}</td>
-                    <td>{user.inProgress}</td>
-                    <td>{user.notStarted}</td>
-                    <td>
-                      <b>{user.rate}%</b>
-                    </td>
-                  </tr>
-                ))
-              ) : (
+          <div style={{ width: "100%", overflowX: "auto" }}>
+            <table className="dept-table">
+              <thead>
                 <tr>
-                  <td colSpan="9">No assigned users found.</td>
+                  <th>User</th>
+                  <th>Email</th>
+                  <th>Department</th>
+                  <th>Designation</th>
+                  <th>Assigned</th>
+                  <th>Completed</th>
+                  <th>In Progress</th>
+                  <th>Not Started</th>
+                  <th>Completion</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+
+              <tbody>
+                {userRows.length > 0 ? (
+                  userRows.map((user) => (
+                    <tr key={user.id}>
+                      <td>
+                        <strong>{user.name}</strong>
+                      </td>
+                      <td>{user.email}</td>
+                      <td>{user.department}</td>
+                      <td>{user.designation}</td>
+                      <td>{user.assigned}</td>
+                      <td>{user.completed}</td>
+                      <td>{user.inProgress}</td>
+                      <td>{user.notStarted}</td>
+                      <td>
+                        <b>{user.rate}%</b>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="9">No assigned users found.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

@@ -113,16 +113,9 @@ function DepartmentAssignTraining() {
           if (isAdmin) return role !== "superadmin";
           if (isDeptAdmin) {
             if (["superadmin", "admin", "departmentadmin"].includes(role)) return false;
-            const userDept = (u.department || "").trim().toLowerCase();
-            const userDeptId = (u.departmentId || "").trim();
-            const myDept = (adminData.department || "").trim().toLowerCase();
-            const myDeptId = (adminData.departmentId || "").trim();
-            if (myDept && userDept === myDept) return true;
-            if (myDeptId && userDeptId === myDeptId) return true;
-            if (!myDept && !myDeptId) return true;
-            return false;
+            return true;
           }
-          return false;
+          return true;
         });
 
         setCourses(myCourses);

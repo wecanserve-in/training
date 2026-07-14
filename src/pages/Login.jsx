@@ -4,6 +4,10 @@ import {
   FaEyeSlash,
   FaEnvelope,
   FaLock,
+  FaGraduationCap,
+  FaShieldAlt,
+  FaChartLine,
+  FaUsers,
 } from "react-icons/fa";
 
 import {
@@ -40,8 +44,6 @@ function Login() {
     setIsSubmitting(true);
 
     try {
-      // Remember me checked:
-      // login stays active after browser restart.
       await setPersistence(
         auth,
         rememberMe
@@ -58,7 +60,6 @@ function Login() {
 
       const user = userCredential.user;
 
-      // Only read profile from Realtime Database.
       const userData = await loadUserProfile(user);
 
       if (!userData) {
@@ -154,158 +155,219 @@ function Login() {
     <div className="login-page">
       <div className="login-box">
         {/* LEFT PANEL */}
-
         <div className="left-panel">
-          <img
-            src="/Logo.webp"
-            alt="Logo"
-            className="brand-logo"
-          />
+          <div className="left-overlay"></div>
 
-          <div className="hero-content">
-            <h1>
-              Learn.
-              <br />
+          <div className="left-content">
+            <div className="brand-section">
+              <img
+                src="/Logo.webp"
+                alt="Logo"
+                className="brand-logo"
+              />
+            </div>
 
-              <span>Develop.</span>
-              <br />
+            <div className="hero-section">
+              <h1>
+                Learn.
+                <br />
+                <span className="highlight">Develop.</span>
+                <br />
+                Perform.
+              </h1>
 
-              <span className="accent-red">Perform.</span>
-            </h1>
+              <p className="hero-desc">
+                Your company training and certification hub.
+              </p>
 
-            <p>
-              Access company training,
-              certifications, and learning
-              resources anytime, anywhere.
-            </p>
+              <div className="feature-list">
+                <div className="feature-item">
+                  <div className="feature-icon">
+                    <FaGraduationCap />
+                  </div>
+                  <div>
+                    <strong>Courses</strong>
+                    <span>Access assigned training</span>
+                  </div>
+                </div>
+
+                <div className="feature-item">
+                  <div className="feature-icon">
+                    <FaShieldAlt />
+                  </div>
+                  <div>
+                    <strong>Certifications</strong>
+                    <span>Earn credentials</span>
+                  </div>
+                </div>
+
+                <div className="feature-item">
+                  <div className="feature-icon">
+                    <FaChartLine />
+                  </div>
+                  <div>
+                    <strong>Progress</strong>
+                    <span>Track completion</span>
+                  </div>
+                </div>
+
+                <div className="feature-item">
+                  <div className="feature-icon">
+                    <FaUsers />
+                  </div>
+                  <div>
+                    <strong>Team</strong>
+                    <span>Department training</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="left-footer">
+              <span>Trusted by 10,000+ professionals</span>
+            </div>
           </div>
         </div>
 
         {/* RIGHT PANEL */}
-
         <div className="right-panel">
-          <h2>Welcome Back!</h2>
-
-          <p className="subtitle">
-            Login to continue your training
-            journey.
-          </p>
-
-          <form
-            className="login-form"
-            onSubmit={handleLogin}
-          >
-            <div className="field">
-              <label htmlFor="login-email">
-                Email Address
-              </label>
-
-              <div className="input-group">
-                <FaEnvelope />
-
-                <input
-                  id="login-email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) =>
-                    setEmail(e.target.value)
-                  }
-                  autoComplete="email"
-                  required
-                />
-              </div>
+          <div className="right-content">
+            <div className="form-header">
+              <div className="welcome-badge">Welcome Back</div>
+              <h2>Sign in</h2>
+              <p>
+                Enter your credentials to continue
+              </p>
             </div>
 
-            <div className="field">
-              <label htmlFor="login-password">
-                Password
-              </label>
+            <form
+              className="login-form"
+              onSubmit={handleLogin}
+            >
+              <div className="field">
+                <label htmlFor="login-email">
+                  Email Address
+                </label>
 
-              <div className="input-group password-group">
-                <FaLock />
+                <div className="input-group">
+                  <FaEnvelope className="input-icon" />
 
-                <input
-                  id="login-password"
-                  type={
-                    showPassword
-                      ? "text"
-                      : "password"
-                  }
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) =>
-                    setPassword(e.target.value)
-                  }
-                  autoComplete="current-password"
-                  required
-                />
+                  <input
+                    id="login-email"
+                    type="email"
+                    placeholder="you@company.com"
+                    value={email}
+                    onChange={(e) =>
+                      setEmail(e.target.value)
+                    }
+                    autoComplete="email"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="field">
+                <label htmlFor="login-password">
+                  Password
+                </label>
+
+                <div className="input-group password-group">
+                  <FaLock className="input-icon" />
+
+                  <input
+                    id="login-password"
+                    type={
+                      showPassword
+                        ? "text"
+                        : "password"
+                    }
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) =>
+                      setPassword(e.target.value)
+                    }
+                    autoComplete="current-password"
+                    required
+                  />
+
+                  <button
+                    type="button"
+                    className="password-toggle"
+                    onClick={() =>
+                      setShowPassword(
+                        (previous) => !previous
+                      )
+                    }
+                    aria-label={
+                      showPassword
+                        ? "Hide password"
+                        : "Show password"
+                    }
+                  >
+                    {showPassword ? (
+                      <FaEyeSlash />
+                    ) : (
+                      <FaEye />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="login-options">
+                <label className="remember">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) =>
+                      setRememberMe(
+                        e.target.checked
+                      )
+                    }
+                  />
+
+                  <span>Keep me signed in</span>
+                </label>
 
                 <button
                   type="button"
-                  className="password-toggle"
-                  onClick={() =>
-                    setShowPassword(
-                      (previous) => !previous
-                    )
-                  }
-                  aria-label={
-                    showPassword
-                      ? "Hide password"
-                      : "Show password"
-                  }
+                  className="forgot-password"
                 >
-                  {showPassword ? (
-                    <FaEyeSlash />
-                  ) : (
-                    <FaEye />
-                  )}
+                  Forgot password?
                 </button>
               </div>
-            </div>
 
-            <div className="login-options">
-              <label className="remember">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) =>
-                    setRememberMe(
-                      e.target.checked
-                    )
-                  }
-                />
-
-                Remember me
-              </label>
+              {errorMessage && (
+                <div
+                  className="login-error"
+                  role="alert"
+                >
+                  <span className="error-dot"></span>
+                  {errorMessage}
+                </div>
+              )}
 
               <button
-                type="button"
-                className="forgot-password"
+                className="login-btn"
+                type="submit"
+                disabled={isSubmitting}
               >
-                Forgot Password?
+                {isSubmitting ? (
+                  <span className="btn-loading">
+                    <span className="spinner"></span>
+                    Signing in...
+                  </span>
+                ) : (
+                  "Sign In"
+                )}
               </button>
+            </form>
+
+            <div className="form-footer">
+              <p>
+                Internal use only
+              </p>
             </div>
-
-            {errorMessage && (
-              <div
-                className="login-error"
-                role="alert"
-              >
-                {errorMessage}
-              </div>
-            )}
-
-            <button
-              className="login-btn"
-              type="submit"
-              disabled={isSubmitting}
-            >
-              {isSubmitting
-                ? "Signing In..."
-                : "Sign In"}
-            </button>
-          </form>
+          </div>
         </div>
       </div>
     </div>
