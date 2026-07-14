@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ref, get, update } from "firebase/database";
+import { ref, get, update, push } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, database } from "../firebase";
 import "../styles/videopage.css";
@@ -55,6 +55,15 @@ function VideoPage() {
     setShowCourseCompleteModal(false);
     setShowQuizPopup(false);
     setQuizQuestions([]);
+    setCurrentQuizIndex(0);
+    setSelectedAnswer(null);
+    setShowResult(false);
+    setQuizScore(0);
+    setQuizAnswers({});
+    setQuizCompleted(false);
+    setQuizPreviouslyCompleted(false);
+    setPreviousScore({ correct: 0, total: 0 });
+    setViewingScore(false);
     setLoading(true);
 
     const fetchData = async (user) => {
@@ -190,26 +199,85 @@ function VideoPage() {
         }
 
         if (videoQuizzesSnap.exists()) {
-          const vqData = videoQuizzesSnap.val();
+          const vqData = videoQuizzesSnap.val() || {};
+          const acceptedVideoIds = new Set(
+            [foundVideo.id, foundVideo.mappingId, id].filter(Boolean)
+          );
+
           const videoQuestions = [];
+          const addedQuestionIds = new Set();
 
-          const quizSource = vqData[foundVideo.id] || vqData[foundVideo.mappingId] || {};
+          const addQuestionsFromSource = (source, sourceKey = "") => {
+            if (!source || typeof source !== "object") return;
 
-          Object.entries(quizSource).forEach(([questionId, question]) => {
-            if (question && (question.question || question.questionText)) {
+            Object.entries(source).forEach(([questionId, question]) => {
+              if (!question || typeof question !== "object") return;
+
+              const hasQuestionText = Boolean(
+                question.question || question.questionText
+              );
+              if (!hasQuestionText) return;
+
+              const questionVideoId =
+                question.videoId || question.videoID || question.lessonId;
+
+              // Never load a question explicitly assigned to another video.
+              if (questionVideoId && !acceptedVideoIds.has(questionVideoId)) {
+                return;
+              }
+
+              const uniqueId = `${sourceKey}:${questionId}`;
+              if (addedQuestionIds.has(uniqueId)) return;
+
+              addedQuestionIds.add(uniqueId);
               videoQuestions.push({ id: questionId, ...question });
+            });
+          };
+
+          // Supported exact structures:
+          // videoQuizzes/{videoId}/{questionId}
+          // videoQuizzes/{mappingId}/{questionId}
+          // videoQuizzes/{courseId}/{videoId}/{questionId}
+          acceptedVideoIds.forEach((videoKey) => {
+            addQuestionsFromSource(vqData?.[videoKey], videoKey);
+            addQuestionsFromSource(
+              vqData?.[resolvedCourseId]?.[videoKey],
+              `${resolvedCourseId}:${videoKey}`
+            );
+          });
+
+          // Also support a flat question collection, but only when videoId matches.
+          Object.entries(vqData).forEach(([questionId, question]) => {
+            if (!question || typeof question !== "object") return;
+            const questionVideoId =
+              question.videoId || question.videoID || question.lessonId;
+            if (questionVideoId && acceptedVideoIds.has(questionVideoId)) {
+              addQuestionsFromSource({ [questionId]: question }, "flat");
             }
           });
 
+          videoQuestions.sort(
+            (a, b) => Number(a.order || 0) - Number(b.order || 0)
+          );
           setQuizQuestions(videoQuestions);
 
           if (quizAttemptsSnap.exists()) {
-            const attempts = quizAttemptsSnap.val();
+            const attempts = quizAttemptsSnap.val() || {};
             let latestAttempt = null;
 
             Object.values(attempts).forEach((attempt) => {
-              if (attempt.videoId === foundVideo.id) {
-                if (!latestAttempt || new Date(attempt.submittedAt) > new Date(latestAttempt.submittedAt)) {
+              const attemptMatchesVideo = acceptedVideoIds.has(
+                attempt?.videoId || attempt?.mappingId
+              );
+              const attemptMatchesCourse =
+                !attempt?.courseId || attempt.courseId === resolvedCourseId;
+
+              if (attemptMatchesVideo && attemptMatchesCourse) {
+                if (
+                  !latestAttempt ||
+                  new Date(attempt.submittedAt || 0) >
+                    new Date(latestAttempt.submittedAt || 0)
+                ) {
                   latestAttempt = attempt;
                 }
               }
@@ -218,8 +286,8 @@ function VideoPage() {
             if (latestAttempt) {
               setQuizPreviouslyCompleted(true);
               setPreviousScore({
-                correct: latestAttempt.correct || 0,
-                total: latestAttempt.total || 0,
+                correct: Number(latestAttempt.correct || 0),
+                total: Number(latestAttempt.total || videoQuestions.length || 0),
               });
             }
           }
@@ -362,9 +430,19 @@ function VideoPage() {
 
   const handleVideoEnd = async () => {
     await markCurrentVideoComplete();
-    if (currentIndex === lessons.length - 1) {
-      setShowCourseCompleteModal(true);
+
+    // Correct order: lesson video -> this video's revision quiz -> next lesson/final test.
+    if (quizQuestions.length > 0 && !quizPreviouslyCompleted) {
+      handleStartQuiz();
+      return;
     }
+
+    if (currentIndex < lessons.length - 1) {
+      navigate(`../video/${lessons[currentIndex + 1].id}`);
+      return;
+    }
+
+    setShowCourseCompleteModal(true);
   };
 
   const formatTime = (seconds) => {
@@ -431,16 +509,53 @@ function VideoPage() {
     }));
   };
 
-  const handleNextQuestion = () => {
+  const saveQuizAttempt = async (finalScore) => {
+    const user = auth.currentUser;
+    if (!user || !video) return;
+
+    const attemptRef = push(ref(database, `videoQuizAttempts/${user.uid}`));
+    await update(attemptRef, {
+      videoId: video.id,
+      mappingId: video.mappingId || null,
+      courseId: video.courseId,
+      videoTitle: video.title || video.videoTitle || "",
+      correct: finalScore,
+      total: quizQuestions.length,
+      answers: quizAnswers,
+      submittedAt: new Date().toISOString(),
+    });
+  };
+
+  const handleNextQuestion = async () => {
     if (currentQuizIndex < quizQuestions.length - 1) {
       setCurrentQuizIndex((prev) => prev + 1);
       setSelectedAnswer(null);
       setShowResult(false);
-    } else {
-      setQuizCompleted(true);
-      setQuizPreviouslyCompleted(true);
-      setPreviousScore({ correct: quizScore + (isCorrectOption(quizQuestions[currentQuizIndex], selectedAnswer) ? 1 : 0), total: quizQuestions.length });
+      return;
     }
+
+    // quizScore already includes the submitted last answer. Do not add it again.
+    const finalScore = quizScore;
+    setQuizCompleted(true);
+    setQuizPreviouslyCompleted(true);
+    setPreviousScore({ correct: finalScore, total: quizQuestions.length });
+
+    try {
+      await saveQuizAttempt(finalScore);
+    } catch (error) {
+      console.error("Failed to save revision quiz attempt:", error);
+    }
+  };
+
+  const handleQuizContinue = () => {
+    handleCloseQuiz();
+
+    if (currentIndex < lessons.length - 1) {
+      navigate(`../video/${lessons[currentIndex + 1].id}`);
+      return;
+    }
+
+    setShowCourseCompleteModal(true);
   };
 
   const handleCloseQuiz = () => {
@@ -586,9 +701,13 @@ function VideoPage() {
                   <div className="quiz-summary-actions">
                     <button
                       className="quiz-summary-btn close"
-                      onClick={handleCloseQuiz}
+                      onClick={viewingScore ? handleCloseQuiz : handleQuizContinue}
                     >
-                      Close
+                      {viewingScore
+                        ? "Close"
+                        : currentIndex < lessons.length - 1
+                          ? "Continue to Next Lesson"
+                          : "Continue to Final Test"}
                     </button>
                   </div>
                 </div>
