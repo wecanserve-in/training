@@ -175,6 +175,10 @@ function AdminLayout() {
             )}
           </div>
 
+          <NavLink to="/admin/resources" onClick={closeMobileMenu} className="sidebar-top-link">
+            News & Resources
+          </NavLink>
+
           <div className="sidebar-dropdown">
             <button
               type="button"

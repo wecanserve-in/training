@@ -37,10 +37,16 @@ function DepartmentCourses() {
     if (role === "superadmin" || role === "admin") {
       visibleCourses = allCourses;
     } else if (role === "departmentadmin") {
-      visibleCourses = allCourses.filter((course) =>
-        course.departmentId === user.departmentId ||
-        course.department === user.department
-      );
+      visibleCourses = allCourses.filter((course) => {
+        const courseDeptId = String(course.departmentId || "").trim();
+        const userDeptId = String(user.departmentId || "").trim();
+        const courseDept = String(course.department || "").trim().toLowerCase();
+        const userDept = String(user.department || "").trim().toLowerCase();
+
+        if (courseDeptId && userDeptId && courseDeptId === userDeptId) return true;
+        if (courseDept && userDept && courseDept === userDept) return true;
+        return false;
+      });
     } else {
       const assignedCourseIds = user.assignedCourses || [];
       visibleCourses = allCourses.filter((course) => assignedCourseIds.includes(course.id));
@@ -193,10 +199,12 @@ function DepartmentCourses() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
           <input type="text" placeholder="Search course, organ, video, generic..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <Link to={role === "admin" || role === "superadmin" ? `${basePath}/add-course` : `${basePath}/courses/create`} className="dc-btn dc-btn-primary">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Create Course
-        </Link>
+        {role === "departmentadmin" && (
+          <Link to={`${basePath}/courses/create`} className="dc-btn dc-btn-primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Create Course
+          </Link>
+        )}
       </div>
 
       {/* Filters */}

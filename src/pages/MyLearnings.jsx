@@ -89,26 +89,43 @@ function MyLearnings() {
 
       try {
         const [
-          progressSnap,
+          videoProgressSnap,
           attemptsSnap,
           completedSnap,
           coursesSnap,
           videosSnap,
           videoLibrarySnap,
           activitySnap,
-          videoQuizAttemptsSnap,
+          quizAttemptsSnap,
         ] = await Promise.all([
-          get(ref(database, `progress/${user.uid}`)),
+          get(ref(database, `videoProgress/${user.uid}`)),
           get(ref(database, `attempts/${user.uid}`)),
           get(ref(database, `completedCourses/${user.uid}`)),
           get(ref(database, "courses")),
           get(ref(database, "videos")),
           get(ref(database, "videoLibrary")),
           get(ref(database, `learningActivity/${user.uid}`)),
-          get(ref(database, `videoQuizAttempts/${user.uid}`)),
+          get(ref(database, `quizAttempts/${user.uid}`)),
         ]);
 
-        const progressData = progressSnap.exists() ? progressSnap.val() : {};
+        // Merge video progress from new and legacy paths
+        const newVideoProgress = videoProgressSnap.exists() ? videoProgressSnap.val() : {};
+        const progressData = {};
+        Object.values(newVideoProgress).forEach((courseVideos) => {
+          if (courseVideos && typeof courseVideos === "object") {
+            Object.entries(courseVideos).forEach(([videoId, videoProg]) => {
+              progressData[videoId] = videoProg;
+            });
+          }
+        });
+        const legacyProgressSnap = await get(ref(database, `progress/${user.uid}`));
+        if (legacyProgressSnap.exists()) {
+          Object.entries(legacyProgressSnap.val()).forEach(([videoId, prog]) => {
+            if (!progressData[videoId]) {
+              progressData[videoId] = prog;
+            }
+          });
+        }
         const completedData = completedSnap.exists() ? completedSnap.val() : {};
         const coursesData = coursesSnap.exists() ? coursesSnap.val() : {};
 
@@ -126,12 +143,23 @@ function MyLearnings() {
         setVideos(mergedVideos);
         setLearningActivity(activitySnap.exists() ? activitySnap.val() : {});
 
-        const revisionAttempts = videoQuizAttemptsSnap.exists()
-          ? Object.entries(videoQuizAttemptsSnap.val()).map(([attemptId, item]) => ({
-              id: attemptId,
-              ...item,
-            }))
-          : [];
+        // Collect revision attempts from both new and legacy paths
+        const revisionAttempts = [];
+
+        // New path: quizAttempts/{uid}/{courseId}/{quizId}
+        if (quizAttemptsSnap.exists()) {
+          const allQuizAttempts = quizAttemptsSnap.val() || {};
+          Object.values(allQuizAttempts).forEach((courseAttempts) => {
+            if (courseAttempts && typeof courseAttempts === "object") {
+              Object.entries(courseAttempts).forEach(([quizId, attempt]) => {
+                if (attempt && attempt.quizType === "practice") {
+                  revisionAttempts.push({ id: quizId, ...attempt });
+                }
+              });
+            }
+          });
+        }
+
         setVideoQuizAttempts(revisionAttempts);
 
         if (attemptsSnap.exists()) {
@@ -618,7 +646,7 @@ function MyLearnings() {
             <p className="learning-empty-note">No recent activity yet.</p>
           ) : (
             <div className="recent-learning-list">
-              {recentActivities.map((item) => (
+              {recentActivities.slice(0, 3).map((item) => (
                 <div className="recent-learning-item" key={`${item.type}-${item.id}`}>
                   <div className="recent-learning-dot"></div>
 

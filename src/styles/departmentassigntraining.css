@@ -219,6 +219,8 @@
 
 .ac-table-wrap tr:hover { background: #f8fdf9; }
 .ac-table-wrap tr.selected { background: #f0fdf4; }
+.ac-table-wrap tr.same-dept { background: #fefce8; }
+.ac-table-wrap tr.same-dept:hover { background: #fef9c3; }
 .ac-table-wrap tr:last-child td { border-bottom: none; }
 
 .ac-th-check { width: 36px; text-align: center; }

@@ -11,6 +11,9 @@ import {
   FaCheckCircle,
   FaCertificate,
   FaPlay,
+  FaVideo,
+  FaClipboardCheck,
+  FaChartLine,
 } from "react-icons/fa";
 
 function Dashboard() {
@@ -21,6 +24,7 @@ function Dashboard() {
   const [progressMap, setProgressMap] = useState({});
   const [results, setResults] = useState({});
   const [completedCourses, setCompletedCourses] = useState({});
+  const [quizAttempts, setQuizAttempts] = useState({});
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -37,21 +41,25 @@ function Dashboard() {
           assignmentsSnapshot,
           resultsSnapshot,
           completedSnapshot,
-          progressSnapshot,
+          ,
+          videoProgressSnapshot,
           coursesSnapshot,
           videosSnapshot,
           courseVideosSnapshot,
           videoLibrarySnapshot,
+          quizAttemptsSnapshot,
         ] = await Promise.all([
           get(ref(database, `users/${user.uid}`)),
           get(ref(database, `userAssignments/${user.uid}`)),
           get(ref(database, `results/${user.uid}`)),
           get(ref(database, `completedCourses/${user.uid}`)),
-          get(ref(database, `progress/${user.uid}`)),
+          get(ref(database, `courseProgress/${user.uid}`)),
+          get(ref(database, `videoProgress/${user.uid}`)),
           get(ref(database, "courses")),
           get(ref(database, "videos")),
           get(ref(database, "courseVideos")),
           get(ref(database, "videoLibrary")),
+          get(ref(database, `quizAttempts/${user.uid}`)),
         ]);
 
         if (userSnapshot.exists()) {
@@ -62,11 +70,30 @@ function Dashboard() {
         const userCompletedCourses = completedSnapshot.exists()
           ? completedSnapshot.val()
           : {};
-        const userProgress = progressSnapshot.exists() ? progressSnapshot.val() : {};
+        // Merge video progress from new and legacy paths
+        const newVideoProgress = videoProgressSnapshot.exists() ? videoProgressSnapshot.val() : {};
+        const mergedProgressMap = {};
+        Object.values(newVideoProgress).forEach((courseVideos) => {
+          if (courseVideos && typeof courseVideos === "object") {
+            Object.entries(courseVideos).forEach(([videoId, videoProg]) => {
+              mergedProgressMap[videoId] = videoProg;
+            });
+          }
+        });
+        // Also include legacy progress
+        const legacyProgressSnap = await get(ref(database, `progress/${user.uid}`));
+        if (legacyProgressSnap.exists()) {
+          Object.entries(legacyProgressSnap.val()).forEach(([videoId, prog]) => {
+            if (!mergedProgressMap[videoId]) {
+              mergedProgressMap[videoId] = prog;
+            }
+          });
+        }
 
         setResults(userResults);
         setCompletedCourses(userCompletedCourses);
-        setProgressMap(userProgress);
+        setProgressMap(mergedProgressMap);
+        setQuizAttempts(quizAttemptsSnapshot.exists() ? quizAttemptsSnapshot.val() : {});
 
         if (!assignmentsSnapshot.exists() || !coursesSnapshot.exists()) {
           setCourses([]);
@@ -177,14 +204,6 @@ function Dashboard() {
     return Math.round(total / courseVideos.length);
   };
 
-  const getCourseStatus = (courseId) => {
-    const progress = getCourseProgress(courseId);
-
-    if (progress >= 100) return "completed";
-    if (progress > 0) return "inProgress";
-    return "notStarted";
-  };
-
   const getCourseThumbnail = (course) => {
     if (course.thumbnailUrl) return course.thumbnailUrl;
     if (course.courseThumbnail) return course.courseThumbnail;
@@ -219,6 +238,59 @@ function Dashboard() {
 
   const progressPercent =
     totalCourses > 0 ? Math.round((completedCount / totalCourses) * 100) : 0;
+
+  const totalVideosCompleted = useMemo(() => {
+    return Object.values(progressMap).filter((p) => p?.completed).length;
+  }, [progressMap]);
+
+  const totalTimeWatched = useMemo(() => {
+    let totalSeconds = 0;
+    Object.values(progressMap).forEach((p) => {
+      if (p?.watchedSeconds && typeof p.watchedSeconds === "object") {
+        totalSeconds += Object.keys(p.watchedSeconds).length;
+      } else if (p?.watchedSeconds && typeof p.watchedSeconds === "number") {
+        totalSeconds += p.watchedSeconds;
+      } else if (p?.watchedPercent && p?.duration) {
+        totalSeconds += (Number(p.watchedPercent) / 100) * Number(p.duration);
+      }
+    });
+    return totalSeconds;
+  }, [progressMap]);
+
+  const formatTime = (seconds) => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    if (hrs > 0) return `${hrs}h ${mins}m`;
+    return `${mins}m`;
+  };
+
+  const finalTestsTaken = useMemo(() => {
+    let count = 0;
+    Object.values(quizAttempts).forEach((attempts) => {
+      if (typeof attempts === "object") {
+        Object.values(attempts).forEach((attempt) => {
+          if (attempt?.quizType === "final" || attempt?.type === "final") count++;
+        });
+      }
+    });
+    return count;
+  }, [quizAttempts]);
+
+  const avgFinalScore = useMemo(() => {
+    let total = 0;
+    let count = 0;
+    Object.values(quizAttempts).forEach((attempts) => {
+      if (typeof attempts === "object") {
+        Object.values(attempts).forEach((attempt) => {
+          if ((attempt?.quizType === "final" || attempt?.type === "final") && attempt?.percentage != null) {
+            total += Number(attempt.percentage);
+            count++;
+          }
+        });
+      }
+    });
+    return count > 0 ? Math.round(total / count) : 0;
+  }, [quizAttempts]);
 
   const allVideosFlat = useMemo(() => {
     return courses.flatMap((course) => {
@@ -288,21 +360,15 @@ return (
         <p>Continue your assigned learning and keep your progress moving.</p>
         <div className="hero-stats">
           <div className="hero-stat">
-            <div className="hero-stat-icon">
-              <FaBookOpen />
-            </div>
-            <div>
-              <strong>{totalCourses}</strong>
-              <span>Assigned</span>
-            </div>
+           
           </div>
           <div className="hero-stat">
             <div className="hero-stat-icon admins-icon">
-              <FaClock />
+              <FaVideo />
             </div>
             <div>
-              <strong>{inProgressCount}</strong>
-              <span>In Progress</span>
+              <strong>{totalVideosCompleted}</strong>
+              <span>Videos Done</span>
             </div>
           </div>
           <div className="hero-stat">
@@ -311,7 +377,16 @@ return (
             </div>
             <div>
               <strong>{completedCount}</strong>
-              <span>Completed</span>
+              <span>Courses Done</span>
+            </div>
+          </div>
+          <div className="hero-stat">
+            <div className="hero-stat-icon">
+              <FaCertificate />
+            </div>
+            <div>
+              <strong>{passedCount}</strong>
+              <span>Certificates</span>
             </div>
           </div>
         </div>
@@ -323,22 +398,32 @@ return (
     </section>
 
     <section className="dash-stat-cards">
-      <div className="stat-card stat-courses">
+  
+      <div className="stat-card stat-videos">
         <div className="stat-card-icon">
-          <FaBookOpen />
+          <FaVideo />
         </div>
         <div className="stat-card-info">
-          <span>Assigned</span>
-          <strong>{totalCourses}</strong>
+          <span>Videos Completed</span>
+          <strong>{totalVideosCompleted}</strong>
         </div>
       </div>
-      <div className="stat-card stat-progress">
+      <div className="stat-card stat-tests">
         <div className="stat-card-icon">
-          <FaClock />
+          <FaClipboardCheck />
         </div>
         <div className="stat-card-info">
-          <span>In Progress</span>
-          <strong>{inProgressCount}</strong>
+          <span>Final Tests Taken</span>
+          <strong>{finalTestsTaken}</strong>
+        </div>
+      </div>
+      <div className="stat-card stat-score">
+        <div className="stat-card-icon">
+          <FaChartLine />
+        </div>
+        <div className="stat-card-info">
+          <span>Avg Final Score</span>
+          <strong>{avgFinalScore}%</strong>
         </div>
       </div>
       <div className="stat-card stat-completed">
@@ -346,7 +431,7 @@ return (
           <FaCheckCircle />
         </div>
         <div className="stat-card-info">
-          <span>Completed</span>
+          <span>Courses Completed</span>
           <strong>{completedCount}</strong>
         </div>
       </div>
@@ -357,15 +442,6 @@ return (
         <div className="stat-card-info">
           <span>Certificates</span>
           <strong>{passedCount}</strong>
-        </div>
-      </div>
-      <div className="stat-card stat-rate">
-        <div className="stat-card-icon">
-          <FaCheckCircle />
-        </div>
-        <div className="stat-card-info">
-          <span>Completion Rate</span>
-          <strong>{progressPercent}%</strong>
         </div>
       </div>
     </section>
@@ -423,7 +499,6 @@ return (
             const letter = (course.title || course.courseTitle || "C").charAt(0).toUpperCase();
             const thumbnail = getCourseThumbnail(course);
             const progress = getCourseProgress(course.id);
-            const status = getCourseStatus(course.id);
             return (
               <Link to={`/course/${course.id}`} className="newly-course-card" key={course.id}>
                 <div className="newly-course-thumb">

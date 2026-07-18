@@ -8,6 +8,7 @@ import {
 } from "firebase/auth";
 import { ref, set, get, update, remove, push } from "firebase/database";
 import { auth } from "../firebase";
+import { deleteUserCompletely } from "../services/userDeletionService";
 import * as XLSX from "xlsx";
 import { database, firebaseConfig } from "../firebase";
 import { locations } from "../data/masterData";
@@ -45,6 +46,7 @@ function ManageUsers() {
     zone: "",
     state: "",
     cityArea: "",
+    department: "",
   });
 
   const availableZones = [...new Set(locations.map((loc) => loc.zone))].filter(Boolean);
@@ -61,6 +63,17 @@ function ManageUsers() {
     fetchMasterData();
     fetchUsers();
   }, []);
+
+  const departmentTypes = [
+    "Research & Development",
+    "Sales & Marketing",
+    "Production & Manufacturing",
+    "Quality Assurance & Quality Control",
+    "Regulatory Affairs",
+    "Business Development",
+    "Admin & Operations",
+    "Key Leadership & Corporate Contact",
+  ];
 
   const fetchMasterData = async () => {
     const snap = await get(ref(database, "master/designations"));
@@ -102,11 +115,11 @@ function ManageUsers() {
   };
 
   const resetForm = () => {
-    setForm({ name: "", email: "", designation: "", seniority: "", zone: "", state: "", cityArea: "" });
+    setForm({ name: "", email: "", designation: "", seniority: "", zone: "", state: "", cityArea: "", department: "" });
   };
 
   const createUserRecord = async (userData) => {
-    if (!userData.name || !userData.email || !userData.designation || !userData.seniority || !userData.cityArea) {
+    if (!userData.name || !userData.email || !userData.designation || !userData.seniority || !userData.cityArea || !userData.department) {
       return { success: false, error: "Missing required fields" };
     }
     const appName = `user-${Date.now()}-${Math.random()}`;
@@ -125,6 +138,7 @@ function ManageUsers() {
         zone: userData.zone.trim(),
         state: userData.state.trim(),
         cityArea: userData.cityArea.trim(),
+        department: userData.department,
         defaultPassword: DEFAULT_PASSWORD,
         mustChangePassword: true,
         createdAt: new Date().toISOString(),
@@ -160,9 +174,7 @@ function ManageUsers() {
       const oldUser = users.find((u) => u.id === editingUserId);
       await update(ref(database, `users/${editingUserId}`), {
         role: oldUser?.role || "user",
-        department: oldUser?.department || "",
-        departmentId: oldUser?.departmentId || "",
-        departmentType: oldUser?.departmentType || "",
+        department: form.department || oldUser?.department || "",
         name: form.name.trim(),
         designation: form.designation.trim(),
         seniority: form.seniority,
@@ -191,6 +203,7 @@ function ManageUsers() {
       zone: user.zone || "",
       state: user.state || "",
       cityArea: user.cityArea || "",
+      department: user.department || "",
     });
     setShowForm(true);
   };
@@ -202,9 +215,10 @@ function ManageUsers() {
   };
 
   const deleteUser = async (uid) => {
-    if (!window.confirm("Remove this user from database?")) return;
+    if (!window.confirm("Remove this user and ALL their data from the system? This cannot be undone.")) return;
     try {
-      await remove(ref(database, `users/${uid}`));
+      await deleteUserCompletely(uid);
+      alert("User and all associated data deleted successfully.");
       fetchUsers();
     } catch (error) {
       alert(error.message);
@@ -239,7 +253,9 @@ function ManageUsers() {
       const row = rows[i];
       setUploadModal((prev) => ({ ...prev, current: i + 1 }));
       const city = row.cityArea || row.CityArea || row.City || row.city || "";
+      const deptName = row.department || row.Department || "";
       const matchedLocation = locations.find((location) => location.cities.includes(city));
+      const matchedDept = departmentTypes.find((d) => String(d).trim().toLowerCase() === String(deptName).trim().toLowerCase());
       const result = await createUserRecord({
         name: row.name || row.Name || "",
         email: row.email || row.Email || "",
@@ -248,6 +264,7 @@ function ManageUsers() {
         cityArea: city,
         zone: matchedLocation?.zone || "",
         state: matchedLocation?.state || "",
+        department: matchedDept || "",
       });
       if (result.success) {
         successCount++;
@@ -271,7 +288,7 @@ function ManageUsers() {
   };
 
   const downloadTemplate = () => {
-    const templateData = [{ name: "Rahul Sharma", email: "rahul@example.com", designation: "Sales Executive", seniority: "senior", cityArea: "Mumbai" }];
+    const templateData = [{ name: "Rahul Sharma", email: "rahul@example.com", designation: "Sales Executive", seniority: "senior", department: "Sales & Marketing", cityArea: "Mumbai" }];
     const worksheet = XLSX.utils.json_to_sheet(templateData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
@@ -279,7 +296,7 @@ function ManageUsers() {
   };
 
   const filteredUsers = users.filter((user) => {
-    const searchText = [user.name, user.email, user.designation, user.zone, user.state, user.cityArea, user.role, user.seniority]
+    const searchText = [user.name, user.email, user.designation, user.department, user.zone, user.state, user.cityArea, user.role, user.seniority]
       .map((v) => String(v ?? "")).join(" ").toLowerCase();
     return searchText.includes(searchTerm.toLowerCase());
   });
@@ -368,6 +385,10 @@ function ManageUsers() {
               <option value="junior">Junior</option>
               <option value="intern">Intern</option>
             </select>
+            <select className="nice-select" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} required>
+              <option value="" disabled>Select Department</option>
+              {departmentTypes.map((dept) => (<option key={dept} value={dept}>{dept}</option>))}
+            </select>
             <select className="nice-select" value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value, state: "", cityArea: "" })} required>
               <option value="" disabled>1. Select Zone</option>
               {availableZones.map((z) => <option key={z} value={z}>{z}</option>)}
@@ -405,6 +426,7 @@ function ManageUsers() {
                 <th>#</th>
                 <th>Name</th>
                 <th>Email</th>
+                <th>Department</th>
                 <th>Designation</th>
                 <th>Seniority</th>
                 <th>Zone</th>
@@ -419,6 +441,7 @@ function ManageUsers() {
                   <td className="mu-td-idx">{idx + 1}</td>
                   <td className="mu-td-name">{user.name}</td>
                   <td className="mu-td-email">{user.email}</td>
+                  <td>{user.department || "-"}</td>
                   <td>{user.designation || "-"}</td>
                   <td>
                     <span className="mu-badge" style={seniorityColor(user.seniority)}>
@@ -444,7 +467,7 @@ function ManageUsers() {
                 </tr>
               ))}
               {filteredUsers.length === 0 && (
-                <tr><td colSpan="9" className="mu-empty">No users found.</td></tr>
+                <tr><td colSpan="10" className="mu-empty">No users found.</td></tr>
               )}
             </tbody>
           </table>

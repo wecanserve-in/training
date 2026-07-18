@@ -18,7 +18,7 @@ function CourseOverview() {
   const [selectedVideo, setSelectedVideo] = useState(null);
 
   useEffect(() => {
-    const fetchCourseData = async (user) => {
+    const fetchCourseData = async () => {
       try {
         const courseSnap = await get(ref(database, `courses/${id}`));
         if (!courseSnap.exists()) {
@@ -116,7 +116,7 @@ function CourseOverview() {
       if (userSnap.exists()) {
         const userData = { uid: loggedUser.uid, ...userSnap.val() };
         setCurrentUser(userData);
-        fetchCourseData(userData);
+        fetchCourseData();
       }
     });
 

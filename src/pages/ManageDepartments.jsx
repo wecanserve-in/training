@@ -3,138 +3,28 @@ import { ref, get, push, set, remove, update } from "firebase/database";
 import { database } from "../firebase";
 import "../styles/managedepartments.css";
 
-const cascadeDepartmentRename = async (deptId, oldName, newName, oldType, newType) => {
-  if (oldName === newName && oldType === newType) return;
-
-  const updates = {};
-
-  const [usersSnap, coursesSnap, videoLibSnap, assignmentsSnap, questionsSnap, quizzesSnap] = await Promise.all([
-    get(ref(database, "users")),
-    get(ref(database, "courses")),
-    get(ref(database, "videoLibrary")),
-    get(ref(database, "userAssignments")),
-    get(ref(database, "questions")),
-    get(ref(database, "videoQuizzes")),
-  ]);
-
-  if (usersSnap.exists()) {
-    const users = usersSnap.val();
-    Object.entries(users).forEach(([uid, user]) => {
-      const matchesDept = user.departmentId === deptId ||
-        String(user.department || "").trim().toLowerCase() === String(oldName).trim().toLowerCase();
-      if (matchesDept) {
-        updates[`users/${uid}/department`] = newName;
-        updates[`users/${uid}/departmentType`] = newType;
-      }
-    });
-  }
-
-  if (coursesSnap.exists()) {
-    const courses = coursesSnap.val();
-    Object.entries(courses).forEach(([courseId, course]) => {
-      const matchesDept = course.departmentId === deptId ||
-        String(course.department || "").trim().toLowerCase() === String(oldName).trim().toLowerCase();
-      if (matchesDept) {
-        updates[`courses/${courseId}/department`] = newName;
-        updates[`courses/${courseId}/departmentType`] = newType;
-        updates[`courses/${courseId}/departmentId`] = deptId;
-      }
-    });
-  }
-
-  if (videoLibSnap.exists()) {
-    const videos = videoLibSnap.val();
-    Object.entries(videos).forEach(([videoId, video]) => {
-      const matchesDept = video.departmentId === deptId ||
-        String(video.department || "").trim().toLowerCase() === String(oldName).trim().toLowerCase();
-      if (matchesDept) {
-        updates[`videoLibrary/${videoId}/department`] = newName;
-        updates[`videoLibrary/${videoId}/departmentType`] = newType;
-        updates[`videoLibrary/${videoId}/departmentId`] = deptId;
-      }
-    });
-  }
-
-  if (assignmentsSnap.exists()) {
-    const allAssignments = assignmentsSnap.val();
-    Object.entries(allAssignments).forEach(([userId, userCourses]) => {
-      if (userCourses && typeof userCourses === "object") {
-        Object.entries(userCourses).forEach(([courseId, assignment]) => {
-          if (assignment && typeof assignment === "object") {
-            const matchesDept = String(assignment.department || "").trim().toLowerCase() === String(oldName).trim().toLowerCase();
-            if (matchesDept) {
-              updates[`userAssignments/${userId}/${courseId}/department`] = newName;
-              updates[`userAssignments/${userId}/${courseId}/departmentId`] = deptId;
-            }
-          }
-        });
-      }
-    });
-  }
-
-  if (questionsSnap.exists()) {
-    const allQuestions = questionsSnap.val();
-    Object.entries(allQuestions).forEach(([courseId, courseQuestions]) => {
-      if (courseQuestions && typeof courseQuestions === "object") {
-        Object.entries(courseQuestions).forEach(([qId, question]) => {
-          if (question && typeof question === "object") {
-            const matchesDept = String(question.department || "").trim().toLowerCase() === String(oldName).trim().toLowerCase();
-            if (matchesDept) {
-              updates[`questions/${courseId}/${qId}/department`] = newName;
-              updates[`questions/${courseId}/${qId}/departmentType`] = newType;
-              updates[`questions/${courseId}/${qId}/departmentId`] = deptId;
-            }
-          }
-        });
-      }
-    });
-  }
-
-  if (quizzesSnap.exists()) {
-    const allQuizzes = quizzesSnap.val();
-    Object.entries(allQuizzes).forEach(([videoId, videoQuestions]) => {
-      if (videoQuestions && typeof videoQuestions === "object") {
-        Object.entries(videoQuestions).forEach(([qId, question]) => {
-          if (question && typeof question === "object") {
-            const matchesDept = String(question.department || "").trim().toLowerCase() === String(oldName).trim().toLowerCase();
-            if (matchesDept) {
-              updates[`videoQuizzes/${videoId}/${qId}/department`] = newName;
-              updates[`videoQuizzes/${videoId}/${qId}/departmentType`] = newType;
-            }
-          }
-        });
-      }
-    });
-  }
-
-  if (Object.keys(updates).length > 0) {
-    await update(ref(database), updates);
-  }
-};
+const departmentTypes = [
+  "Research & Development",
+  "Sales & Marketing",
+  "Production & Manufacturing",
+  "Quality Assurance & Quality Control",
+  "Regulatory Affairs",
+  "Business Development",
+  "Admin & Operations",
+  "Key Leadership & Corporate Contact",
+];
 
 function ManageDepartments() {
   const [departments, setDepartments] = useState([]);
   const [members, setMembers] = useState([]);
   const [search, setSearch] = useState("");
 
-  const [departmentName, setDepartmentName] = useState("");
-  const [departmentType, setDepartmentType] = useState("");
+  const [selectedDepartment, setSelectedDepartment] = useState("");
   const [selectedMember, setSelectedMember] = useState("");
 
-  const [showModal, setShowModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
-
-  const departmentTypes = [
-    "Research & Development",
-    "Sales & Marketing",
-    "Production & Manufacturing",
-    "Quality Assurance & Quality Control",
-    "Regulatory Affairs",
-    "Business Development",
-    "Admin & Operations",
-    "Key Leadership & Corporate Contact",
-  ];
 
   useEffect(() => { loadData(); }, []);
 
@@ -158,44 +48,52 @@ function ManageDepartments() {
     );
   };
 
-  const resetForm = () => {
-    setDepartmentName("");
-    setDepartmentType("");
+  const resetAssignForm = () => {
+    setSelectedDepartment("");
     setSelectedMember("");
     setEditingDepartment(null);
-    setShowModal(false);
+    setShowAssignModal(false);
   };
 
-  const openCreateModal = () => { resetForm(); setShowModal(true); };
+  const openAssignModal = (dept = null) => {
+    resetAssignForm();
+    if (dept) {
+      setEditingDepartment(dept);
+      setSelectedDepartment(dept.departmentName || dept.id);
+    }
+    setShowAssignModal(true);
+  };
 
   const openEditModal = (dept) => {
     setEditingDepartment(dept);
-    setDepartmentName(dept.departmentName || "");
-    setDepartmentType(dept.departmentType || "");
+    setSelectedDepartment(dept.departmentName || dept.id);
     setSelectedMember(dept.departmentAdminId || "");
-    setShowModal(true);
+    setShowAssignModal(true);
   };
 
-  const saveDepartment = async (e) => {
+  const assignAdmin = async (e) => {
     e.preventDefault();
-    if (!departmentName || !departmentType || !selectedMember) {
-      alert("Please fill all fields.");
+    if (!selectedDepartment || !selectedMember) {
+      alert("Please select both Department and Admin.");
       return;
     }
     const admin = members.find((m) => m.id === selectedMember);
-    if (!admin) { alert("Select Department Admin"); return; }
+    if (!admin) { alert("Invalid selection"); return; }
+
+    const existingDept = departments.find((d) => d.departmentName === selectedDepartment);
+    const deptType = departmentTypes.find((t) => t === selectedDepartment) || "";
 
     try {
       setIsSaving(true);
-      let departmentId = editingDepartment?.id;
 
-      if (editingDepartment) {
-        const oldName = editingDepartment.departmentName || "";
-        const oldType = editingDepartment.departmentType || "";
+      if (editingDepartment && editingDepartment.departmentAdminId && editingDepartment.departmentAdminId !== admin.id) {
+        await update(ref(database, `users/${editingDepartment.departmentAdminId}`), {
+          role: "user", departmentId: "", department: "", departmentType: "",
+        });
+      }
 
-        await update(ref(database, `departments/${editingDepartment.id}`), {
-          departmentName,
-          departmentType,
+      if (existingDept) {
+        await update(ref(database, `departments/${existingDept.id}`), {
           departmentAdminId: admin.id,
           departmentAdminName: admin.name || "",
           departmentAdminEmail: admin.email || "",
@@ -203,28 +101,11 @@ function ManageDepartments() {
           departmentAdminSeniority: admin.seniority || "",
           updatedAt: new Date().toISOString(),
         });
-
-        if (oldName !== departmentName || oldType !== departmentType) {
-          await cascadeDepartmentRename(
-            editingDepartment.id,
-            oldName,
-            departmentName,
-            oldType,
-            departmentType
-          );
-        }
-
-        if (editingDepartment.departmentAdminId && editingDepartment.departmentAdminId !== admin.id) {
-          await update(ref(database, `users/${editingDepartment.departmentAdminId}`), {
-            role: "user", departmentId: "", department: "", departmentType: "",
-          });
-        }
       } else {
         const deptRef = push(ref(database, "departments"));
-        departmentId = deptRef.key;
         await set(deptRef, {
-          departmentName,
-          departmentType,
+          departmentName: selectedDepartment,
+          departmentType: deptType,
           departmentAdminId: admin.id,
           departmentAdminName: admin.name || "",
           departmentAdminEmail: admin.email || "",
@@ -235,30 +116,17 @@ function ManageDepartments() {
       }
 
       await update(ref(database, `users/${admin.id}`), {
-        role: "departmentAdmin", departmentId, department: departmentName, departmentType,
+        role: "departmentAdmin",
+        departmentId: existingDept?.id || "",
+        department: selectedDepartment,
+        departmentType: deptType,
       });
 
-      if (!editingDepartment) {
-        const existingUsersSnap = await get(ref(database, "users"));
-        if (existingUsersSnap.exists()) {
-          const userUpdates = {};
-          Object.entries(existingUsersSnap.val()).forEach(([uid, user]) => {
-            if (uid !== admin.id && String(user.department || "").trim().toLowerCase() === String(departmentName).trim().toLowerCase() && !user.departmentId) {
-              userUpdates[`users/${uid}/departmentId`] = departmentId;
-              userUpdates[`users/${uid}/departmentType`] = departmentType;
-            }
-          });
-          if (Object.keys(userUpdates).length > 0) {
-            await update(ref(database), userUpdates);
-          }
-        }
-      }
-
-      resetForm();
+      resetAssignForm();
       await loadData();
     } catch (error) {
-      console.error("Department save error:", error);
-      alert("Something went wrong while saving department.");
+      console.error("Assign admin error:", error);
+      alert("Something went wrong while assigning admin.");
     } finally {
       setIsSaving(false);
     }
@@ -293,8 +161,8 @@ function ManageDepartments() {
       {/* Hero */}
       <section className="md-hero">
         <div className="md-hero-content">
-          <h1>Manage Departments</h1>
-          <p>Create, edit and manage all departments and their admins.</p>
+          <h1>Assign Department Admin</h1>
+          <p>Select a department and assign an admin role.</p>
         </div>
         <div className="md-hero-stats">
           <div className="md-hero-stat">
@@ -324,9 +192,9 @@ function ManageDepartments() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
           <input type="text" placeholder="Search departments, admins..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <button className="md-btn md-btn-primary" onClick={openCreateModal}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          New Department
+        <button className="md-btn md-btn-primary" onClick={() => openAssignModal()}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Assign Admin
         </button>
       </div>
 
@@ -372,8 +240,8 @@ function ManageDepartments() {
                   <td>{dept.departmentAdminDesignation || "-"}</td>
                   <td>
                     <div className="md-actions">
-                      <button className="md-action-edit" onClick={() => openEditModal(dept)} title="Edit">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                      <button className="md-action-edit" onClick={() => openEditModal(dept)} title="Assign/Change Admin">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                       </button>
                       <button className="md-action-delete" onClick={() => deleteDepartment(dept)} title="Delete">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -390,29 +258,32 @@ function ManageDepartments() {
         </div>
       </div>
 
-      {/* Modal */}
-      {showModal && (
-        <div className="modal-overlay" onClick={resetForm}>
+      {/* Assign Admin Modal */}
+      {showAssignModal && (
+        <div className="modal-overlay" onClick={resetAssignForm}>
           <div className="modal-content md-modal" onClick={(e) => e.stopPropagation()}>
             <div className="md-modal-head">
               <div>
-                <h2>{editingDepartment ? "Edit Department" : "Create Department"}</h2>
-                <p>{editingDepartment ? "Update department details below." : "Fill in the details to create a new department."}</p>
+                <h2>{editingDepartment ? "Change Department Admin" : "Assign Department Admin"}</h2>
+                <p>{editingDepartment ? "Select a new admin for this department." : "Select a department and assign an admin."}</p>
               </div>
-              <button className="close-btn" onClick={resetForm}>×</button>
+              <button className="close-btn" onClick={resetAssignForm}>×</button>
             </div>
 
-            <form className="md-form" onSubmit={saveDepartment}>
+            <form className="md-form" onSubmit={assignAdmin}>
               <div className="md-form-group">
-                <label>Department Name</label>
-                <input type="text" placeholder="e.g. Quality Control" value={departmentName} onChange={(e) => setDepartmentName(e.target.value)} required />
-              </div>
-
-              <div className="md-form-group">
-                <label>Department Type</label>
-                <select className="nice-select" value={departmentType} onChange={(e) => setDepartmentType(e.target.value)} required>
-                  <option value="">Select Department Type</option>
-                  {departmentTypes.map((type) => (<option key={type} value={type}>{type}</option>))}
+                <label>Department</label>
+                <select
+                  className="nice-select"
+                  value={selectedDepartment}
+                  onChange={(e) => setSelectedDepartment(e.target.value)}
+                  required
+                  disabled={!!editingDepartment}
+                >
+                  <option value="">Select Department</option>
+                  {departmentTypes.map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
                 </select>
               </div>
 
@@ -429,9 +300,9 @@ function ManageDepartments() {
               </div>
 
               <div className="md-modal-actions">
-                <button type="button" className="md-btn md-btn-cancel" onClick={resetForm}>Cancel</button>
+                <button type="button" className="md-btn md-btn-cancel" onClick={resetAssignForm}>Cancel</button>
                 <button type="submit" className="md-btn md-btn-primary" disabled={isSaving}>
-                  {isSaving ? "Saving..." : editingDepartment ? "Save Changes" : "Create Department"}
+                  {isSaving ? "Saving..." : editingDepartment ? "Update Admin" : "Assign Admin"}
                 </button>
               </div>
             </form>

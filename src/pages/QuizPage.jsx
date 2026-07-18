@@ -134,8 +134,10 @@ const [
   questionsSnapshot,
   videoQuestionsSnapshot,
   completedCourseSnapshot,
+  courseProgressSnapshot,
   attemptsSnapshot,
   resultsSnapshot,
+  newQuizAttemptsSnapshot,
 ] = await Promise.all([
       get(ref(database, `courses/${activeCourseId}`)),
       get(ref(database, "videos")),
@@ -144,8 +146,10 @@ const [
       get(ref(database, "questions")),
       get(ref(database, "videoQuizzes")),
       get(ref(database, `completedCourses/${user.uid}/${activeCourseId}`)),
+      get(ref(database, `courseProgress/${user.uid}/${activeCourseId}`)),
       get(ref(database, `attempts/${user.uid}`)),
       get(ref(database, `results/${user.uid}`)),
+      get(ref(database, `quizAttempts/${user.uid}/${activeCourseId}`)),
     ]);
 
     if (!courseSnapshot.exists()) {
@@ -162,12 +166,20 @@ const [
         ? completedCourseSnapshot.val()
         : null;
 
+      const courseProgressRecord = courseProgressSnapshot.exists()
+        ? courseProgressSnapshot.val()
+        : null;
+
       const attemptsData = attemptsSnapshot.exists()
         ? attemptsSnapshot.val()
         : {};
 
       const resultsData = resultsSnapshot.exists()
         ? resultsSnapshot.val()
+        : {};
+
+      const newQuizAttemptsData = newQuizAttemptsSnapshot.exists()
+        ? newQuizAttemptsSnapshot.val()
         : {};
 
       const finalRecords = [
@@ -187,6 +199,18 @@ const [
           !item.videoId
       );
 
+      // Also include records from new quizAttempts path
+      const newCourseAttempts = newQuizAttemptsData[activeCourseId] || {};
+      Object.entries(newCourseAttempts).forEach(([quizId, attempt]) => {
+        if (attempt && attempt.quizType === "final") {
+          finalRecords.push({
+            id: quizId,
+            source: "quizAttempts",
+            ...attempt,
+          });
+        }
+      });
+
       const latestPassed = finalRecords
         .filter(
           (item) =>
@@ -197,19 +221,20 @@ const [
         .sort(
           (a, b) =>
             new Date(
-              b.submittedAt || b.completedAt || b.createdAt || 0
+              b.submittedAt || b.attemptedAt || b.completedAt || b.createdAt || 0
             ) -
             new Date(
-              a.submittedAt || a.completedAt || a.createdAt || 0
+              a.submittedAt || a.attemptedAt || a.completedAt || a.createdAt || 0
             )
         )[0];
 
       const courseAlreadyPassed =
         completedRecord?.passed === true ||
+        courseProgressRecord?.courseTestPassed === true ||
         Boolean(latestPassed);
 
       if (courseAlreadyPassed) {
-        const source = latestPassed || completedRecord || {};
+        const source = latestPassed || courseProgressRecord || completedRecord || {};
 
         const correct = Number(
           source.correct ??
@@ -219,6 +244,7 @@ const [
 
         const total = Number(
           source.total ??
+          source.totalMarks ??
           source.totalQuestions ??
           completedRecord?.total ??
           completedRecord?.totalQuestions ??
@@ -356,6 +382,63 @@ const [
   );
 }
     setQuizQuestions(allQuestions);
+
+    if (!isVideoQuiz && !resultMode && courseVideos.length > 0) {
+      const videoProgressSnap = await get(ref(database, `videoProgress/${user.uid}`));
+      const legacyProgSnap = await get(ref(database, `progress/${user.uid}`));
+      const videoProgressData = videoProgressSnap.exists() ? videoProgressSnap.val() : {};
+      const legacyProgData = legacyProgSnap.exists() ? legacyProgSnap.val() : {};
+
+      const mergedProg = { ...legacyProgData };
+      Object.values(videoProgressData).forEach((cv) => {
+        if (cv && typeof cv === "object") {
+          Object.entries(cv).forEach(([vId, p]) => { if (!mergedProg[vId]) mergedProg[vId] = p; });
+        }
+      });
+
+      const allVideosDone = courseVideos.every((v) => {
+        const p = mergedProg[v.id];
+        return p?.completed || Number(p?.watchedPercent || 0) >= 100;
+      });
+
+      if (!allVideosDone) {
+        alert("Please complete all course videos before taking the final test.");
+        navigate(`../course/${activeCourseId}`);
+        return;
+      }
+
+      const videoQuizzesSnap = await get(ref(database, "videoQuizzes"));
+      const vqData = videoQuizzesSnap.exists() ? videoQuizzesSnap.val() : {};
+      const hasAnyRevisionQuiz = courseVideos.some((v) => {
+        const src = vqData?.[v.id] || vqData?.[v.mappingId] || {};
+        return Object.keys(src).some((qId) => src[qId]?.question || src[qId]?.questionText);
+      });
+
+      if (hasAnyRevisionQuiz) {
+        const quizAttemptsSnap = await get(ref(database, `quizAttempts/${user.uid}/${activeCourseId}`));
+        const qaData = quizAttemptsSnap.exists() ? quizAttemptsSnap.val() : {};
+        const allAttempts = Object.values(qaData).filter((a) => a?.quizType === "practice");
+
+        if (allAttempts.length === 0) {
+          alert("Please complete the revision quiz before taking the final test.");
+          navigate(`../course/${activeCourseId}`);
+          return;
+        }
+
+        const anyAttemptPassed = allAttempts.some((a) => {
+          const score = Number(a.score || 0);
+          const total = Number(a.totalMarks || 1);
+          return score >= Math.ceil(total * 0.7);
+        });
+
+        if (!anyAttemptPassed) {
+          alert("You need to pass the revision quiz before taking the final test.");
+          navigate(`../course/${activeCourseId}`);
+          return;
+        }
+      }
+    }
+
     setLoading(false);
   };
 
@@ -397,20 +480,25 @@ const [
     }
 
     if (isVideoQuiz) {
-      const videoQuizAttemptId = `${user.uid}_${id}_videoQuiz_${Date.now()}`;
-
-      await set(ref(database, `videoQuizAttempts/${user.uid}/${videoQuizAttemptId}`), {
+      // Write to new normalized path: quizAttempts/{uid}/{courseId}/{quizId}
+      const videoQuizId = `practice_${video?.id || videoIdFromQuery || id}_${Date.now()}`;
+      await set(ref(database, `quizAttempts/${user.uid}/${course.id}/${videoQuizId}`), {
+        quizId: videoQuizId,
+        quizType: "practice",
         userId: user.uid,
         courseId: course.id,
         courseTitle: course.title || course.courseTitle || "",
         videoId: video?.id || videoIdFromQuery || id,
         videoTitle: video?.title || video?.videoTitle || "",
         score,
-        total,
+        totalMarks: total,
         correct,
+        percentage: total > 0 ? Math.round((correct / total) * 100) : 0,
+        passed: total > 0 && correct >= Math.ceil(total * 0.7),
         reason,
         warningCount,
-        submittedAt: new Date().toISOString(),
+        answers,
+        attemptedAt: new Date().toISOString(),
       });
 
       navigate(`/video/${video?.id || videoIdFromQuery || id}`);
@@ -421,6 +509,28 @@ const [
     const passed = total === 0 ? true : score >= passingScore;
     const attemptId = `${user.uid}_${course.id}_${Date.now()}`;
 
+    // Write to new normalized path: quizAttempts/{uid}/{courseId}/{quizId}
+    const quizId = `final_${course.id}_${Date.now()}`;
+    await set(ref(database, `quizAttempts/${user.uid}/${course.id}/${quizId}`), {
+      quizId,
+      quizType: "final",
+      userId: user.uid,
+      userName: user.displayName || "",
+      courseId: course.id,
+      courseTitle: course.title || course.courseTitle || "",
+      score,
+      totalMarks: total,
+      correct,
+      percentage: total > 0 ? Math.round((correct / total) * 100) : 0,
+      passed,
+      attemptCount: 1,
+      reason,
+      warningCount,
+      answers,
+      attemptedAt: new Date().toISOString(),
+    });
+
+    // Also write to legacy attempts path for backward compatibility
     await set(ref(database, `attempts/${user.uid}/${attemptId}`), {
       userId: user.uid,
       userName: user.displayName || "",
@@ -436,6 +546,22 @@ const [
     });
 
     if (passed) {
+      // Write completion to new courseProgress path
+      await set(ref(database, `courseProgress/${user.uid}/${course.id}`), {
+        courseId: course.id,
+        progressPercentage: 100,
+        completedVideos: 0,
+        totalVideos: 0,
+        lastAccessedAt: new Date().toISOString(),
+        completed: true,
+        completedAt: new Date().toISOString(),
+        courseTestCompleted: true,
+        courseTestPassed: true,
+        score,
+        totalMarks: total,
+      });
+
+      // Also write to legacy completedCourses for backward compatibility
       await set(ref(database, `completedCourses/${user.uid}/${course.id}`), {
         courseId: course.id,
         courseTitle: course.title || course.courseTitle || "",
@@ -494,9 +620,19 @@ const [
             This test cannot be attempted again.
           </p>
 
-          <button onClick={() => navigate(`/course/${course.id}`)}>
-            Back to Course
-          </button>
+          <div className="quiz-result-actions">
+            <button onClick={() => navigate(`/course/${course.id}`)}>
+              Back to Course
+            </button>
+            {existingFinalResult?.attemptId && (
+              <button
+                className="quiz-cert-btn"
+                onClick={() => navigate(`/certificate/${existingFinalResult.attemptId}`)}
+              >
+                View Certificate
+              </button>
+            )}
+          </div>
         </div>
       </div>
     );

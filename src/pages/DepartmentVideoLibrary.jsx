@@ -27,6 +27,11 @@ function DepartmentVideoLibrary() {
     return role === "admin" || role === "superadmin";
   }, [currentUser]);
 
+  const canCreateOrUpload = useMemo(() => {
+    const role = getRole(currentUser);
+    return role === "departmentadmin";
+  }, [currentUser]);
+
   const normalizeText = (value) => String(value || "").trim().toLowerCase();
 
   const canUserSeeVideo = (video, userData) => {
@@ -35,10 +40,7 @@ function DepartmentVideoLibrary() {
     if (role === "admin" || role === "superadmin") return true;
     return (
       video.createdBy === userData.id ||
-      normalizeText(video.createdByEmail) === normalizeText(userData.email) ||
-      (userData.departmentId && video.departmentId === userData.departmentId) ||
-      normalizeText(video.department) === normalizeText(userData.department) ||
-      normalizeText(video.departmentType) === normalizeText(userData.departmentType)
+      normalizeText(video.createdByEmail) === normalizeText(userData.email)
     );
   };
 
@@ -202,17 +204,16 @@ function DepartmentVideoLibrary() {
           <p>Browse, search and manage all training videos.</p>
         </div>
         <div className="vl-hero-right">
-          <button
-            type="button"
-            className="vl-upload-btn"
-            onClick={() => {
-              const base = location.pathname.split("/video-library")[0];
-              navigate(`${base}/video-library/upload`);
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Upload New Video
-          </button>
+          {canCreateOrUpload && (
+            <button
+              type="button"
+              className="vl-upload-btn"
+              onClick={() => navigate("/department-admin/video-library/upload")}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Upload New Video
+            </button>
+          )}
           <div className="vl-hero-stats">
             <div className="vl-hero-stat">
               <div className="vl-hero-stat-icon">
@@ -285,7 +286,14 @@ function DepartmentVideoLibrary() {
             const thumbnailUrl = getThumbnailUrl(video);
 
             return (
-              <button type="button" className="vl-video-card" key={video.id} onClick={() => setSelectedVideo(video)}>
+              <div
+                className="vl-video-card"
+                key={video.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedVideo(video)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedVideo(video); } }}
+              >
                 <div className="vl-video-thumb">
                   {thumbnailUrl ? (
                     <img src={thumbnailUrl} alt={video.title || "Training video"} />
@@ -302,6 +310,21 @@ function DepartmentVideoLibrary() {
                     {questions.length > 0 && <span className="vl-quiz-pill">{questions.length} Qs</span>}
                   </div>
                   <p>{video.description || "No description added."}</p>
+
+                  <div className="vl-uploaded-by">
+                    <span className="vl-uploaded-by-label">Uploaded by</span>
+                    <strong>
+                      {video.createdByName ||
+                        video.createdByEmail ||
+                        "Unknown User"}
+                    </strong>
+                    {video.createdByRole && (
+                      <span className="vl-uploader-role">
+                        {video.createdByRole}
+                      </span>
+                    )}
+                  </div>
+
                   <div className="vl-video-meta">
                     {video.department && <span className="vl-meta-tag dept">{video.department}</span>}
                     {organName && <span className="vl-meta-tag">{organName}</span>}
@@ -317,7 +340,7 @@ function DepartmentVideoLibrary() {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                   </button>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
@@ -348,6 +371,23 @@ function DepartmentVideoLibrary() {
               <span className="vl-modal-label">Video Preview</span>
               <h2>{selectedVideo.title || "Untitled Video"}</h2>
               <p className="vl-modal-desc">{selectedVideo.description || "No description added."}</p>
+
+              <div className="vl-modal-uploader">
+                <div>
+                  <span>Uploaded by</span>
+                  <strong>
+                    {selectedVideo.createdByName ||
+                      selectedVideo.createdByEmail ||
+                      "Unknown User"}
+                  </strong>
+                </div>
+
+                {selectedVideo.createdByRole && (
+                  <span className="vl-uploader-role">
+                    {selectedVideo.createdByRole}
+                  </span>
+                )}
+              </div>
 
               <div className="vl-video-meta vl-modal-meta">
                 {selectedVideo.department && <span className="vl-meta-tag dept">{selectedVideo.department}</span>}

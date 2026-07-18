@@ -100,22 +100,49 @@ function DepartmentAssignTraining() {
         const myCourses = canAssignAll
           ? allCourses
           : allCourses.filter((c) => {
-              if (c.createdBy === adminData.id) return true;
-              if (adminData.departmentId && c.departmentId === adminData.departmentId) return true;
-              if (adminData.department && c.department === adminData.department) return true;
+              const courseDeptId = String(c.departmentId || "").trim();
+              const userDeptId = String(adminData.departmentId || "").trim();
+              const courseDept = String(c.department || "").trim().toLowerCase();
+              const userDept = String(adminData.department || "").trim().toLowerCase();
+
+              if (courseDeptId && userDeptId && courseDeptId === userDeptId) return true;
+              if (courseDept && userDept && courseDept === userDept) return true;
               return false;
             });
         myCourses.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+        const getRoleRank = (u) => {
+          const r = getField(u, ["role"]).toLowerCase().replace(/[\s_-]/g, "");
+          if (r === "superadmin") return 0;
+          if (r === "admin") return 1;
+          if (r === "departmentadmin") return 2;
+          return 3;
+        };
+
+        const myDeptId = adminData.departmentId || "";
+        const myDept = (adminData.department || "").toLowerCase();
 
         const visibleUsers = allUsers.filter((u) => {
           const role = getField(u, ["role"]).toLowerCase().replace(/[\s_-]/g, "");
           if (isSuperAdmin) return true;
           if (isAdmin) return role !== "superadmin";
-          if (isDeptAdmin) {
-            if (["superadmin", "admin", "departmentadmin"].includes(role)) return false;
-            return true;
-          }
+          if (isDeptAdmin) return true;
           return true;
+        });
+
+        visibleUsers.sort((a, b) => {
+          const rankA = getRoleRank(a);
+          const rankB = getRoleRank(b);
+          if (rankA !== rankB) return rankA - rankB;
+
+          if (isDeptAdmin) {
+            const aSameDept = (a.departmentId && a.departmentId === myDeptId) || (a.department || "").toLowerCase() === myDept;
+            const bSameDept = (b.departmentId && b.departmentId === myDeptId) || (b.department || "").toLowerCase() === myDept;
+            if (aSameDept && !bSameDept) return -1;
+            if (!aSameDept && bSameDept) return 1;
+          }
+
+          return (getField(a, ["name"]) || "").localeCompare(getField(b, ["name"]) || "");
         });
 
         setCourses(myCourses);
@@ -134,6 +161,11 @@ function DepartmentAssignTraining() {
     });
     return () => unsubscribe();
   }, [preSelectedCourseId]);
+
+  const isDeptAdmin = useMemo(() => {
+    const role = String(currentUser?.role || "").toLowerCase().replace(/[\s_-]/g, "");
+    return role === "departmentadmin";
+  }, [currentUser]);
 
   const selectedCourse = useMemo(() => courses.find((c) => c.id === selectedCourseId), [courses, selectedCourseId]);
   const courseDescription = selectedCourse?.description || selectedCourse?.overview || "No description available.";
@@ -211,8 +243,8 @@ function DepartmentAssignTraining() {
       await Promise.all(
         selectedUsers.map((userId) =>
           set(ref(database, `userAssignments/${userId}/${selectedCourseId}`), {
-            assigned: true,
             courseId: selectedCourseId,
+            assigned: true,
             courseTitle: selectedCourse?.title || "",
             courseThumbnail: selectedCourse?.thumbnailUrl || selectedCourse?.courseThumbnail || "",
             department: selectedCourse?.department || currentUser?.department || "",
@@ -220,6 +252,7 @@ function DepartmentAssignTraining() {
             assignedBy: currentUser?.id || "",
             assignedByName: currentUser?.name || "",
             assignedAt: new Date().toISOString(),
+            assignmentType: "course",
             courseVersion,
             assignedCourseVersion: courseVersion,
             latestCourseVersion: courseVersion,
@@ -332,9 +365,17 @@ function DepartmentAssignTraining() {
           );
         })}
         <button className="ac-quick-btn dept" onClick={() => {
-          const matched = filteredUsers.filter((u) => u.department).map((u) => u.id);
+          const myDeptId = currentUser?.departmentId || "";
+          const myDept = (currentUser?.department || "").toLowerCase();
+          const matched = filteredUsers.filter((u) =>
+            (u.departmentId && u.departmentId === myDeptId) || (u.department || "").toLowerCase() === myDept
+          ).map((u) => u.id);
           setSelectedUsers(matched);
-        }}>By Dept</button>
+        }}>My Dept ({filteredUsers.filter((u) => {
+          const myDeptId = currentUser?.departmentId || "";
+          const myDept = (currentUser?.department || "").toLowerCase();
+          return (u.departmentId && u.departmentId === myDeptId) || (u.department || "").toLowerCase() === myDept;
+        }).length})</button>
       </div>
 
       {/* Filters + Search + Assign */}
@@ -385,6 +426,7 @@ function DepartmentAssignTraining() {
                 <th>#</th>
                 <th>User</th>
                 <th>Role</th>
+                <th>Department</th>
                 <th>Designation</th>
                 <th>Location</th>
                 <th>Status</th>
@@ -392,16 +434,17 @@ function DepartmentAssignTraining() {
             </thead>
             <tbody>
               {filteredUsers.length === 0 ? (
-                <tr><td colSpan="7" className="ac-empty">No users available for this course.</td></tr>
+                <tr><td colSpan="8" className="ac-empty">No users available for this course.</td></tr>
               ) : (
                 filteredUsers.map((user, idx) => {
                   const selected = selectedUsers.includes(user.id);
                   const status = getUserCourseStatus(user.id);
                   const badge = getRoleBadge(getField(user, ["role"]));
                   const location = [getField(user, fieldKeys.city), getField(user, fieldKeys.state), getField(user, fieldKeys.zone)].filter(Boolean).join(", ") || "-";
+                  const isSameDept = isDeptAdmin && ((user.departmentId && user.departmentId === (currentUser?.departmentId || "")) || (user.department || "").toLowerCase() === (currentUser?.department || "").toLowerCase());
 
                   return (
-                    <tr key={user.id} className={selected ? "selected" : ""} onClick={() => toggleUser(user.id)}>
+                    <tr key={user.id} className={`${selected ? "selected" : ""} ${isSameDept ? "same-dept" : ""}`} onClick={() => toggleUser(user.id)}>
                       <td className="ac-td-check"><input type="checkbox" checked={selected} onChange={() => toggleUser(user.id)} onClick={(e) => e.stopPropagation()} /></td>
                       <td className="ac-td-idx">{idx + 1}</td>
                       <td className="ac-td-name">
@@ -409,6 +452,7 @@ function DepartmentAssignTraining() {
                         <span>{user.email}</span>
                       </td>
                       <td><span className={`ac-role-badge ${badge.cls}`}>{badge.label}</span></td>
+                      <td>{user.department || "-"}</td>
                       <td>{getField(user, fieldKeys.designation) || "-"}</td>
                       <td className="ac-td-location">{location}</td>
                       <td><span className={`ac-status ${status}`}>{status === "notAssigned" ? "Not Assigned" : status === "latestNotAssigned" ? "Update Needed" : status === "updatedAfterCompletion" ? "Course Updated" : "Assigned"}</span></td>

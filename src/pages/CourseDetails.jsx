@@ -25,22 +25,26 @@ function CourseDetails() {
       try {
         const [
           courseSnap,
-          progressSnap,
+          videoProgressSnap,
+          courseProgressSnap,
           oldVideosSnap,
           courseVideosSnap,
           videoLibrarySnap,
           completedCourseSnap,
           attemptsSnap,
           resultsSnap,
+          quizAttemptsSnap,
         ] = await Promise.all([
           get(ref(database, `courses/${id}`)),
-          get(ref(database, `progress/${user.uid}`)),
+          get(ref(database, `videoProgress/${user.uid}`)),
+          get(ref(database, `courseProgress/${user.uid}/${id}`)),
           get(ref(database, "videos")),
           get(ref(database, "courseVideos")),
           get(ref(database, "videoLibrary")),
           get(ref(database, `completedCourses/${user.uid}/${id}`)),
           get(ref(database, `attempts/${user.uid}`)),
           get(ref(database, `results/${user.uid}`)),
+          get(ref(database, `quizAttempts/${user.uid}/${id}`)),
         ]);
 
         if (!courseSnap.exists()) {
@@ -52,7 +56,25 @@ function CourseDetails() {
         const courseData = { id, ...courseSnap.val() };
         setCourse(courseData);
 
-        const userProgress = progressSnap.exists() ? progressSnap.val() : {};
+        // Merge video progress from new and legacy paths
+        const newVideoProgress = videoProgressSnap.exists() ? videoProgressSnap.val() : {};
+        const userProgress = {};
+        Object.values(newVideoProgress).forEach((courseVideos) => {
+          if (courseVideos && typeof courseVideos === "object") {
+            Object.entries(courseVideos).forEach(([videoId, videoProg]) => {
+              userProgress[videoId] = videoProg;
+            });
+          }
+        });
+        // Include legacy progress
+        const legacyProgressSnap = await get(ref(database, `progress/${user.uid}`));
+        if (legacyProgressSnap.exists()) {
+          Object.entries(legacyProgressSnap.val()).forEach(([videoId, prog]) => {
+            if (!userProgress[videoId]) {
+              userProgress[videoId] = prog;
+            }
+          });
+        }
         setProgressMap(userProgress);
 
         const oldVideos = oldVideosSnap.exists()
@@ -125,8 +147,13 @@ function CourseDetails() {
           ? completedCourseSnap.val()
           : null;
 
+        const courseProgressRecord = courseProgressSnap.exists()
+          ? courseProgressSnap.val()
+          : null;
+
         const attemptsData = attemptsSnap.exists() ? attemptsSnap.val() : {};
         const resultsData = resultsSnap.exists() ? resultsSnap.val() : {};
+        const quizAttemptsData = quizAttemptsSnap.exists() ? quizAttemptsSnap.val() : {};
 
         const allFinalRecords = [
           ...Object.entries(attemptsData || {}).map(([attemptId, item]) => ({
@@ -141,6 +168,18 @@ function CourseDetails() {
           })),
         ].filter((item) => item.courseId === id && !item.videoId);
 
+        // Also include records from new quizAttempts path
+        const courseAttempts = quizAttemptsData[id] || {};
+        Object.entries(courseAttempts).forEach(([quizId, attempt]) => {
+          if (attempt && attempt.quizType === "final") {
+            allFinalRecords.push({
+              id: quizId,
+              source: "quizAttempts",
+              ...attempt,
+            });
+          }
+        });
+
         const latestPassedRecord = allFinalRecords
           .filter(
             (item) =>
@@ -150,12 +189,13 @@ function CourseDetails() {
           )
           .sort(
             (a, b) =>
-              new Date(b.submittedAt || b.completedAt || b.createdAt || 0) -
-              new Date(a.submittedAt || a.completedAt || a.createdAt || 0)
+              new Date(b.submittedAt || b.attemptedAt || b.completedAt || b.createdAt || 0) -
+              new Date(a.submittedAt || a.attemptedAt || a.completedAt || a.createdAt || 0)
           )[0];
 
         const coursePassed =
           Boolean(completedRecord) ||
+          Boolean(courseProgressRecord?.courseTestPassed) ||
           Boolean(latestPassedRecord);
 
         if (coursePassed) {
@@ -212,6 +252,16 @@ function CourseDetails() {
     return videos.filter((video) => progressMap?.[video.id]?.completed).length;
   }, [videos, progressMap]);
 
+  const overallWatchedPercent = useMemo(() => {
+    if (videos.length === 0) return 0;
+    const total = videos.reduce((sum, video) => {
+      const prog = progressMap?.[video.id];
+      if (prog?.completed) return sum + 100;
+      return sum + Math.min(100, Number(prog?.watchedPercent || 0));
+    }, 0);
+    return Math.round(total / videos.length);
+  }, [videos, progressMap]);
+
   const progressPercent = videos.length
     ? Math.round((completedCount / videos.length) * 100)
     : 0;
@@ -261,14 +311,15 @@ function CourseDetails() {
 
           <div className="course-meta">
             <span>{videos.length} Videos</span>
-            <span>{progressPercent}% Completed</span>
+            <span>{overallWatchedPercent}% Watched</span>
+            {completedCount > 0 && <span>{completedCount}/{videos.length} Completed</span>}
             {passingScore && <span>{passingScore}% Passing Score</span>}
             {finalResult?.passed && <span>✓ Course Passed</span>}
           </div>
         </div>
 
         <div className="course-progress-box">
-          <strong>{progressPercent}%</strong>
+          <strong>{overallWatchedPercent}%</strong>
           <span>Your Progress</span>
         </div>
       </section>
@@ -284,7 +335,9 @@ function CourseDetails() {
             <p className="empty-text">No videos added yet.</p>
           ) : (
             videos.map((video, index) => {
-              const isCompleted = progressMap?.[video.id]?.completed;
+              const videoProgress = progressMap?.[video.id];
+              const isCompleted = videoProgress?.completed;
+              const videoWatched = isCompleted ? 100 : Math.min(100, Number(videoProgress?.watchedPercent || 0));
               const isUnlocked = index <= nextUnlockedIndex;
               const thumbnail = getThumbnail(video);
 
@@ -315,19 +368,30 @@ function CourseDetails() {
                       <p>{video.description || video.videoDescription}</p>
                     )}
 
+                    {videoWatched > 0 && videoWatched < 100 && (
+                      <div className="video-progress-bar">
+                        <div className="video-progress-track">
+                          <div className="video-progress-fill" style={{ width: `${videoWatched}%` }} />
+                        </div>
+                        <span>{videoWatched}%</span>
+                      </div>
+                    )}
+
                     <div className="video-status">
                       {isCompleted
                         ? "Completed"
-                        : isUnlocked
-                          ? "Available"
-                          : "Locked"}
+                        : videoWatched > 0
+                          ? `${videoWatched}% Watched`
+                          : isUnlocked
+                            ? "Available"
+                            : "Locked"}
                     </div>
                   </div>
 
                   {isUnlocked ? (
                     <Link to={`../video/${video.id}`}>
                       <button className="start-btn">
-                        {isCompleted ? "Review" : "Start Learning"}
+                        {isCompleted ? "Review" : videoWatched > 0 ? "Continue" : "Start Learning"}
                       </button>
                     </Link>
                   ) : (
@@ -341,7 +405,7 @@ function CourseDetails() {
           )}
         </div>
 
-       {progressPercent >= 100 && (
+       {completedCount === videos.length && videos.length > 0 && (
   <div
     className={`course-final-test-card ${
       finalResult?.passed ? "course-final-test-passed" : ""

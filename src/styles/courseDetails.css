@@ -158,6 +158,8 @@
 .video-row.locked {
   opacity: 0.5;
   background: #f1f5f9;
+  pointer-events: none;
+  cursor: not-allowed;
 }
 
 .video-row.locked:hover {
@@ -211,6 +213,35 @@
   margin-top: 6px;
   font-size: 0.72rem;
   font-weight: 600;
+}
+
+.video-progress-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.video-progress-track {
+  flex: 1;
+  height: 5px;
+  background: #e2e8f0;
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.video-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #86efac, #22c55e);
+  border-radius: 100px;
+  transition: width 0.3s ease;
+}
+
+.video-progress-bar span {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #059669;
+  min-width: 32px;
 }
 
 .video-status.completed {

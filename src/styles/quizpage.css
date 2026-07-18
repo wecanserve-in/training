@@ -475,6 +475,25 @@
   margin-top: 10px;
 }
 
+.quiz-result-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.quiz-result-actions button {
+  margin-top: 0;
+}
+
+.quiz-cert-btn {
+  background: #059669;
+  color: #fff !important;
+}
+
+.quiz-cert-btn:hover {
+  background: #047857;
+}
+
 .quiz-empty-card button {
   margin-top: 22px;
 }

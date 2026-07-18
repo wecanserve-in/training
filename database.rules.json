@@ -1,10 +1,9 @@
 {
   "rules": {
     "users": {
-      ".read": "auth != null",
       "$uid": {
-        ".read": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin' || auth.uid === $uid)",
-        ".write": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || auth.uid === $uid)",
+        ".read": "auth != null && (auth.uid === $uid || root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin')",
+        ".write": "auth != null && (auth.uid === $uid || root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin')",
 
         "role": {
           ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50 && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin')"
@@ -71,23 +70,14 @@
       ".write": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin')"
     },
 
-    "videoQuizAttempts": {
+    "userAssignments": {
       "$uid": {
         ".read": "auth != null && (auth.uid === $uid || root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin')",
-        ".write": "auth != null && auth.uid === $uid"
-      }
-    },
-
-    "userAssignments": {
-      ".read": "auth != null",
-
-      "$uid": {
-        ".read": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin' || auth.uid === $uid)",
 
         ".write": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin')",
 
         "$courseId": {
-          ".validate": "newData.hasChildren(['assigned'])"
+          ".validate": "newData.hasChildren(['courseId', 'assigned'])"
         }
       }
     },
@@ -99,22 +89,126 @@
     },
 
     "completedCourses": {
-      ".read": "auth != null",
-
       "$uid": {
-        ".read": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin' || auth.uid === $uid)",
+        ".read": "auth != null && (auth.uid === $uid || root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin')",
 
-        ".write": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin' || auth.uid === $uid)"
+        ".write": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin')"
       }
     },
 
     "progress": {
-      ".read": "auth != null",
-
       "$uid": {
-        ".read": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin' || auth.uid === $uid)",
+        ".read": "auth != null && (auth.uid === $uid || root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin')",
 
-        ".write": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin' || auth.uid === $uid)"
+        ".write": "auth != null && (auth.uid === $uid || root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin')"
+      }
+    },
+
+    "videoProgress": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin')",
+
+        ".write": "auth != null && auth.uid === $uid",
+
+        "$courseId": {
+          "$videoId": {
+            ".validate": "newData.hasChildren(['videoId', 'courseId'])",
+
+            "progressPercentage": {
+              ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0 && newData.val() <= 100)"
+            },
+
+            "completed": {
+              ".validate": "!newData.exists() || newData.isBoolean()"
+            },
+
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
+      }
+    },
+
+    "courseProgress": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin')",
+
+        ".write": "auth != null && (auth.uid === $uid || root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin')",
+
+        "$courseId": {
+          ".validate": "newData.hasChildren(['courseId'])",
+
+          "progressPercentage": {
+            ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0 && newData.val() <= 100)"
+          },
+
+          "completed": {
+            ".validate": "!newData.exists() || newData.isBoolean()"
+          },
+
+          "courseTestCompleted": {
+            ".validate": "!newData.exists() || newData.isBoolean()"
+          },
+
+          "courseTestPassed": {
+            ".validate": "!newData.exists() || newData.isBoolean()"
+          },
+
+          "score": {
+            ".validate": "!newData.exists() || newData.isNumber()"
+          },
+
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
+
+    "quizAttempts": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin')",
+
+        ".write": "auth != null && auth.uid === $uid",
+
+        "$courseId": {
+          "$quizId": {
+            ".validate": "newData.hasChildren(['quizId', 'quizType', 'courseId'])",
+
+            "quizType": {
+              ".validate": "newData.isString() && (newData.val() === 'practice' || newData.val() === 'final')"
+            },
+
+            "score": {
+              ".validate": "!newData.exists() || newData.isNumber()"
+            },
+
+            "totalMarks": {
+              ".validate": "!newData.exists() || newData.isNumber()"
+            },
+
+            "passed": {
+              ".validate": "!newData.exists() || newData.isBoolean()"
+            },
+
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
+      }
+    },
+
+    "certificates": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin')",
+
+        ".write": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin')",
+
+        "$courseId": {
+          ".validate": "newData.hasChildren(['courseId', 'issuedAt'])"
+        }
       }
     },
 
@@ -169,12 +263,10 @@
     },
 
     "results": {
-      ".read": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin')",
-
       "$uid": {
         ".read": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin' || auth.uid === $uid)",
 
-        ".write": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin' || auth.uid === $uid)"
+        ".write": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin')"
       }
     },
 
@@ -184,7 +276,15 @@
       "$uid": {
         ".read": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || auth.uid === $uid)",
 
-        ".write": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || auth.uid === $uid)"
+        ".write": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin')"
+      }
+    },
+
+    "videoQuizAttempts": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin' || root.child('users/'+auth.uid).child('role').val() === 'departmentAdmin')",
+
+        ".write": "auth != null && (root.child('users/'+auth.uid).child('role').val() === 'superAdmin' || root.child('users/'+auth.uid).child('role').val() === 'admin')"
       }
     },
 

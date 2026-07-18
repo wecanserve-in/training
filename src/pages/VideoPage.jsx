@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ref, get, update, push, runTransaction } from "firebase/database";
+import { ref, get, update, runTransaction } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, database } from "../firebase";
+import {
+  videoProgressForVideoPath,
+  courseProgressForCoursePath,
+  learningActivityVideoPath,
+} from "../services/dbPaths";
 import "../styles/videopage.css";
 
 function VideoPage() {
@@ -82,21 +87,29 @@ function VideoPage() {
           oldVideosSnap,
           videoLibrarySnap,
           courseVideosSnap,
-          progressSnap,
+          newProgressSnap,
+          legacyProgressSnap,
           videoQuizzesSnap,
-          quizAttemptsSnap,
+          newQuizAttemptsSnap,
+          legacyQuizAttemptsSnap,
           completedCourseSnap,
-          finalAttemptsSnap,
+          courseProgressSnap,
           resultsSnap,
         ] = await Promise.all([
             get(ref(database, "videos")),
             get(ref(database, "videoLibrary")),
             get(ref(database, "courseVideos")),
+            // Try new path first
+            get(ref(database, `videoProgress/${user.uid}`)),
+            // Fallback to legacy path
             get(ref(database, `progress/${user.uid}`)),
             get(ref(database, "videoQuizzes")),
+            // Try new quiz attempts path
+            get(ref(database, `quizAttempts/${user.uid}`)),
+            // Also read legacy videoQuizAttempts for backward compat
             get(ref(database, `videoQuizAttempts/${user.uid}`)),
             get(ref(database, `completedCourses/${user.uid}`)),
-            get(ref(database, `attempts/${user.uid}`)),
+            get(ref(database, `courseProgress/${user.uid}`)),
             get(ref(database, `results/${user.uid}`)),
           ]);
 
@@ -196,7 +209,21 @@ function VideoPage() {
             new Date(a.createdAt || 0) - new Date(b.createdAt || 0)
         );
 
-        const progressData = progressSnap.exists() ? progressSnap.val() : {};
+        // Merge progress data from new and legacy paths
+        const newProgressData = newProgressSnap.exists() ? newProgressSnap.val() : {};
+        const legacyProgressData = legacyProgressSnap.exists() ? legacyProgressSnap.val() : {};
+        // New path: videoProgress/{uid}/{courseId}/{videoId} - flatten to videoId keyed map
+        const mergedProgressData = { ...legacyProgressData };
+        Object.values(newProgressData).forEach((courseVideos) => {
+          if (courseVideos && typeof courseVideos === "object") {
+            Object.entries(courseVideos).forEach(([videoId, videoProg]) => {
+              if (!mergedProgressData[videoId]) {
+                mergedProgressData[videoId] = videoProg;
+              }
+            });
+          }
+        });
+        const progressData = mergedProgressData;
 
         setVideo(foundVideo);
         setLessons(courseLessons);
@@ -293,11 +320,37 @@ function VideoPage() {
           );
           setQuizQuestions(videoQuestions);
 
-          if (quizAttemptsSnap.exists()) {
-            const attempts = quizAttemptsSnap.val() || {};
+          if (newQuizAttemptsSnap.exists() || legacyQuizAttemptsSnap.exists()) {
+            // Merge quiz attempts from new and legacy paths
+            const allAttempts = [];
+
+            // New path: quizAttempts/{uid}/{courseId}/{quizId}
+            if (newQuizAttemptsSnap.exists()) {
+              const newAttempts = newQuizAttemptsSnap.val() || {};
+              Object.values(newAttempts).forEach((courseAttempts) => {
+                if (courseAttempts && typeof courseAttempts === "object") {
+                  Object.values(courseAttempts).forEach((attempt) => {
+                    if (attempt && attempt.quizType === "practice") {
+                      allAttempts.push(attempt);
+                    }
+                  });
+                }
+              });
+            }
+
+            // Legacy path: videoQuizAttempts/{uid}/{attemptId}
+            if (legacyQuizAttemptsSnap.exists()) {
+              const legacyAttempts = legacyQuizAttemptsSnap.val() || {};
+              Object.values(legacyAttempts).forEach((attempt) => {
+                if (attempt) {
+                  allAttempts.push(attempt);
+                }
+              });
+            }
+
             let latestAttempt = null;
 
-            Object.values(attempts).forEach((attempt) => {
+            allAttempts.forEach((attempt) => {
               const attemptMatchesVideo = acceptedVideoIds.has(
                 attempt?.videoId || attempt?.mappingId
               );
@@ -307,8 +360,8 @@ function VideoPage() {
               if (attemptMatchesVideo && attemptMatchesCourse) {
                 if (
                   !latestAttempt ||
-                  new Date(attempt.submittedAt || 0) >
-                    new Date(latestAttempt.submittedAt || 0)
+                  new Date(attempt.attemptedAt || attempt.submittedAt || 0) >
+                    new Date(latestAttempt.attemptedAt || latestAttempt.submittedAt || 0)
                 ) {
                   latestAttempt = attempt;
                 }
@@ -318,8 +371,8 @@ function VideoPage() {
             if (latestAttempt) {
               setQuizPreviouslyCompleted(true);
               setPreviousScore({
-                correct: Number(latestAttempt.correct || 0),
-                total: Number(latestAttempt.total || videoQuestions.length || 0),
+                correct: Number(latestAttempt.score || latestAttempt.correct || 0),
+                total: Number(latestAttempt.totalMarks || latestAttempt.total || videoQuestions.length || 0),
               });
             }
           }
@@ -328,25 +381,39 @@ function VideoPage() {
         const completedCoursesData = completedCourseSnap.exists()
           ? completedCourseSnap.val()
           : {};
-        const finalAttemptsData = finalAttemptsSnap.exists()
-          ? finalAttemptsSnap.val()
+        const courseProgressData = courseProgressSnap.exists()
+          ? courseProgressSnap.val()
           : {};
         const resultsData = resultsSnap.exists() ? resultsSnap.val() : {};
 
         const completedRecord = completedCoursesData?.[resolvedCourseId] || null;
+        const courseProgressRecord = courseProgressData?.[resolvedCourseId] || null;
 
+        // Gather final test results from multiple sources
         const finalRecords = [
-          ...Object.entries(finalAttemptsData || {}).map(([attemptId, item]) => ({
-            id: attemptId,
-            ...(item || {}),
-          })),
           ...Object.entries(resultsData || {}).map(([resultId, item]) => ({
             id: resultId,
+            source: "results",
             ...(item || {}),
           })),
         ].filter(
           (item) => item.courseId === resolvedCourseId && !item.videoId
         );
+
+        // Also check new quizAttempts path for final tests
+        if (newQuizAttemptsSnap.exists()) {
+          const allQuizAttempts = newQuizAttemptsSnap.val() || {};
+          const courseAttempts = allQuizAttempts[resolvedCourseId] || {};
+          Object.entries(courseAttempts).forEach(([quizId, attempt]) => {
+            if (attempt && attempt.quizType === "final") {
+              finalRecords.push({
+                id: quizId,
+                source: "quizAttempts",
+                ...attempt,
+              });
+            }
+          });
+        }
 
         const latestPassed = finalRecords
           .filter(
@@ -361,13 +428,13 @@ function VideoPage() {
               new Date(a.submittedAt || a.completedAt || a.createdAt || 0)
           )[0];
 
-        if (completedRecord || latestPassed) {
-          const source = latestPassed || completedRecord || {};
+        if (completedRecord || latestPassed || courseProgressRecord?.courseTestPassed) {
+          const source = latestPassed || completedRecord || courseProgressRecord || {};
           const rawScore = Number(
             source.score ?? source.percentage ?? source.correct ?? 0
           );
           const total = Number(
-            source.total ?? source.totalQuestions ?? 0
+            source.total ?? source.totalMarks ?? source.totalQuestions ?? 0
           );
           const percentage =
             total > 0 && rawScore <= total
@@ -380,6 +447,26 @@ function VideoPage() {
             total,
             percentage,
           });
+        }
+
+        const videoIdx = courseLessons.findIndex((l) => l.id === foundVideo.id);
+        if (videoIdx > 0) {
+          const allPrevComplete = courseLessons.slice(0, videoIdx).every((lesson) => {
+            const prog = progressData?.[lesson.id];
+            return prog?.completed || Number(prog?.watchedPercent || 0) >= 100;
+          });
+          if (!allPrevComplete) {
+            const firstIncomplete = courseLessons.find((lesson, idx) => {
+              if (idx >= videoIdx) return false;
+              const prog = progressData?.[lesson.id];
+              return !prog?.completed && Number(prog?.watchedPercent || 0) < 100;
+            });
+            setLoading(false);
+            if (firstIncomplete) {
+              navigate(`../video/${firstIncomplete.id}`, { replace: true });
+              return;
+            }
+          }
         }
 
         setLoading(false);
@@ -437,12 +524,39 @@ function VideoPage() {
       currentWatchedCount - lastLoggedWatchedCountRef.current
     );
 
+    const courseId = video.courseId || "unknown";
+
+    // Write to new normalized path: videoProgress/{uid}/{courseId}/{videoId}
+    await update(ref(database), {
+      [videoProgressForVideoPath(user.uid, courseId, video.id)]: progressData,
+    });
+
+    // Also write to legacy path for backward compatibility during migration
     await update(ref(database), {
       [`progress/${user.uid}/${video.id}`]: progressData,
     });
 
+    // Update course progress summary
+    const courseProgressRef = ref(database, courseProgressForCoursePath(user.uid, courseId));
+    const courseProgressSnap = await get(courseProgressRef);
+    const existingCourseProgress = courseProgressSnap.exists() ? courseProgressSnap.val() : {};
+    const currentCompletedVideos = existingCourseProgress.completedVideos || 0;
+    const newCompletedVideos = completed ? Math.max(currentCompletedVideos, currentCompletedVideos + 1) : currentCompletedVideos;
+
+    await update(ref(database), {
+      [courseProgressForCoursePath(user.uid, courseId)]: {
+        courseId,
+        progressPercentage: courseOverallProgress,
+        completedVideos: newCompletedVideos,
+        totalVideos: lessons.length,
+        lastAccessedAt: nowIso,
+        completed: allCourseVideosCompleted,
+        ...(allCourseVideosCompleted && { completedAt: nowIso }),
+      },
+    });
+
     if (newlyWatchedSeconds > 0) {
-      const activityBase = `learningActivity/${user.uid}/${localDayKey}/${video.id}`;
+      const activityBase = learningActivityVideoPath(user.uid, localDayKey, video.id);
 
       await runTransaction(
         ref(database, `${activityBase}/seconds`),
@@ -451,7 +565,7 @@ function VideoPage() {
 
       await update(ref(database), {
         [`${activityBase}/videoId`]: video.id,
-        [`${activityBase}/courseId`]: video.courseId,
+        [`${activityBase}/courseId`]: courseId,
         [`${activityBase}/videoTitle`]: video.title || video.videoTitle || "",
         [`${activityBase}/updatedAt`]: nowIso,
       });
@@ -722,6 +836,16 @@ function VideoPage() {
   const handleSelectAnswer = (optionIndex) => {
     if (showResult) return;
     setSelectedAnswer(optionIndex);
+    setShowResult(true);
+
+    const q = quizQuestions[currentQuizIndex];
+    const correct = isCorrectOption(q, optionIndex);
+    if (correct) setQuizScore((prev) => prev + 1);
+
+    setQuizAnswers((prev) => ({
+      ...prev,
+      [currentQuizIndex]: { selected: optionIndex, correct },
+    }));
   };
 
   const handleSubmitAnswer = () => {
@@ -742,16 +866,22 @@ function VideoPage() {
     const user = auth.currentUser;
     if (!user || !video) return;
 
-    const attemptRef = push(ref(database, `videoQuizAttempts/${user.uid}`));
-    await update(attemptRef, {
+    const courseId = video.courseId || "unknown";
+    const quizId = `practice_${video.id}_${Date.now()}`;
+
+    // Write to new normalized path: quizAttempts/{uid}/{courseId}/{quizId}
+    await update(ref(database, `quizAttempts/${user.uid}/${courseId}/${quizId}`), {
       videoId: video.id,
       mappingId: video.mappingId || null,
-      courseId: video.courseId,
+      courseId,
+      quizType: "practice",
       videoTitle: video.title || video.videoTitle || "",
-      correct: finalScore,
-      total: quizQuestions.length,
+      score: finalScore,
+      totalMarks: quizQuestions.length,
+      percentage: quizQuestions.length > 0 ? Math.round((finalScore / quizQuestions.length) * 100) : 0,
+      passed: quizQuestions.length > 0 && finalScore >= Math.ceil(quizQuestions.length * 0.7),
       answers: quizAnswers,
-      submittedAt: new Date().toISOString(),
+      attemptedAt: new Date().toISOString(),
     });
   };
 
@@ -763,16 +893,25 @@ function VideoPage() {
       return;
     }
 
-    // quizScore already includes the submitted last answer. Do not add it again.
+    // Last question — complete the quiz
     const finalScore = quizScore;
     setQuizCompleted(true);
     setQuizPreviouslyCompleted(true);
     setPreviousScore({ correct: finalScore, total: quizQuestions.length });
 
+    const passed = quizQuestions.length > 0 && finalScore >= Math.ceil(quizQuestions.length * 0.7);
+
     try {
       await saveQuizAttempt(finalScore);
     } catch (error) {
       console.error("Failed to save revision quiz attempt:", error);
+    }
+
+    // Auto-close and continue only if passed
+    if (passed) {
+      setTimeout(() => {
+        handleQuizContinue();
+      }, 800);
     }
   };
 
@@ -803,6 +942,7 @@ function VideoPage() {
     video?.description || video?.videoDescription || "";
   const videoUrl = video?.videoUrl || video?.url || video?.fileUrl || "";
   const hasRevisionQuiz = quizQuestions.length > 0;
+  const revisionQuizPassed = hasRevisionQuiz && quizPreviouslyCompleted && previousScore.total > 0 && previousScore.correct >= Math.ceil(previousScore.total * 0.7);
   const courseId = video?.courseId;
 
   if (loading)
@@ -826,7 +966,9 @@ function VideoPage() {
             <p>
               {finalCourseResult?.passed
                 ? `You have already passed this course with ${finalCourseResult.percentage}%.`
-                : "You have completed all videos in this course. You can now take the final course test."}
+                : hasRevisionQuiz && !revisionQuizPassed
+                  ? "You have completed all videos. Pass the revision quiz first to unlock the final test."
+                  : "You have completed all videos in this course. You can now take the final course test."}
             </p>
             <div className="modal-actions">
               <button
@@ -835,18 +977,20 @@ function VideoPage() {
               >
                 Back to Course
               </button>
-              <button
-                className="modal-primary-btn"
-                onClick={() =>
-                  navigate(
-                    finalCourseResult?.passed
-                      ? `../quiz/${courseId}?mode=result`
-                      : `../quiz/${courseId}`
-                  )
-                }
-              >
-                {finalCourseResult?.passed ? "View Marks" : "Start Final Test"}
-              </button>
+              {(!hasRevisionQuiz || revisionQuizPassed || finalCourseResult?.passed) && (
+                <button
+                  className="modal-primary-btn"
+                  onClick={() =>
+                    navigate(
+                      finalCourseResult?.passed
+                        ? `../quiz/${courseId}?mode=result`
+                        : `../quiz/${courseId}`
+                    )
+                  }
+                >
+                  {finalCourseResult?.passed ? "View Marks" : "Start Final Test"}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -895,61 +1039,25 @@ function VideoPage() {
                   <button onClick={handleCloseQuiz}>Close</button>
                 </div>
               ) : quizCompleted ? (
-                /* ── SUMMARY VIEW ── */
-                <div className="quiz-summary">
-                  <div className="quiz-summary-icon">
-                    {(viewingScore ? previousScore.correct : quizScore) === (viewingScore ? previousScore.total : quizQuestions.length)
-                      ? "🎉"
-                      : (viewingScore ? previousScore.correct : quizScore) >= (viewingScore ? previousScore.total : quizQuestions.length) * 0.5
-                        ? "👍"
-                        : "📖"}
+                /* ── RESULT VIEW ── */
+                <div className="quiz-modal-empty">
+                  <div className="quiz-modal-empty-icon">
+                    {revisionQuizPassed ? "🎉" : "📖"}
                   </div>
-                  <h2>
-                    {(viewingScore ? previousScore.correct : quizScore) === (viewingScore ? previousScore.total : quizQuestions.length)
-                      ? "Perfect Score!"
-                      : (viewingScore ? previousScore.correct : quizScore) >= (viewingScore ? previousScore.total : quizQuestions.length) * 0.5
-                        ? "Good Effort!"
-                        : "Keep Practicing!"}
-                  </h2>
-
-                  <div className="quiz-summary-score">
-                    <span className="score-big">{viewingScore ? previousScore.correct : quizScore}</span>
-                    <span className="score-divider">/</span>
-                    <span className="score-total">{viewingScore ? previousScore.total : quizQuestions.length}</span>
-                  </div>
-                  <p className="quiz-summary-label">Correct Answers</p>
-
-                  <div className="quiz-summary-stats">
-                    <div className="quiz-stat-item correct">
-                      <span className="stat-num">
-                        {viewingScore ? previousScore.correct : Object.values(quizAnswers).filter((a) => a.correct).length}
-                      </span>
-                      <span className="stat-label">Correct</span>
-                    </div>
-                    <div className="quiz-stat-item wrong">
-                      <span className="stat-num">
-                        {viewingScore ? previousScore.total - previousScore.correct : Object.values(quizAnswers).filter((a) => !a.correct).length}
-                      </span>
-                      <span className="stat-label">Wrong</span>
-                    </div>
-                    <div className="quiz-stat-item total">
-                      <span className="stat-num">{viewingScore ? previousScore.total : quizQuestions.length}</span>
-                      <span className="stat-label">Total</span>
-                    </div>
-                  </div>
-
-                  <div className="quiz-summary-actions">
+                  <h4>{revisionQuizPassed ? "Quiz Passed!" : "Quiz Failed"}</h4>
+                  <p>{previousScore.correct}/{previousScore.total} Correct</p>
+                  {!revisionQuizPassed && (
                     <button
-                      className="quiz-summary-btn close"
-                      onClick={viewingScore ? handleCloseQuiz : handleQuizContinue}
+                      className="quiz-btn active"
+                      onClick={() => {
+                        setQuizCompleted(false);
+                        handleStartQuiz();
+                      }}
+                      style={{ marginTop: "12px" }}
                     >
-                      {viewingScore
-                        ? "Close"
-                        : currentIndex < lessons.length - 1
-                          ? "Continue to Next Lesson"
-                          : "Continue to Final Test"}
+                      Try Again
                     </button>
-                  </div>
+                  )}
                 </div>
               ) : (
                 /* ── QUESTION VIEW ── */
@@ -994,16 +1102,10 @@ function VideoPage() {
                 </span>
                 {showResult ? (
                   <button className="quiz-modal-next" onClick={handleNextQuestion}>
-                    {currentQuizIndex < quizQuestions.length - 1 ? "Next Question →" : "View Results"}
+                    {currentQuizIndex < quizQuestions.length - 1 ? "Next Question →" : "Finish Quiz"}
                   </button>
                 ) : (
-                  <button
-                    className="quiz-modal-submit"
-                    onClick={handleSubmitAnswer}
-                    disabled={selectedAnswer === null}
-                  >
-                    Submit Answer
-                  </button>
+                  <span className="quiz-modal-hint">Select an answer</span>
                 )}
               </div>
             )}
@@ -1119,11 +1221,15 @@ function VideoPage() {
                 const completed = progressMap?.[item.id]?.completed;
                 const active = item.id === video.id;
                 const thumb = getThumbnail(item);
+                const nextUnlockIdx = lessons.filter((l) => progressMap?.[l.id]?.completed || Number(progressMap?.[l.id]?.watchedPercent || 0) >= 100).length;
+                const locked = !completed && !active && index > nextUnlockIdx;
 
                 return (
                   <button
                     key={item.id}
-                    className={`video-list-item ${active ? "active" : ""} ${completed ? "completed" : ""}`}
+                    className={`video-list-item ${active ? "active" : ""} ${completed ? "completed" : ""} ${locked ? "locked" : ""}`}
+                    disabled={locked}
+                    onClick={() => !locked && navigate(`../video/${item.id}`)}
                     onClick={() => navigate(`../video/${item.id}`)}
                   >
                     <div className="video-list-thumb">
@@ -1151,14 +1257,18 @@ function VideoPage() {
                             ? "status-completed"
                             : active
                               ? "status-playing"
-                              : ""
+                              : locked
+                                ? "status-locked"
+                                : ""
                         }
                       >
                         {completed
                           ? "Completed"
                           : active
                             ? "Playing Now"
-                            : "Upcoming"}
+                            : locked
+                              ? "🔒 Locked"
+                              : "Upcoming"}
                       </span>
                     </div>
                   </button>
@@ -1192,13 +1302,23 @@ function VideoPage() {
                     <>
                       <p>
                         Score: {previousScore.correct}/{previousScore.total}
+                        {!revisionQuizPassed && " — Failed (min 70% required)"}
                       </p>
-                      <button
-                        className="quiz-btn active"
-                        onClick={handleViewScore}
-                      >
-                        View Score
-                      </button>
+                      {!revisionQuizPassed ? (
+                        <button
+                          className="quiz-btn active"
+                          onClick={handleStartQuiz}
+                        >
+                          Try Again
+                        </button>
+                      ) : (
+                        <button
+                          className="quiz-btn active"
+                          onClick={handleViewScore}
+                        >
+                          View Score
+                        </button>
+                      )}
                     </>
                   ) : (
                     <>
@@ -1240,15 +1360,24 @@ function VideoPage() {
                 </button>
               </>
             ) : allCourseVideosCompleted ? (
-              <>
-                <p>All lessons completed.</p>
-                <button
-                  className="quiz-btn active"
-                  onClick={() => navigate(`../quiz/${courseId}`)}
-                >
-                  Start Final Test
-                </button>
-              </>
+              hasRevisionQuiz && !revisionQuizPassed ? (
+                <>
+                  <p>Pass the revision quiz first to unlock the final test.</p>
+                  <button disabled className="quiz-btn disabled">
+                    Locked
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p>All lessons completed.</p>
+                  <button
+                    className="quiz-btn active"
+                    onClick={() => navigate(`../quiz/${courseId}`)}
+                  >
+                    Start Final Test
+                  </button>
+                </>
+              )
             ) : (
               <>
                 <p>Finish all lessons first.</p>

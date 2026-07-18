@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { FaVideo, FaImage } from "react-icons/fa";
 import { onAuthStateChanged } from "firebase/auth";
 import { get, push, ref, set } from "firebase/database";
@@ -7,7 +7,17 @@ import * as XLSX from "xlsx";
 import { auth, database } from "../firebase";
 import "../styles/videolibrary.css";
 
+
+const createSafeCloudinarySlug = (value = "") =>
+  String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
 function DepartmentUploadVideo() {
+  const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState(null);
   const [departments, setDepartments] = useState([]);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
@@ -248,28 +258,57 @@ function DepartmentUploadVideo() {
     return `https://res.cloudinary.com/${cloudName}/video/upload/so_2,w_800,h_450,c_fill,q_auto,f_jpg/${publicId}.jpg`;
   };
 
-  const uploadFileToCloudinary = async (file, resourceType, folderName) => {
+  const uploadFileToCloudinary = async (file, resourceType, baseFolder, departmentName) => {
     const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
     const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-    if (!cloudName || !uploadPreset) throw new Error("Cloudinary env variables missing.");
+
+    if (!cloudName || !uploadPreset) {
+      throw new Error("Cloudinary env variables missing.");
+    }
+
+    if (!file) {
+      throw new Error("Please select a file before uploading.");
+    }
+
+    const safeDepartment =
+      createSafeCloudinarySlug(departmentName) || "general";
+
+    const safeFolder = `${baseFolder}/${safeDepartment}`;
 
     const formData = new FormData();
     formData.append("file", file);
     formData.append("upload_preset", uploadPreset);
-    formData.append("folder", folderName);
+    formData.append("folder", safeFolder);
+
+    /*
+      Do not send a custom public_id from the frontend.
+      Cloudinary will generate a valid public ID automatically.
+    */
 
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`,
-      { method: "POST", body: formData }
+      {
+        method: "POST",
+        body: formData,
+      }
     );
 
     const responseText = await response.text();
+
     let data = {};
-    try { data = JSON.parse(responseText); } catch { throw new Error("Cloudinary did not return valid JSON."); }
+
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      throw new Error("Cloudinary did not return valid JSON.");
+    }
 
     if (!response.ok || !data.secure_url) {
-      throw new Error(data?.error?.message || `Upload failed (${response.status})`);
+      throw new Error(
+        data?.error?.message || `Upload failed (${response.status})`
+      );
     }
+
     return data;
   };
 
@@ -278,7 +317,10 @@ function DepartmentUploadVideo() {
     setModalMessage("Uploading video...");
 
     const videoData = await uploadFileToCloudinary(
-      videoFile, "video", `training-portal/videos/${department || "General"}`
+      videoFile,
+      "video",
+      "training-portal/videos",
+      department
     );
 
     let thumbnailUrl = buildCloudinaryThumbnail(videoData.public_id);
@@ -288,7 +330,10 @@ function DepartmentUploadVideo() {
       setUploadStatus("Uploading thumbnail...");
       setModalMessage("Uploading thumbnail...");
       const thumbnailData = await uploadFileToCloudinary(
-        thumbnailFile, "image", `training-portal/thumbnails/${department || "General"}`
+        thumbnailFile,
+        "image",
+        "training-portal/thumbnails",
+        department
       );
       thumbnailUrl = thumbnailData.secure_url;
       thumbnailPublicId = thumbnailData.public_id || "";
@@ -497,8 +542,22 @@ function DepartmentUploadVideo() {
       setUploadStatus("");
       resetQuestionForm();
 
-      setSuccessMessage("Training video saved successfully.");
+      const libraryPath =
+        normalizedRole === "superadmin"
+          ? "/super-admin/video-library"
+          : normalizedRole === "admin"
+          ? "/admin/video-library"
+          : "/department-admin/video-library";
+
+      setSuccessMessage(
+        "Training video saved successfully. Redirecting to the video library..."
+      );
       setShowSuccessModal(true);
+
+      window.setTimeout(() => {
+        setShowSuccessModal(false);
+        navigate(libraryPath, { replace: true });
+      }, 1200);
     } catch (error) {
       setSuccessMessage(error.message || "Upload failed.");
       setShowSuccessModal(true);

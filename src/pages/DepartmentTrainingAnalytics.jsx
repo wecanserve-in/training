@@ -6,7 +6,7 @@ import "../styles/departmenttraininganalytics.css";
 import * as XLSX from "xlsx";
 
 function DepartmentTrainingAnalytics() {
-  const [currentUser, setCurrentUser] = useState(null);
+  const [, setCurrentUser] = useState(null);
 
   const [courses, setCourses] = useState([]);
   const [users, setUsers] = useState([]);
@@ -77,13 +77,16 @@ function DepartmentTrainingAnalytics() {
 
         const visibleCourses = canSeeAllCourses
           ? allCourses
-          : allCourses.filter(
-              (course) =>
-                course.createdBy === adminData.id ||
-                course.createdByEmail === adminData.email ||
-                (adminData.departmentId && course.departmentId === adminData.departmentId) ||
-                course.department === adminData.department
-            );
+          : allCourses.filter((course) => {
+              const courseDeptId = String(course.departmentId || "").trim();
+              const userDeptId = String(adminData.departmentId || "").trim();
+              const courseDept = String(course.department || "").trim().toLowerCase();
+              const userDept = String(adminData.department || "").trim().toLowerCase();
+
+              if (courseDeptId && userDeptId && courseDeptId === userDeptId) return true;
+              if (courseDept && userDept && courseDept === userDept) return true;
+              return false;
+            });
 
         const allUsers = usersSnap.exists()
           ? Object.entries(usersSnap.val()).map(([id, value]) => ({

@@ -4,6 +4,16 @@ import { ref, get } from "firebase/database";
 import { database } from "../firebase";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import {
+  FaArrowLeft,
+  FaDownload,
+  FaCertificate,
+  FaUser,
+  FaBookOpen,
+  FaCalendarAlt,
+  FaCheckCircle,
+  FaPercentage,
+} from "react-icons/fa";
 import "../styles/certificatepage.css";
 
 function CertificatePage() {
@@ -14,96 +24,185 @@ function CertificatePage() {
   const [result, setResult] = useState(null);
   const [userData, setUserData] = useState(null);
   const [course, setCourse] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     fetchCertificateData();
   }, [id]);
 
   const fetchCertificateData = async () => {
-    const attemptUserId = id.split("_")[0];
-    const attemptSnap = await get(ref(database, `attempts/${attemptUserId}/${id}`));
+    try {
+      const attemptUserId = id.split("_")[0];
 
-    if (!attemptSnap.exists()) return;
+      let attemptSnap = await get(ref(database, `attempts/${attemptUserId}/${id}`));
+      let attemptData = attemptSnap.exists() ? attemptSnap.val() : null;
+      let attemptUserIdFound = attemptUserId;
 
-    const attemptData = attemptSnap.val();
-    setResult(attemptData);
+      if (!attemptData) {
+        const resultsSnap = await get(ref(database, `results/${attemptUserId}`));
+        if (resultsSnap.exists()) {
+          const allResults = resultsSnap.val();
+          const match = Object.entries(allResults).find(
+            ([key]) => key === id || key.includes(id)
+          );
+          if (match) {
+            attemptData = match[1];
+          }
+        }
+      }
 
-    const [userSnap, courseSnap] = await Promise.all([
-      attemptData.userId
-        ? get(ref(database, `users/${attemptData.userId}`))
-        : Promise.resolve(null),
-      attemptData.courseId
-        ? get(ref(database, `courses/${attemptData.courseId}`))
-        : Promise.resolve(null),
-    ]);
+      if (!attemptData) {
+        const quizSnap = await get(ref(database, `quizAttempts/${attemptUserId}`));
+        if (quizSnap.exists()) {
+          const allCourses = quizSnap.val();
+          for (const courseId of Object.keys(allCourses)) {
+            const courseAttempts = allCourses[courseId];
+            const match = Object.entries(courseAttempts).find(
+              ([key]) => key === id || key.includes(id)
+            );
+            if (match) {
+              attemptData = match[1];
+              break;
+            }
+          }
+        }
+      }
 
-    if (userSnap?.exists()) {
-      setUserData(userSnap.val());
-    }
+      if (!attemptData) {
+        setLoading(false);
+        return;
+      }
 
-    if (courseSnap?.exists()) {
-      setCourse({
-        id: attemptData.courseId,
-        ...courseSnap.val(),
-      });
+      setResult(attemptData);
+      if (attemptData.userId) attemptUserIdFound = attemptData.userId;
+
+      const [userSnap, courseSnap] = await Promise.all([
+        attemptData.userId
+          ? get(ref(database, `users/${attemptData.userId}`))
+          : Promise.resolve(null),
+        attemptData.courseId
+          ? get(ref(database, `courses/${attemptData.courseId}`))
+          : Promise.resolve(null),
+      ]);
+
+      if (userSnap?.exists()) setUserData(userSnap.val());
+      if (courseSnap?.exists()) setCourse({ id: attemptData.courseId, ...courseSnap.val() });
+    } catch (err) {
+      console.error("Certificate fetch error:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
   const studentName =
-    userData?.name ||
-    userData?.fullName ||
-    result?.userName ||
-    result?.studentName ||
-    "Student Name";
+    userData?.name || userData?.fullName || result?.userName || "Student Name";
 
   const courseName =
-    course?.title ||
-    course?.courseTitle ||
-    result?.courseTitle ||
-    "Training Course";
+    course?.title || course?.courseTitle || result?.courseTitle || "Training Course";
+
+  const score = result?.score ?? result?.percentage ?? 0;
+  const total = result?.total ?? result?.totalMarks ?? 0;
+  const correct = result?.correct ?? 0;
 
   const downloadCertificate = async () => {
-    const canvas = await html2canvas(certificateRef.current, {
-      scale: 3,
-      useCORS: true,
-      backgroundColor: null,
-    });
-
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF("landscape", "px", [1600, 1100]);
-
-    pdf.addImage(imgData, "PNG", 0, 0, 1600, 1100);
-    pdf.save(`${studentName}-${courseName}-certificate.pdf`);
+    setDownloading(true);
+    try {
+      const canvas = await html2canvas(certificateRef.current, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: null,
+      });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("landscape", "px", [1600, 1100]);
+      pdf.addImage(imgData, "PNG", 0, 0, 1600, 1100);
+      pdf.save(`${studentName}-${courseName}-certificate.pdf`);
+    } catch (err) {
+      console.error("Download failed:", err);
+      alert("Failed to download certificate. Please try again.");
+    } finally {
+      setDownloading(false);
+    }
   };
 
-  if (!result) {
-    return <h2 className="cert-status-msg">Loading Certificate...</h2>;
+  if (loading) {
+    return (
+      <div className="cert-page-container">
+        <div className="cert-loading-state">
+          <div className="cert-loading-spinner"></div>
+          <p>Loading Certificate...</p>
+        </div>
+      </div>
+    );
   }
 
-  const date = new Date(result.submittedAt || result.completedAt).toLocaleDateString(
+  if (!result) {
+    return (
+      <div className="cert-page-container">
+        <div className="cert-empty-state">
+          <FaCertificate className="cert-empty-icon" />
+          <h2>Certificate Not Found</h2>
+          <p>This certificate doesn't exist or has been removed.</p>
+          <button onClick={() => navigate("/certificates")} className="btn-cert-primary">
+            View My Certificates
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const date = new Date(result.submittedAt || result.attemptedAt || result.completedAt || Date.now()).toLocaleDateString(
     "en-IN",
-    {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }
+    { day: "numeric", month: "long", year: "numeric" }
   );
 
   const certificateId = `CERT-${id.slice(-10).toUpperCase()}`;
 
   return (
     <div className="cert-page-container">
-      <div className="cert-header-actions">
-        <div>
-          <h1 className="cert-main-title">Certificate Ready</h1>
-          <p className="cert-subtitle">
-            Your achievement certificate has been generated successfully.
-          </p>
-        </div>
-
-        <button onClick={() => navigate("/dashboard")} className="btn-cert-secondary">
-          Back to Dashboard
+      <div className="cert-header-bar">
+        <button className="cert-back-btn" onClick={() => navigate(-1)}>
+          <FaArrowLeft /> Back
         </button>
+        <h1 className="cert-page-title">Your Certificate</h1>
+      </div>
+
+      <div className="cert-info-strip">
+        <div className="cert-info-item">
+          <div className="cert-info-icon green"><FaUser /></div>
+          <div>
+            <span>Student</span>
+            <strong>{studentName}</strong>
+          </div>
+        </div>
+        <div className="cert-info-item">
+          <div className="cert-info-icon blue"><FaBookOpen /></div>
+          <div>
+            <span>Course</span>
+            <strong>{courseName}</strong>
+          </div>
+        </div>
+        <div className="cert-info-item">
+          <div className="cert-info-icon purple"><FaPercentage /></div>
+          <div>
+            <span>Score</span>
+            <strong>{score}%{total > 0 ? ` (${correct}/${total})` : ""}</strong>
+          </div>
+        </div>
+        <div className="cert-info-item">
+          <div className="cert-info-icon amber"><FaCalendarAlt /></div>
+          <div>
+            <span>Date</span>
+            <strong>{date}</strong>
+          </div>
+        </div>
+        <div className="cert-info-item">
+          <div className="cert-info-icon teal"><FaCertificate /></div>
+          <div>
+            <span>Certificate ID</span>
+            <strong>{certificateId}</strong>
+          </div>
+        </div>
       </div>
 
       <div className="cert-canvas-preview-frame">
@@ -188,8 +287,19 @@ function CertificatePage() {
       </div>
 
       <div className="cert-trigger-footer">
-        <button onClick={downloadCertificate} className="btn-cert-primary">
-          Download High-Res PDF
+        <div className="cert-footer-left">
+          <FaCheckCircle className="cert-passed-icon" />
+          <div>
+            <strong>Course Passed</strong>
+            <span>{score}% Score</span>
+          </div>
+        </div>
+        <button
+          onClick={downloadCertificate}
+          className="btn-cert-primary"
+          disabled={downloading}
+        >
+          <FaDownload /> {downloading ? "Generating..." : "Download PDF"}
         </button>
       </div>
     </div>

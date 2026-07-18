@@ -254,21 +254,23 @@ function DepartmentMembers() {
   }, [users]);
 
   const courses = useMemo(() => {
-    const visibleCourses = canSeeAll
-      ? allCourses
-      : allCourses.filter((course) => {
-          return (
-            course.createdBy === currentUser?.id ||
-            course.createdById === currentUser?.id ||
-            sameText(course.createdByEmail, currentUser?.email) ||
-            (currentUser?.departmentId && course.departmentId === currentUser.departmentId) ||
-            sameText(getDepartmentName(course), departmentName)
-          );
-        });
+    if (canSeeAll) return [...allCourses].sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
 
-    return [...visibleCourses].sort(
-      (a, b) => getTime(b.createdAt) - getTime(a.createdAt)
-    );
+    const userDeptId = String(currentUser?.departmentId || "").trim();
+    const userDept = String(departmentName || "").trim().toLowerCase();
+
+    if (!userDeptId && !userDept) return [];
+
+    return allCourses
+      .filter((course) => {
+        const courseDeptId = String(course.departmentId || "").trim();
+        const courseDept = String(getDepartmentName(course) || "").trim().toLowerCase();
+
+        if (courseDeptId && userDeptId && courseDeptId === userDeptId) return true;
+        if (courseDept && userDept && courseDept === userDept) return true;
+        return false;
+      })
+      .sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
   }, [allCourses, canSeeAll, currentUser, departmentName]);
 
   const courseIdSet = useMemo(() => {
@@ -342,7 +344,6 @@ function DepartmentMembers() {
 
     const userProgress = progress?.[userId] || {};
     const courseVideosForUser = courseVideosMap?.[courseId] || [];
-    const videoIds = new Set(courseVideosForUser.map((video) => String(video.id)));
 
     if (courseVideosForUser.length > 0) {
       const total = courseVideosForUser.reduce((sum, video) => {

@@ -139,6 +139,10 @@ function UserLayout() {
             My Learnings
           </NavLink>
 
+          <NavLink to="/resources" onClick={closeMobileSidebar}>
+            News & Resources
+          </NavLink>
+
           <NavLink to="/profile" onClick={closeMobileSidebar}>
             Profile
           </NavLink>

@@ -119,6 +119,14 @@ function DepartmentAdminLayout() {
             </Link>
           ))}
 
+          <Link
+            to="/department-admin/resources"
+            onClick={closeSidebar}
+            className={isActive("/department-admin/resources") ? "active" : ""}
+          >
+            News & Resources
+          </Link>
+
           <div className="dept-sidebar-dropdown">
             <button
               type="button"

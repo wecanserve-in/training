@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { get, onValue, ref } from "firebase/database";
 import { auth, database } from "../firebase";
@@ -184,26 +185,32 @@ function DepartmentAdminDashboard() {
     return allUsers.filter((user) => {
       const role = getRole(user);
 
-      return !isAdminRole(role) && !isDepartmentAdminRole(role);
+      if (isAdminRole(role) || isDepartmentAdminRole(role)) return false;
+
+      if (!departmentName) return true;
+
+      return sameText(getDepartmentName(user), departmentName);
     });
-  }, [allUsers]);
+  }, [allUsers, departmentName]);
 
   const courses = useMemo(() => {
-    const visibleCourses = canSeeAll
-      ? allCourses
-      : allCourses.filter((course) => {
-          return (
-            course.createdBy === currentUser?.id ||
-            course.createdById === currentUser?.id ||
-            sameText(course.createdByEmail, currentUser?.email) ||
-            (currentUser?.departmentId && course.departmentId === currentUser.departmentId) ||
-            sameText(getDepartmentName(course), departmentName)
-          );
-        });
+    if (canSeeAll) return [...allCourses].sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
 
-    return [...visibleCourses].sort(
-      (a, b) => getTime(b.createdAt) - getTime(a.createdAt)
-    );
+    const userDeptId = String(currentUser?.departmentId || "").trim();
+    const userDept = String(departmentName || "").trim().toLowerCase();
+
+    if (!userDeptId && !userDept) return [];
+
+    return allCourses
+      .filter((course) => {
+        const courseDeptId = String(course.departmentId || "").trim();
+        const courseDept = String(getDepartmentName(course) || "").trim().toLowerCase();
+
+        if (courseDeptId && userDeptId && courseDeptId === userDeptId) return true;
+        if (courseDept && userDept && courseDept === userDept) return true;
+        return false;
+      })
+      .sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
   }, [allCourses, canSeeAll, currentUser, departmentName]);
 
   const videos = useMemo(() => {
@@ -432,18 +439,18 @@ function DepartmentAdminDashboard() {
       <section className="dash-hero">
         <div className="hero-content">
           <h1>{departmentName || "Department"} Overview</h1>
-          <p>Real Firebase stats based on userAssignments, completedCourses and progress.</p>
+          <p>Real-time stats for {departmentName || "your department"}.</p>
           <div className="hero-stats">
-            <div className="hero-stat">
+            <Link to="/department-admin/assigned-users" className="hero-stat" style={{ textDecoration: "none", color: "inherit" }}>
               <div className="hero-stat-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
               </div>
               <div>
                 <strong>{users.length}</strong>
-                <span>Users</span>
+                <span>Dept Users</span>
               </div>
-            </div>
-            <div className="hero-stat">
+            </Link>
+            <Link to="/department-admin/courses" className="hero-stat" style={{ textDecoration: "none", color: "inherit" }}>
               <div className="hero-stat-icon admins-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
               </div>
@@ -451,8 +458,8 @@ function DepartmentAdminDashboard() {
                 <strong>{courses.length}</strong>
                 <span>Courses</span>
               </div>
-            </div>
-            <div className="hero-stat">
+            </Link>
+            <Link to="/department-admin/video-library" className="hero-stat" style={{ textDecoration: "none", color: "inherit" }}>
               <div className="hero-stat-icon dept-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
               </div>
@@ -460,7 +467,16 @@ function DepartmentAdminDashboard() {
                 <strong>{videos.length}</strong>
                 <span>Videos</span>
               </div>
-            </div>
+            </Link>
+            <Link to="/department-admin/analytics" className="hero-stat" style={{ textDecoration: "none", color: "inherit" }}>
+              <div className="hero-stat-icon" style={{ background: "#dcfce7", color: "#16a34a" }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              </div>
+              <div>
+                <strong>{completionRate}%</strong>
+                <span>Completion</span>
+              </div>
+            </Link>
           </div>
         </div>
         <div className="hero-decoration">
@@ -470,17 +486,27 @@ function DepartmentAdminDashboard() {
       </section>
 
       <section className="dash-stat-cards">
-        <div className="stat-card stat-courses">
+        <Link to="/department-admin/assigned-users" className="stat-card stat-courses" style={{ textDecoration: "none" }}>
           <div className="stat-card-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           </div>
           <div className="stat-card-info">
-            <span>Assigned</span>
+            <span>Dept Users</span>
+            <strong>{users.length}</strong>
+          </div>
+        </Link>
+
+        <Link to="/department-admin/assignments" className="stat-card stat-progress" style={{ textDecoration: "none" }}>
+          <div className="stat-card-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <div className="stat-card-info">
+            <span>Total Assigned</span>
             <strong>{totalAssigned}</strong>
           </div>
-        </div>
+        </Link>
 
-        <div className="stat-card stat-completed">
+        <Link to="/department-admin/analytics" className="stat-card stat-completed" style={{ textDecoration: "none" }}>
           <div className="stat-card-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           </div>
@@ -488,9 +514,9 @@ function DepartmentAdminDashboard() {
             <span>Completed</span>
             <strong>{totalCompleted}</strong>
           </div>
-        </div>
+        </Link>
 
-        <div className="stat-card stat-progress">
+        <Link to="/department-admin/analytics" className="stat-card stat-progress" style={{ textDecoration: "none" }}>
           <div className="stat-card-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           </div>
@@ -498,19 +524,10 @@ function DepartmentAdminDashboard() {
             <span>In Progress</span>
             <strong>{totalInProgress}</strong>
           </div>
-        </div>
+        </Link>
 
-        <div className="stat-card stat-cert">
-          <div className="stat-card-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
-          </div>
-          <div className="stat-card-info">
-            <span>Pending</span>
-            <strong>{totalPending}</strong>
-          </div>
-        </div>
-
-        <div className="stat-card stat-rate">
+ 
+        <Link to="/department-admin/analytics" className="stat-card stat-rate" style={{ textDecoration: "none" }}>
           <div className="stat-card-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
           </div>
@@ -518,7 +535,7 @@ function DepartmentAdminDashboard() {
             <span>Completion Rate</span>
             <strong>{completionRate}%</strong>
           </div>
-        </div>
+        </Link>
       </section>
 
       <section className="dash-content-row">

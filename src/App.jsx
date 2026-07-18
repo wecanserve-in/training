@@ -35,7 +35,7 @@ import DepartmentTrainingAnalytics from "./pages/DepartmentTrainingAnalytics";
 import AssignedUsers from "./pages/AssignedUsers";
 
 import AddCourse from "./pages/AddCourse";
-import AddVideo from "./pages/AddVideo";
+
 import ManageVideos from "./pages/ManageVideos";
 import AddQuestion from "./pages/AddQuestion";
 import ManageQuestions from "./pages/ManageQuestions";
@@ -48,6 +48,7 @@ import AssignedCourses from "./pages/AssignedCourses";
 import Certificates from "./pages/Certificates";
 import MyLearnings from "./pages/MyLearnings";
 import Profile from "./pages/Profile";
+import Resources from "./pages/Resources";
 
 function App() {
   return (
@@ -73,12 +74,10 @@ function App() {
           <Route path="assignment-analytics" element={<DepartmentTrainingAnalytics />} />
 
           <Route path="courses" element={<DepartmentCourses />} />
-          <Route path="add-course" element={<AddCourse />} />
           <Route path="assignments" element={<DepartmentAssignTraining />} />
           <Route path="assigned-users" element={<AssignedUsers />} />
 
           <Route path="video-library" element={<DepartmentVideoLibrary />} />
-          <Route path="video-library/upload" element={<DepartmentUploadVideo />} />
 
           <Route path="results" element={<AdminResults />} />
 
@@ -86,6 +85,7 @@ function App() {
           <Route path="assigned-courses" element={<AssignedCourses />} />
           <Route path="my-results" element={<MyResults />} />
           <Route path="certificates" element={<Certificates />} />
+          <Route path="resources" element={<Resources />} />
           <Route path="profile" element={<Profile />} />
 
           <Route path="course/:id" element={<CourseDetails />} />
@@ -113,25 +113,21 @@ function App() {
           <Route path="assignment-analytics" element={<DepartmentTrainingAnalytics />} />
 
           <Route path="courses" element={<DepartmentCourses />} />
-          <Route path="add-course" element={<AddCourse />} />
           <Route path="assignments" element={<DepartmentAssignTraining />} />
           <Route path="assigned-users" element={<AssignedUsers />} />
 
           <Route path="video-library" element={<DepartmentVideoLibrary />} />
-          <Route path="video-library/upload" element={<DepartmentUploadVideo />} />
 
-          <Route path="videos" element={<ManageVideos />} />
-          <Route path="add-video" element={<AddVideo />} />
           <Route path="questions" element={<ManageQuestions />} />
           <Route path="add-question" element={<AddQuestion />} />
           <Route path="results" element={<AdminResults />} />
-          <Route path="edit-video/:id" element={<EditVideo />} />
           <Route path="questions/edit/:courseId/:questionId" element={<EditQuestion />} />
 
           <Route path="my-learnings" element={<MyLearnings />} />
           <Route path="assigned-courses" element={<AssignedCourses />} />
           <Route path="my-results" element={<MyResults />} />
           <Route path="certificates" element={<Certificates />} />
+          <Route path="resources" element={<Resources />} />
           <Route path="profile" element={<Profile />} />
 
           <Route path="course/:id" element={<CourseDetails />} />
@@ -174,6 +170,7 @@ function App() {
           <Route path="assigned-courses" element={<AssignedCourses />} />
           <Route path="my-results" element={<MyResults />} />
           <Route path="certificates" element={<Certificates />} />
+          <Route path="resources" element={<Resources />} />
           <Route path="profile" element={<Profile />} />
 
           <Route path="course/:id" element={<CourseDetails />} />
@@ -199,6 +196,7 @@ function App() {
           <Route path="/course-overview/:id" element={<CourseOverview />} /> {/* ✅ Added Route */}
           <Route path="/my-learnings" element={<MyLearnings />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/resources" element={<Resources />} />
           <Route path="/video/:id" element={<VideoPage />} />
           <Route path="/quiz/:id" element={<QuizPage />} />
           <Route path="/result/:id" element={<ResultPage />} />

@@ -164,7 +164,8 @@ function AddCourse() {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("upload_preset", uploadPreset);
-    formData.append("folder", `training-portal/course-thumbnails/${department || "General"}`);
+    const safeFolder = (department || "General").replace(/[^a-zA-Z0-9_-]/g, "-");
+    formData.append("folder", `training-portal/course-thumbnails/${safeFolder}`);
 
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,

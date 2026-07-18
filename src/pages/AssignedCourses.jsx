@@ -51,7 +51,8 @@ function AssignedCourses() {
           assignmentsSnap,
           completedSnap,
           resultsSnap,
-          progressSnap,
+          ,
+          videoProgressSnap,
           coursesSnap,
           videosSnap,
           courseVideosSnap,
@@ -60,7 +61,8 @@ function AssignedCourses() {
           get(ref(database, `userAssignments/${user.uid}`)),
           get(ref(database, `completedCourses/${user.uid}`)),
           get(ref(database, `results/${user.uid}`)),
-          get(ref(database, `progress/${user.uid}`)),
+          get(ref(database, `courseProgress/${user.uid}`)),
+          get(ref(database, `videoProgress/${user.uid}`)),
           get(ref(database, "courses")),
           get(ref(database, "videos")),
           get(ref(database, "courseVideos")),
@@ -69,11 +71,28 @@ function AssignedCourses() {
 
         const completedData = completedSnap.exists() ? completedSnap.val() : {};
         const resultsData = resultsSnap.exists() ? resultsSnap.val() : {};
-        const progressData = progressSnap.exists() ? progressSnap.val() : {};
+        // Merge video progress from new and legacy paths
+        const newVideoProgress = videoProgressSnap.exists() ? videoProgressSnap.val() : {};
+        const mergedProgressData = {};
+        Object.values(newVideoProgress).forEach((courseVideos) => {
+          if (courseVideos && typeof courseVideos === "object") {
+            Object.entries(courseVideos).forEach(([videoId, videoProg]) => {
+              mergedProgressData[videoId] = videoProg;
+            });
+          }
+        });
+        const legacyProgressSnap = await get(ref(database, `progress/${user.uid}`));
+        if (legacyProgressSnap.exists()) {
+          Object.entries(legacyProgressSnap.val()).forEach(([videoId, prog]) => {
+            if (!mergedProgressData[videoId]) {
+              mergedProgressData[videoId] = prog;
+            }
+          });
+        }
 
         setCompletedCourses(completedData);
         setResults(resultsData);
-        setProgressMap(progressData);
+        setProgressMap(mergedProgressData);
 
         if (!assignmentsSnap.exists() || !coursesSnap.exists()) {
           setCourses([]);

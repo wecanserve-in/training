@@ -103,9 +103,6 @@ function SuperAdminDashboard() {
          * Role normalization also safely handles department_admin/deptAdmin variants.
          */
         const managedUsers = usersArr.filter(isManagedUser);
-        const managedUserIds = new Set(
-          managedUsers.flatMap((user) => [user.id, user.uid]).filter(Boolean)
-        );
 
         const admins = usersArr.filter(isAdmin).length;
         const deptAdmins = usersArr.filter(isDepartmentAdmin).length;

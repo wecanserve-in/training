@@ -503,3 +503,29 @@
     align-items: flex-start;
   }
 }
+
+.login-success {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 12px 14px;
+  margin-top: 14px;
+  border: 1px solid #b7dfce;
+  border-radius: 8px;
+  background: #edf9f4;
+  color: #176b4d;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.login-btn:disabled,
+.forgot-password:disabled,
+.password-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.login-form input:disabled {
+  cursor: not-allowed;
+  background-color: #f5f7f6;
+}

@@ -675,3 +675,131 @@
   .vl-preview-modal { border-radius: 10px; }
   .vl-modal-details h2 { font-size: 1.08rem; }
 }
+
+/* =========================
+   VIDEO UPLOADER INFORMATION
+========================= */
+
+.vl-uploaded-by {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 10px;
+  margin-bottom: 12px;
+  padding: 9px 11px;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid #dcebe5;
+  border-radius: 10px;
+  background: #f5fbf8;
+}
+
+.vl-uploaded-by-label {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.vl-uploaded-by strong {
+  max-width: 200px;
+  overflow: hidden;
+  color: #173f35;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vl-uploader-role {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 4px 9px;
+  border: 1px solid #bce4d5;
+  border-radius: 999px;
+  background: #e9f8f1;
+  color: #087c5b;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: capitalize;
+}
+
+/* =========================
+   PREVIEW MODAL UPLOADER
+========================= */
+
+.vl-modal-uploader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 15px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid #dcebe5;
+  border-radius: 12px;
+  background: #f5fbf8;
+}
+
+.vl-modal-uploader > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.vl-modal-uploader > div > span {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.vl-modal-uploader > div > strong {
+  overflow: hidden;
+  color: #173f35;
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 768px) {
+  .vl-uploaded-by {
+    width: 100%;
+  }
+
+  .vl-uploaded-by strong {
+    max-width: 160px;
+  }
+
+  .vl-modal-uploader {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 9px;
+  }
+}
+
+@media (max-width: 480px) {
+  .vl-uploaded-by {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .vl-uploaded-by strong {
+    max-width: 100%;
+  }
+
+  .vl-uploader-role {
+    min-height: 22px;
+    padding: 4px 8px;
+    font-size: 0.64rem;
+  }
+}
