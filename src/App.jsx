@@ -31,6 +31,7 @@ import DepartmentMembers from "./pages/DepartmentMembers";
 import DepartmentVideoLibrary from "./pages/DepartmentVideoLibrary";
 import DepartmentUploadVideo from "./pages/DepartmentUploadVideo";
 import DepartmentCourses from "./pages/DepartmentCourses";
+import DepartmentTestLogs from "./pages/DepartmentTestLogs";
 import DepartmentTrainingAnalytics from "./pages/DepartmentTrainingAnalytics";
 import AssignedUsers from "./pages/AssignedUsers";
 
@@ -155,7 +156,7 @@ function App() {
 
           <Route path="assignments" element={<DepartmentAssignTraining />} />
           <Route path="assigned-users" element={<AssignedUsers />} />
-          <Route path="analytics" element={<DepartmentTrainingAnalytics />} />
+          <Route path="test-logs" element={<DepartmentTestLogs />} />
 
           <Route path="video-library" element={<DepartmentVideoLibrary />} />
           <Route path="video-library/upload" element={<DepartmentUploadVideo />} />

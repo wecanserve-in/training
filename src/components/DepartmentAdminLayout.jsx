@@ -131,8 +131,8 @@ function DepartmentAdminLayout() {
 
             {openReports && (
               <div className="dept-dropdown-submenu">
-                <NavLink to="/department-admin/analytics" onClick={closeSidebar}>
-                  Training Analytics
+                <NavLink to="/department-admin/test-logs" onClick={closeSidebar}>
+                  Test Logs
                 </NavLink>
                 <NavLink to="/department-admin/assigned-users" onClick={closeSidebar}>
                   Assigned Users
