@@ -135,13 +135,15 @@ function UserLayout() {
             Certificates
           </NavLink>
 
+             <NavLink to="/resources" onClick={closeMobileSidebar}>
+            News & Resources
+          </NavLink>
+
           <NavLink to="/my-learnings" onClick={closeMobileSidebar}>
             My Learnings
           </NavLink>
 
-          <NavLink to="/resources" onClick={closeMobileSidebar}>
-            News & Resources
-          </NavLink>
+       
 
           <NavLink to="/profile" onClick={closeMobileSidebar}>
             Profile

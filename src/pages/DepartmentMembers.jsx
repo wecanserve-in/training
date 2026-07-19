@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { get, onValue, ref, remove } from "firebase/database";
+import { get, onValue, ref } from "firebase/database";
 import { auth, database } from "../firebase";
 import "../styles/departmentmembers.css";
 
@@ -18,12 +18,10 @@ function DepartmentMembers() {
   const [courseVideos, setCourseVideos] = useState({});
 
   const [search, setSearch] = useState("");
-  const [courseFilter, setCourseFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedUserId, setSelectedUserId] = useState(null);
 
   const [authReady, setAuthReady] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [unassigningId, setUnassigningId] = useState("");
 
   const normalize = (value) => String(value || "").trim().toLowerCase();
 
@@ -36,7 +34,6 @@ function DepartmentMembers() {
 
   const isDepartmentAdminRole = (role) => {
     const cleanRole = normalize(role);
-
     return (
       cleanRole === "departmentadmin" ||
       cleanRole === "department admin" ||
@@ -59,7 +56,6 @@ function DepartmentMembers() {
 
   const objectToArray = (data) => {
     if (!data || typeof data !== "object") return [];
-
     return Object.entries(data).map(([id, value]) => ({
       id,
       ...(value && typeof value === "object" ? value : {}),
@@ -87,25 +83,11 @@ function DepartmentMembers() {
     );
   };
 
-  const getCourseDescription = (course) => {
-    return course?.description || course?.overview || "No description added.";
-  };
-
-  const getCourseThumbnail = (course, videos = []) => {
+  const getCourseThumbnail = (course) => {
     if (course?.thumbnailUrl) return course.thumbnailUrl;
     if (course?.courseThumbnail) return course.courseThumbnail;
-    if (course?.imageUrl) return course.imageUrl;
-
-    const videoWithThumb = videos.find(
-      (video) => video.thumbnailUrl || video.thumbnailURL || video.thumbnail
-    );
-
-    return (
-      videoWithThumb?.thumbnailUrl ||
-      videoWithThumb?.thumbnailURL ||
-      videoWithThumb?.thumbnail ||
-      ""
-    );
+    if (course?.thumbnail) return course.thumbnail;
+    return "";
   };
 
   const getUserName = (user) => {
@@ -182,10 +164,7 @@ function DepartmentMembers() {
 
     const markLoaded = (path) => {
       loadedPaths.add(path);
-
-      if (loadedPaths.size === 9) {
-        setLoading(false);
-      }
+      if (loadedPaths.size === 9) setLoading(false);
     };
 
     const watchPath = (path, setter, asArray = false) => {
@@ -239,19 +218,11 @@ function DepartmentMembers() {
   const users = useMemo(() => {
     return allUsers.filter((user) => {
       const role = getRole(user);
-      return !isAdminRole(role) && !isDepartmentAdminRole(role);
+      if (isAdminRole(role) || isDepartmentAdminRole(role)) return false;
+      if (!departmentName) return true;
+      return sameText(getDepartmentName(user), departmentName);
     });
-  }, [allUsers]);
-
-  const userMap = useMemo(() => {
-    const map = {};
-
-    users.forEach((user) => {
-      map[user.id] = user;
-    });
-
-    return map;
-  }, [users]);
+  }, [allUsers, departmentName]);
 
   const courses = useMemo(() => {
     if (canSeeAll) return [...allCourses].sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
@@ -265,27 +236,12 @@ function DepartmentMembers() {
       .filter((course) => {
         const courseDeptId = String(course.departmentId || "").trim();
         const courseDept = String(getDepartmentName(course) || "").trim().toLowerCase();
-
         if (courseDeptId && userDeptId && courseDeptId === userDeptId) return true;
         if (courseDept && userDept && courseDept === userDept) return true;
         return false;
       })
       .sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
   }, [allCourses, canSeeAll, currentUser, departmentName]);
-
-  const courseIdSet = useMemo(() => {
-    return new Set(courses.map((course) => String(course.id)));
-  }, [courses]);
-
-  const courseMap = useMemo(() => {
-    const map = {};
-
-    courses.forEach((course) => {
-      map[course.id] = course;
-    });
-
-    return map;
-  }, [courses]);
 
   const courseVideosMap = useMemo(() => {
     const map = {};
@@ -312,7 +268,6 @@ function DepartmentMembers() {
             mergedVideos.find((video) => String(video.id) === String(videoId))
           )
           .filter(Boolean);
-
         return;
       }
 
@@ -343,51 +298,37 @@ function DepartmentMembers() {
     if (isCompleted(userId, courseId)) return 100;
 
     const userProgress = progress?.[userId] || {};
-    const courseVideosForUser = courseVideosMap?.[courseId] || [];
+    const videos = courseVideosMap?.[courseId] || [];
 
-    if (courseVideosForUser.length > 0) {
-      const total = courseVideosForUser.reduce((sum, video) => {
-        const videoProgress = userProgress?.[video.id];
-
-        if (videoProgress?.completed) return sum + 100;
-
-        return sum + Number(videoProgress?.watchedPercent || 0);
+    if (videos.length > 0) {
+      const total = videos.reduce((sum, video) => {
+        const vp = userProgress?.[video.id];
+        if (vp?.completed) return sum + 100;
+        return sum + Number(vp?.watchedPercent || 0);
       }, 0);
-
-      return Math.max(
-        0,
-        Math.min(100, Math.round(total / courseVideosForUser.length))
-      );
+      return Math.max(0, Math.min(100, Math.round(total / videos.length)));
     }
 
-    const relevantProgress = Object.entries(userProgress).filter(([, item]) => {
-      return String(item?.courseId || "") === String(courseId);
-    });
+    const relevant = Object.entries(userProgress).filter(([, item]) =>
+      String(item?.courseId || "") === String(courseId)
+    );
 
-    if (relevantProgress.length === 0) return 0;
+    if (relevant.length === 0) return 0;
 
-    const total = relevantProgress.reduce((sum, [, item]) => {
+    const total = relevant.reduce((sum, [, item]) => {
       if (item?.completed) return sum + 100;
       return sum + Number(item?.watchedPercent || 0);
     }, 0);
 
-    return Math.max(
-      0,
-      Math.min(100, Math.round(total / relevantProgress.length))
-    );
+    return Math.max(0, Math.min(100, Math.round(total / relevant.length)));
   };
 
   const getUserCourseStatus = (userId, courseId) => {
     const assignment = assignments?.[userId]?.[courseId];
-
     if (!assignment?.assigned) return "notAssigned";
-
     if (isCompleted(userId, courseId)) return "completed";
-
     const percent = getUserCourseProgress(userId, courseId);
-
     if (percent > 0) return "inProgress";
-
     return "notStarted";
   };
 
@@ -398,409 +339,222 @@ function DepartmentMembers() {
     return "Not Assigned";
   };
 
-  const assignmentRows = useMemo(() => {
-    const rows = [];
-
-    Object.entries(assignments || {}).forEach(([userId, userAssignments]) => {
-      const user = userMap[userId];
-
-      if (!user) return;
-
-      Object.entries(userAssignments || {}).forEach(([courseId, assignment]) => {
-        if (!assignment?.assigned) return;
-        if (!courseIdSet.has(String(courseId))) return;
-
-        const course = courseMap[courseId];
-
-        if (!course) return;
-
-        const progressPercent = getUserCourseProgress(userId, courseId);
-        const status = getUserCourseStatus(userId, courseId);
-
-        rows.push({
-          id: `${userId}-${courseId}`,
-          userId,
-          courseId,
-          user,
-          course,
-          assignment,
-          status,
-          progressPercent,
-          started: status === "inProgress" || status === "completed",
-        });
-      });
-    });
-
-    return rows.sort(
-      (a, b) => getTime(b.assignment?.assignedAt) - getTime(a.assignment?.assignedAt)
-    );
-  }, [
-    assignments,
-    userMap,
-    courseMap,
-    courseIdSet,
-    courseVideosMap,
-    completedCourses,
-    results,
-    progress,
-  ]);
-
-  const stats = useMemo(() => {
-    return assignmentRows.reduce(
-      (acc, row) => {
-        acc.total += 1;
-
-        if (row.started) acc.started += 1;
-        if (row.status === "completed") acc.completed += 1;
-        if (row.status === "inProgress") acc.inProgress += 1;
-        if (row.status === "notStarted") acc.notStarted += 1;
-
-        return acc;
-      },
-      {
-        total: 0,
-        started: 0,
-        completed: 0,
-        inProgress: 0,
-        notStarted: 0,
-      }
-    );
-  }, [assignmentRows]);
-
-  const courseOptions = useMemo(() => {
-    return courses
-      .map((course) => ({
-        id: course.id,
-        title: getCourseTitle(course),
-      }))
-      .sort((a, b) => a.title.localeCompare(b.title));
-  }, [courses]);
-
-  const filteredRows = useMemo(() => {
-    const value = search.toLowerCase().trim();
-
-    return assignmentRows.filter((row) => {
-      const searchableText = [
-        getUserName(row.user),
-        row.user.email,
-        getDepartmentName(row.user),
-        getDesignation(row.user),
-        getLocation(row.user),
-        getCourseTitle(row.course),
-        getCourseDescription(row.course),
-        getDepartmentName(row.course),
-        getStatusLabel(row.status),
+  const filteredUsers = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    return users.filter((user) => {
+      if (!q) return true;
+      const text = [
+        getUserName(user),
+        user.email,
+        getDesignation(user),
+        getLocation(user),
+        getDepartmentName(user),
       ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
-
-      const matchesSearch = !value || searchableText.includes(value);
-      const matchesCourse = !courseFilter || row.courseId === courseFilter;
-
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "started" && row.started) ||
-        row.status === statusFilter;
-
-      return matchesSearch && matchesCourse && matchesStatus;
+      return text.includes(q);
     });
-  }, [assignmentRows, search, courseFilter, statusFilter]);
+  }, [users, search]);
 
-  const courseGroups = useMemo(() => {
+  const memberStats = useMemo(() => {
+    const map = {};
+    users.forEach((user) => {
+      let assigned = 0, completed = 0, inProgress = 0, notStarted = 0;
+      courses.forEach((course) => {
+        const status = getUserCourseStatus(user.id, course.id);
+        if (status === "notAssigned") return;
+        assigned++;
+        if (status === "completed") completed++;
+        if (status === "inProgress") inProgress++;
+        if (status === "notStarted") notStarted++;
+      });
+      const rate = assigned > 0 ? Math.round((completed / assigned) * 100) : 0;
+      map[user.id] = { assigned, completed, inProgress, notStarted, rate };
+    });
+    return map;
+  }, [users, courses, assignments, completedCourses, results, progress, courseVideosMap]);
+
+  const selectedUser = useMemo(() => {
+    if (!selectedUserId) return null;
+    return users.find((u) => u.id === selectedUserId) || null;
+  }, [users, selectedUserId]);
+
+  const selectedUserCourses = useMemo(() => {
+    if (!selectedUserId) return [];
     return courses
       .map((course) => {
-        const rows = filteredRows.filter((row) => row.courseId === course.id);
-
-        if (rows.length === 0) return null;
-
-        const completed = rows.filter((row) => row.status === "completed").length;
-        const inProgress = rows.filter((row) => row.status === "inProgress").length;
-        const notStarted = rows.filter((row) => row.status === "notStarted").length;
-        const started = rows.filter((row) => row.started).length;
-
-        const completionRate =
-          rows.length > 0 ? Math.round((completed / rows.length) * 100) : 0;
-
-        const videos = courseVideosMap?.[course.id] || [];
-
+        const status = getUserCourseStatus(selectedUserId, course.id);
+        if (status === "notAssigned") return null;
+        const percent = getUserCourseProgress(selectedUserId, course.id);
+        const thumb = getCourseThumbnail(course);
+        const videoCount = (courseVideosMap?.[course.id] || []).length || course.totalVideos || 0;
         return {
           course,
-          rows,
-          completed,
-          inProgress,
-          notStarted,
-          started,
-          completionRate,
-          videos,
-          thumbnail: getCourseThumbnail(course, videos),
+          status,
+          percent,
+          thumb,
+          videoCount,
+          title: getCourseTitle(course),
         };
       })
-      .filter(Boolean);
-  }, [courses, filteredRows, courseVideosMap]);
+      .filter(Boolean)
+      .sort((a, b) => {
+        const order = { completed: 0, inProgress: 1, notStarted: 2 };
+        return (order[a.status] ?? 3) - (order[b.status] ?? 3);
+      });
+  }, [selectedUserId, courses, assignments, completedCourses, results, progress, courseVideosMap]);
 
-  const removeAssignment = async (row) => {
-    const userName = getUserName(row.user);
-    const courseTitle = getCourseTitle(row.course);
-
-    const confirmRemove = window.confirm(
-      `Unassign "${courseTitle}" from ${userName}?`
-    );
-
-    if (!confirmRemove) return;
-
-    try {
-      setUnassigningId(row.id);
-      await remove(ref(database, `userAssignments/${row.userId}/${row.courseId}`));
-    } catch (error) {
-      console.error("Failed to unassign:", error);
-      alert("Failed to unassign course.");
-    } finally {
-      setUnassigningId("");
-    }
-  };
+  const selectedUserStats = useMemo(() => {
+    if (!selectedUserId) return { assigned: 0, completed: 0, inProgress: 0, notStarted: 0, rate: 0 };
+    return memberStats[selectedUserId] || { assigned: 0, completed: 0, inProgress: 0, notStarted: 0, rate: 0 };
+  }, [selectedUserId, memberStats]);
 
   if (loading) {
-    return <div className="tracker-page">Loading assignments...</div>;
+    return <div className="dm-page"><div className="dm-loading">Loading members...</div></div>;
   }
 
   return (
-    <div className="tracker-page">
-      <div className="tracker-stats-grid">
-        <button
-          type="button"
-          className={`tracker-stat-card ${statusFilter === "all" ? "active" : ""}`}
-          onClick={() => setStatusFilter("all")}
-        >
-          <h3>{stats.total}</h3>
-          <p>Total Assigned</p>
-        </button>
-
-        <button
-          type="button"
-          className={`tracker-stat-card ${statusFilter === "started" ? "active" : ""}`}
-          onClick={() => setStatusFilter("started")}
-        >
-          <h3>{stats.started}</h3>
-          <p>Started</p>
-        </button>
-
-        <button
-          type="button"
-          className={`tracker-stat-card ${statusFilter === "inProgress" ? "active" : ""}`}
-          onClick={() => setStatusFilter("inProgress")}
-        >
-          <h3>{stats.inProgress}</h3>
-          <p>In Progress</p>
-        </button>
-
-        <button
-          type="button"
-          className={`tracker-stat-card ${statusFilter === "notStarted" ? "active" : ""}`}
-          onClick={() => setStatusFilter("notStarted")}
-        >
-          <h3>{stats.notStarted}</h3>
-          <p>Not Started</p>
-        </button>
-
-        <button
-          type="button"
-          className={`tracker-stat-card ${statusFilter === "completed" ? "active" : ""}`}
-          onClick={() => setStatusFilter("completed")}
-        >
-          <h3>{stats.completed}</h3>
-          <p>Completed</p>
-        </button>
+    <div className="dm-page">
+      {/* Header */}
+      <div className="dm-header">
+        <div>
+          <h1>Department Members</h1>
+          <p>{users.length} members in {departmentName || "your department"}</p>
+        </div>
       </div>
 
-      <div className="tracker-filter-card">
-        <input
-          type="text"
-          placeholder="Search course, user, email, designation, location..."
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
-
-        <select
-          value={courseFilter}
-          onChange={(event) => setCourseFilter(event.target.value)}
-        >
-          <option value="">All Courses</option>
-          {courseOptions.map((course) => (
-            <option key={course.id} value={course.id}>
-              {course.title}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value)}
-        >
-          <option value="all">All Status</option>
-          <option value="started">Started</option>
-          <option value="inProgress">In Progress</option>
-          <option value="notStarted">Not Started</option>
-          <option value="completed">Completed</option>
-        </select>
-
-        <button
-          type="button"
-          onClick={() => {
-            setSearch("");
-            setCourseFilter("");
-            setStatusFilter("all");
-          }}
-        >
-          Clear
-        </button>
-      </div>
-
-      <div className="tracker-course-groups">
-        {courseGroups.length === 0 ? (
-          <div className="tracker-empty-card">
-            <h3>No assignment records found</h3>
-            <p>Try changing search or filters.</p>
+      <div className="dm-layout">
+        {/* Left: Member List */}
+        <div className="dm-member-panel">
+          <div className="dm-search-box">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <input
+              type="text"
+              placeholder="Search members..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
-        ) : (
-          courseGroups.map((group) => (
-            <section className="tracker-course-card" key={group.course.id}>
-              <div className="tracker-course-head">
-                <div className="tracker-course-thumb">
-                  {group.thumbnail ? (
-                    <img src={group.thumbnail} alt={getCourseTitle(group.course)} />
-                  ) : (
-                    <div>{getCourseTitle(group.course).charAt(0)}</div>
-                  )}
-                </div>
 
-                <div className="tracker-course-info">
-                  <div className="tracker-course-title-row">
-                    <h2>{getCourseTitle(group.course)}</h2>
-                    <span>{group.rows.length} Assigned</span>
-                  </div>
-
-                  <p>{getCourseDescription(group.course)}</p>
-
-                  <div className="tracker-course-meta">
-                    <span>{getDepartmentName(group.course) || departmentName || "Training"}</span>
-                    <span>{group.videos.length || group.course.totalVideos || 0} Videos</span>
-                    <span>{group.course.totalQuestions || 0} Questions</span>
-                    <span>Pass {group.course.passingScore || 70}%</span>
-                  </div>
-
-                  <div className="tracker-course-progress">
-                    <div>
-                      <span style={{ width: `${group.completionRate}%` }}></span>
+          <div className="dm-member-list">
+            {filteredUsers.length === 0 ? (
+              <div className="dm-empty">No members found.</div>
+            ) : (
+              filteredUsers.map((user) => {
+                const stats = memberStats[user.id] || {};
+                const isSelected = selectedUserId === user.id;
+                return (
+                  <div
+                    key={user.id}
+                    className={`dm-member-row ${isSelected ? "selected" : ""}`}
+                    onClick={() => setSelectedUserId(user.id)}
+                  >
+                    <div className="dm-member-avatar" style={{ background: isSelected ? "#059669" : "#e8f5ee", color: isSelected ? "#fff" : "#059669" }}>
+                      {getInitial(user)}
                     </div>
-                    <strong>{group.completionRate}%</strong>
+                    <div className="dm-member-info">
+                      <strong>{getUserName(user)}</strong>
+                      <span>{getDesignation(user)}</span>
+                    </div>
+                    <div className="dm-member-mini-stat">
+                      <span>{stats.assigned || 0}</span>
+                      <small>Courses</small>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Right: Member Detail */}
+        <div className="dm-detail-panel">
+          {!selectedUser ? (
+            <div className="dm-detail-empty">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <h3>Select a member</h3>
+              <p>Click on a member's name to see their assigned courses and progress</p>
+            </div>
+          ) : (
+            <>
+              {/* Member Profile Card */}
+              <div className="dm-profile-card">
+                <div className="dm-profile-avatar">
+                  {getInitial(selectedUser)}
+                </div>
+                <div className="dm-profile-info">
+                  <h2>{getUserName(selectedUser)}</h2>
+                  <p>{selectedUser.email || "-"}</p>
+                  <div className="dm-profile-meta">
+                    <span>{getDesignation(selectedUser)}</span>
+                    <span>{getLocation(selectedUser)}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="tracker-course-mini-stats">
-                <div>
-                  <span>Started</span>
-                  <b>{group.started}</b>
+              {/* Stats Row */}
+              <div className="dm-detail-stats">
+                <div className="dm-detail-stat">
+                  <strong>{selectedUserStats.assigned}</strong>
+                  <span>Assigned</span>
                 </div>
-
-                <div>
-                  <span>In Progress</span>
-                  <b>{group.inProgress}</b>
-                </div>
-
-                <div>
-                  <span>Not Started</span>
-                  <b>{group.notStarted}</b>
-                </div>
-
-                <div>
+                <div className="dm-detail-stat completed">
+                  <strong>{selectedUserStats.completed}</strong>
                   <span>Completed</span>
-                  <b>{group.completed}</b>
+                </div>
+                <div className="dm-detail-stat progress">
+                  <strong>{selectedUserStats.inProgress}</strong>
+                  <span>In Progress</span>
+                </div>
+                <div className="dm-detail-stat pending">
+                  <strong>{selectedUserStats.notStarted}</strong>
+                  <span>Not Started</span>
+                </div>
+                <div className="dm-detail-stat rate">
+                  <strong>{selectedUserStats.rate}%</strong>
+                  <span>Completion</span>
                 </div>
               </div>
 
-              <div className="tracker-users-table-wrap">
-                <table className="tracker-users-table">
-                  <thead>
-                    <tr>
-                      <th>User</th>
-                      <th>Department</th>
-                      <th>Designation</th>
-                      <th>Location</th>
-                      <th>Assigned On</th>
-                      <th>Started</th>
-                      <th>Progress</th>
-                      <th>Status</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
+              {/* Course List */}
+              <div className="dm-course-section">
+                <h3>Assigned Courses ({selectedUserCourses.length})</h3>
 
-                  <tbody>
-                    {group.rows.map((row) => (
-                      <tr key={row.id}>
-                        <td>
-                          <div className="tracker-user-cell">
-                            <div className="tracker-avatar">
-                              {getInitial(row.user)}
-                            </div>
-
-                            <div>
-                              <strong>{getUserName(row.user)}</strong>
-                              <small>{row.user.email || "-"}</small>
-                            </div>
+                {selectedUserCourses.length === 0 ? (
+                  <div className="dm-empty-courses">No courses assigned to this member.</div>
+                ) : (
+                  <div className="dm-course-list">
+                    {selectedUserCourses.map((item) => (
+                      <div className="dm-course-row" key={item.course.id}>
+                        {item.thumb ? (
+                          <img className="dm-course-thumb" src={item.thumb} alt={item.title} />
+                        ) : (
+                          <div className="dm-course-avatar">
+                            {item.title.charAt(0).toUpperCase()}
                           </div>
-                        </td>
-
-                        <td>{getDepartmentName(row.user) || "-"}</td>
-                        <td>{getDesignation(row.user)}</td>
-                        <td>{getLocation(row.user)}</td>
-
-                        <td>
-                          {row.assignment?.assignedAt
-                            ? new Date(row.assignment.assignedAt).toLocaleDateString("en-IN")
-                            : "-"}
-                        </td>
-
-                        <td>
-                          <span className={`tracker-started-pill ${row.started ? "yes" : "no"}`}>
-                            {row.started ? "Started" : "Not Started"}
-                          </span>
-                        </td>
-
-                        <td>
-                          <div className="tracker-progress">
-                            <div>
-                              <span style={{ width: `${row.progressPercent}%` }}></span>
-                            </div>
-                            <b>{row.progressPercent}%</b>
+                        )}
+                        <div className="dm-course-info">
+                          <strong>{item.title}</strong>
+                          <span>{item.videoCount} Videos</span>
+                        </div>
+                        <div className="dm-course-progress-area">
+                          <div className="dm-course-bar">
+                            <div className="dm-course-bar-fill" style={{ width: `${item.percent}%` }}></div>
                           </div>
-                        </td>
-
-                        <td>
-                          <span className={`tracker-status ${row.status}`}>
-                            {getStatusLabel(row.status)}
-                          </span>
-                        </td>
-
-                        <td>
-                          <button
-                            type="button"
-                            className="tracker-unassign-btn"
-                            disabled={unassigningId === row.id}
-                            onClick={() => removeAssignment(row)}
-                          >
-                            {unassigningId === row.id ? "Removing..." : "Unassign"}
-                          </button>
-                        </td>
-                      </tr>
+                          <span className="dm-course-percent">{item.percent}%</span>
+                        </div>
+                        <span className={`dm-course-status ${item.status}`}>
+                          {getStatusLabel(item.status)}
+                        </span>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                )}
               </div>
-            </section>
-          ))
-        )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

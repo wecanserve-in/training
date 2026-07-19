@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ref, get } from "firebase/database";
 import { auth, database } from "../firebase";
 import { useNavigate } from "react-router-dom";
+import useBasePath from "../hooks/useBasePath";
 import "../styles/myresults.css";
 
 import {
@@ -13,6 +14,7 @@ import {
 
 function MyResults() {
   const navigate = useNavigate();
+  const basePath = useBasePath();
 
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -163,14 +165,14 @@ function MyResults() {
                     {result.passed ? (
                       <button
                         className="download-cert-btn"
-                        onClick={() => navigate(`/certificate/${result.id}`)}
+                        onClick={() => navigate(`${basePath}/certificate/${result.id}`)}
                       >
                         Download
                       </button>
                     ) : (
                       <button
                         className="retry-course-btn"
-                        onClick={() => navigate(`/course/${result.courseId}`)}
+                        onClick={() => navigate(`${basePath}/course/${result.courseId}`)}
                       >
                         Retry
                       </button>

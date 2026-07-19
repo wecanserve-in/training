@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { auth, database } from "../firebase";
 import { ref, get, set } from "firebase/database";
+import useBasePath from "../hooks/useBasePath";
 import "../styles/quizpage.css";
 
 function QuizPage() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const basePath = useBasePath();
 
   const isVideoQuiz = searchParams.get("type") === "video";
   const resultMode = searchParams.get("mode") === "result";
@@ -122,7 +124,7 @@ function QuizPage() {
 
     if (!activeCourseId) {
       alert("Course not found");
-      navigate("/assigned-courses");
+      navigate(`${basePath}/assigned-courses`);
       return;
     }
 
@@ -154,7 +156,7 @@ const [
 
     if (!courseSnapshot.exists()) {
       alert("Course not found");
-      navigate("/assigned-courses");
+      navigate(`${basePath}/assigned-courses`);
       return;
     }
 
@@ -501,7 +503,7 @@ const [
         attemptedAt: new Date().toISOString(),
       });
 
-      navigate(`/video/${video?.id || videoIdFromQuery || id}`);
+      navigate(`${basePath}/video/${video?.id || videoIdFromQuery || id}`);
       return;
     }
 
@@ -574,7 +576,7 @@ const [
       });
     }
 
-    navigate(`/result/${attemptId}`);
+    navigate(`${basePath}/result/${attemptId}`);
   };
 
   useEffect(() => {
@@ -621,13 +623,13 @@ const [
           </p>
 
           <div className="quiz-result-actions">
-            <button onClick={() => navigate(`/course/${course.id}`)}>
+            <button onClick={() => navigate(`${basePath}/course/${course.id}`)}>
               Back to Course
             </button>
             {existingFinalResult?.attemptId && (
               <button
                 className="quiz-cert-btn"
-                onClick={() => navigate(`/certificate/${existingFinalResult.attemptId}`)}
+                onClick={() => navigate(`${basePath}/certificate/${existingFinalResult.attemptId}`)}
               >
                 View Certificate
               </button>
@@ -658,7 +660,7 @@ const [
         <div className="quiz-empty-card">
           <h1>{video?.title || video?.videoTitle || "Revision Quiz"}</h1>
           <p>No revision quiz questions added for this video.</p>
-          <button onClick={() => navigate(`/video/${video?.id || videoIdFromQuery || id}`)}>
+          <button onClick={() => navigate(`${basePath}/video/${video?.id || videoIdFromQuery || id}`)}>
             Back to Video
           </button>
         </div>

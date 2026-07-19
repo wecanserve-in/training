@@ -3,11 +3,13 @@ import { useParams, useNavigate } from "react-router-dom";
 import { get, ref } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, database } from "../firebase";
+import useBasePath from "../hooks/useBasePath";
 import "../styles/courseoverview.css";
 
 function CourseOverview() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const basePath = useBasePath();
 
   const [currentUser, setCurrentUser] = useState(null);
   const [course, setCourse] = useState(null);
@@ -130,7 +132,7 @@ function CourseOverview() {
       <div className="co-page">
         <div className="co-error">
           <h2>Course Not Found</h2>
-          <button onClick={() => navigate(currentUser?.role === 'admin' || currentUser?.role === 'superAdmin' ? '/admin/courses' : '/department-admin/courses')}>Go to Course Library</button>
+          <button onClick={() => navigate(`${basePath}/courses`)}>Go to Course Library</button>
         </div>
       </div>
     );
@@ -138,11 +140,6 @@ function CourseOverview() {
 
   const thumbnail = course.thumbnailUrl || course.courseThumbnail || videos.find(v => v.thumbnailUrl)?.thumbnailUrl || "";
   const totalQuestions = questions.length;
-
-  let basePath = "";
-  if (currentUser?.role === "superAdmin") basePath = "/super-admin";
-  else if (currentUser?.role === "admin") basePath = "/admin";
-  else if (currentUser?.role === "departmentAdmin") basePath = "/department-admin";
 
   const editLink = `${basePath}/courses/edit/${course.id}`;
   const assignLink = `${basePath}/assignments?courseId=${course.id}`;

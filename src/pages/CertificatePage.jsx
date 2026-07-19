@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ref, get } from "firebase/database";
 import { database } from "../firebase";
+import useBasePath from "../hooks/useBasePath";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import {
@@ -19,6 +20,7 @@ import "../styles/certificatepage.css";
 function CertificatePage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const basePath = useBasePath();
   const certificateRef = useRef(null);
 
   const [result, setResult] = useState(null);
@@ -143,7 +145,7 @@ function CertificatePage() {
           <FaCertificate className="cert-empty-icon" />
           <h2>Certificate Not Found</h2>
           <p>This certificate doesn't exist or has been removed.</p>
-          <button onClick={() => navigate("/certificates")} className="btn-cert-primary">
+          <button onClick={() => navigate(`${basePath}/certificates`)} className="btn-cert-primary">
             View My Certificates
           </button>
         </div>

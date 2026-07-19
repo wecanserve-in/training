@@ -1,12 +1,12 @@
 /* ═══════════════════════════════════════════
-   Department Admin Sidebar
+   Department Admin Layout
    ═══════════════════════════════════════════ */
-.department-admin-layout {
+.dept-admin-layout {
   min-height: 100vh;
   background: #f0faf5;
 }
 
-.dept-admin-sidebar {
+.dept-sidebar {
   position: fixed;
   top: 0;
   left: 0;
@@ -29,7 +29,7 @@
   transition: margin-left 0.25s ease;
 }
 
-.sidebar-collapsed .dept-admin-sidebar {
+.sidebar-collapsed .dept-sidebar {
   width: 56px;
 }
 
@@ -107,12 +107,12 @@
   flex-shrink: 0;
 }
 
-.dept-sidebar-profile-text {
+.dept-profile-text {
   min-width: 0;
   flex: 1;
 }
 
-.dept-sidebar-profile h3 {
+.dept-profile-text h3 {
   margin: 0;
   font-size: 13px;
   color: #1e293b;
@@ -122,20 +122,10 @@
   text-overflow: ellipsis;
 }
 
-.dept-sidebar-profile p {
+.dept-profile-text p {
   margin: 2px 0 0;
   font-size: 11px;
   color: #64748b;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.dept-sidebar-profile small {
-  display: block;
-  margin-top: 2px;
-  color: #94a3b8;
-  font-size: 10px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -156,8 +146,8 @@
   width: 0;
 }
 
-.dept-sidebar-menu a,
-.dept-dropdown-toggle {
+.dept-sidebar-menu > a,
+.dept-sidebar-menu > .dept-sidebar-dropdown > .dept-dropdown-toggle {
   width: 100%;
   min-height: 38px;
   border: none;
@@ -172,17 +162,17 @@
   align-items: center;
   gap: 10px;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s;
   white-space: nowrap;
 }
 
-.dept-sidebar-menu a:hover,
-.dept-dropdown-toggle:hover {
+.dept-sidebar-menu > a:hover,
+.dept-sidebar-menu > .dept-sidebar-dropdown > .dept-dropdown-toggle:hover {
   background: #f0faf5;
   color: #059669;
 }
 
-.dept-sidebar-menu a.active {
+.dept-sidebar-menu > a.active {
   background: #dcfce7;
   color: #059669;
   font-weight: 600;
@@ -192,7 +182,7 @@
   justify-content: space-between;
 }
 
-.dept-dropdown-toggle.active {
+.dept-dropdown-toggle.active-dropdown {
   background: #f0faf5;
   color: #059669;
 }
@@ -216,6 +206,24 @@
   min-height: 34px;
   font-size: 12px;
   font-weight: 500;
+  border-radius: 8px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  color: #64748b;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+
+.dept-dropdown-submenu a:hover {
+  background: #f0faf5;
+  color: #059669;
+}
+
+.dept-dropdown-submenu a.active {
+  background: #dcfce7;
+  color: #059669;
+  font-weight: 600;
 }
 
 /* ─── Logout ─── */
@@ -256,8 +264,8 @@
   display: none;
 }
 
-.sidebar-collapsed .dept-sidebar-menu a,
-.sidebar-collapsed .dept-dropdown-toggle {
+.sidebar-collapsed .dept-sidebar-menu > a,
+.sidebar-collapsed .dept-sidebar-menu > .dept-sidebar-dropdown > .dept-dropdown-toggle {
   display: none;
 }
 
@@ -271,42 +279,12 @@
 }
 
 /* ─── Mobile ─── */
-.dept-mobile-menu-btn,
 .dept-sidebar-close,
-.dept-sidebar-overlay {
+.dept-sidebar-backdrop {
   display: none;
 }
 
 @media (max-width: 768px) {
-  .dept-mobile-menu-btn {
-    height: 56px;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    padding: 0 16px;
-    background: #fff;
-    border: none;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
-    position: sticky;
-    top: 0;
-    z-index: 900;
-    color: #059669;
-    font-size: 20px;
-    cursor: pointer;
-  }
-
-  .dept-mobile-menu-btn::before {
-    content: "";
-    width: 100px;
-    height: 32px;
-    background-image: url("/Logo.webp");
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: left center;
-    margin-right: auto;
-  }
-
   .dept-admin-sidebar {
     position: fixed;
     top: 0;
@@ -318,7 +296,7 @@
     transition: transform 0.25s ease;
   }
 
-  .dept-admin-sidebar.sidebar-open {
+  .dept-sidebar.sidebar-open {
     transform: translateX(0);
   }
 
@@ -332,7 +310,7 @@
     margin-left: 0;
   }
 
-  .dept-sidebar-overlay {
+  .dept-sidebar-backdrop {
     display: block;
     position: fixed;
     inset: 0;
@@ -363,13 +341,13 @@
   /* On mobile, show everything when open */
   .sidebar-collapsed .dept-sidebar-logo-box,
   .sidebar-collapsed .dept-sidebar-profile,
-  .sidebar-collapsed .dept-sidebar-menu a,
-  .sidebar-collapsed .dept-dropdown-toggle,
+  .sidebar-collapsed .dept-sidebar-menu > a,
+  .sidebar-collapsed .dept-sidebar-menu > .dept-sidebar-dropdown > .dept-dropdown-toggle,
   .sidebar-collapsed .dept-sidebar-logout {
     display: flex;
   }
 
-  .sidebar-collapsed .dept-admin-sidebar {
+  .sidebar-collapsed .dept-sidebar {
     width: 260px;
   }
 }

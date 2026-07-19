@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { auth, database } from "../firebase";
+import useBasePath from "../hooks/useBasePath";
 import "../styles/certificates.css";
 
 import {
@@ -12,6 +13,7 @@ import {
 } from "react-icons/fa";
 
 function Certificates() {
+  const basePath = useBasePath();
   const [certificates, setCertificates] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -191,7 +193,7 @@ function Certificates() {
 
                   <div className="certificate-id">{certificateId}</div>
 
-                  <Link to={`/certificate/${item.attemptId}`}>
+                  <Link to={`${basePath}/certificate/${item.attemptId}`}>
                     <button className="download-certificate-btn">
                       Download Certificate
                     </button>

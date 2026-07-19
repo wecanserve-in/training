@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { auth, database } from "../firebase";
+import useBasePath from "../hooks/useBasePath";
 import "../styles/assignedCourses.css";
 
 import {
@@ -13,6 +14,7 @@ import {
 } from "react-icons/fa";
 
 function AssignedCourses() {
+  const basePath = useBasePath();
   const [courses, setCourses] = useState([]);
   const [courseVideosMap, setCourseVideosMap] = useState({});
   const [progressMap, setProgressMap] = useState({});
@@ -432,7 +434,7 @@ function AssignedCourses() {
 
             return (
               <Link
-                to={`/course/${course.id}`}
+                to={`${basePath}/course/${course.id}`}
                 className="assigned-course-row"
                 key={course.id}
               >

@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ref, get } from "firebase/database";
 import { database } from "../firebase";
+import useBasePath from "../hooks/useBasePath";
 import "../styles/resultpage.css";
 
 function ResultPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const basePath = useBasePath();
 
   const [result, setResult] = useState(null);
   const [course, setCourse] = useState(null);
@@ -68,7 +70,7 @@ function ResultPage() {
         <button
           type="button"
           className="result-back-btn"
-          onClick={() => navigate(`/course/${result.courseId}`)}
+          onClick={() => navigate(`${basePath}/course/${result.courseId}`)}
         >
           ← Back to Course
         </button>
@@ -118,14 +120,14 @@ function ResultPage() {
           {result.passed ? (
             <button
               className="primary-btn"
-              onClick={() => navigate(`/certificate/${id}`)}
+              onClick={() => navigate(`${basePath}/certificate/${id}`)}
             >
               Download Certificate
             </button>
           ) : (
             <button
               className="primary-btn fail"
-              onClick={() => navigate(`/course/${result.courseId}`)}
+              onClick={() => navigate(`${basePath}/course/${result.courseId}`)}
             >
               Review Course
             </button>

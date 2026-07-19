@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { auth, database } from "../firebase";
+import useBasePath from "../hooks/useBasePath";
 import "../styles/dashboard.css";
 
 import {
@@ -18,6 +19,7 @@ import {
 
 function Dashboard() {
   const navigate = useNavigate();
+  const basePath = useBasePath();
 
   const [courses, setCourses] = useState([]);
   const [courseVideosMap, setCourseVideosMap] = useState({});
@@ -454,7 +456,7 @@ return (
             <p>Resume where you left off</p>
           </div>
         </div>
-        <Link to={`/course/${continueVideo.courseId}`} className="continue-card">
+        <Link to={`${basePath}/course/${continueVideo.courseId}`} className="continue-card">
           <div className="continue-image">
             {continueVideo.thumbnailUrl || continueVideo.courseThumbnail ? (
               <img
@@ -488,7 +490,7 @@ return (
           <h2>Newly Assigned</h2>
           <p>Courses assigned to you recently</p>
         </div>
-        <Link to="/assigned-courses">View All</Link>
+        <Link to={`${basePath}/assigned-courses`}>View All</Link>
       </div>
       <div className="newly-courses-grid">
         {newlyAssignedCourses.length === 0 ? (
@@ -500,7 +502,7 @@ return (
             const thumbnail = getCourseThumbnail(course);
             const progress = getCourseProgress(course.id);
             return (
-              <Link to={`/course/${course.id}`} className="newly-course-card" key={course.id}>
+              <Link to={`${basePath}/course/${course.id}`} className="newly-course-card" key={course.id}>
                 <div className="newly-course-thumb">
                   {thumbnail ? (
                     <img src={thumbnail} alt={course.title || course.courseTitle} />

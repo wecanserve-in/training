@@ -21,6 +21,8 @@ function AssignedUsers() {
   const [assignments, setAssignments] = useState({});
   const [completedCourses, setCompletedCourses] = useState({});
   const [progress, setProgress] = useState({});
+  const [videoProgress, setVideoProgress] = useState({});
+  const [courseProgress, setCourseProgress] = useState({});
   const [loading, setLoading] = useState(true);
 
   const [selectedCourseId, setSelectedCourseId] = useState("");
@@ -54,12 +56,14 @@ function AssignedUsers() {
           }
         }
 
-        const [coursesSnap, usersSnap, assignmentsSnap, completedSnap, progressSnap] = await Promise.allSettled([
+        const [coursesSnap, usersSnap, assignmentsSnap, completedSnap, progressSnap, videoProgressSnap, courseProgressSnap] = await Promise.allSettled([
           get(ref(database, "courses")),
           get(ref(database, "users")),
           get(ref(database, "userAssignments")),
           get(ref(database, "completedCourses")),
           get(ref(database, "progress")),
+          get(ref(database, "videoProgress")),
+          get(ref(database, "courseProgress")),
         ]);
 
         if (coursesSnap.status === "fulfilled" && coursesSnap.value.exists()) {
@@ -82,22 +86,38 @@ function AssignedUsers() {
             for (const k of keys) { if (obj?.[k]) return String(obj[k]).trim(); }
             return "";
           };
-          const visibleUsers = allUsers.filter((u) => {
-            const role = getField(u, ["role"]).toLowerCase().replace(/[\s_-]/g, "");
-            if (isSuperAdmin) return true;
-            if (isAdmin) return role !== "superadmin";
-            if (isDeptAdmin) {
-              if (["superadmin", "admin", "departmentadmin"].includes(role)) return false;
+
+          if (isDeptAdmin) {
+            const assignedUserIds = new Set();
+            const allAssignments = assignmentsSnap.status === "fulfilled" && assignmentsSnap.value.exists()
+              ? assignmentsSnap.value.val() : {};
+            const deptCourseIds = new Set((coursesSnap.status === "fulfilled" && coursesSnap.value.exists()
+              ? Object.entries(coursesSnap.value.val())
+                  .filter(([, c]) => c.createdBy === loggedUser.uid || (userDepartmentId && c.departmentId === userDepartmentId) || (userDepartment && c.department === userDepartment))
+                  .map(([id]) => id)
+              : []));
+            Object.entries(allAssignments).forEach(([userId, userAssignments]) => {
+              Object.entries(userAssignments || {}).forEach(([courseId, a]) => {
+                if (a?.assigned && deptCourseIds.has(courseId)) assignedUserIds.add(userId);
+              });
+            });
+            setUsers(allUsers.filter((u) => assignedUserIds.has(u.id)));
+          } else {
+            const visibleUsers = allUsers.filter((u) => {
+              const role = getField(u, ["role"]).toLowerCase().replace(/[\s_-]/g, "");
+              if (isSuperAdmin) return true;
+              if (isAdmin) return role !== "superadmin";
               return true;
-            }
-            return true;
-          });
-          setUsers(visibleUsers);
+            });
+            setUsers(visibleUsers);
+          }
         }
 
         if (assignmentsSnap.status === "fulfilled" && assignmentsSnap.value.exists()) setAssignments(assignmentsSnap.value.val());
         if (completedSnap.status === "fulfilled" && completedSnap.value.exists()) setCompletedCourses(completedSnap.value.val());
         if (progressSnap.status === "fulfilled" && progressSnap.value.exists()) setProgress(progressSnap.value.val());
+        if (videoProgressSnap.status === "fulfilled" && videoProgressSnap.value.exists()) setVideoProgress(videoProgressSnap.value.val());
+        if (courseProgressSnap.status === "fulfilled" && courseProgressSnap.value.exists()) setCourseProgress(courseProgressSnap.value.val());
       } catch (e) { console.error(e); } finally { setLoading(false); }
     });
     return () => unsubscribe();
@@ -110,9 +130,32 @@ function AssignedUsers() {
 
   const getUserCourseStatus = (userId, courseId) => {
     const completed = completedCourses?.[userId]?.[courseId];
-    if (completed?.passed || completed?.completed) return "completed";
-    const prog = progress?.[userId]?.[courseId];
-    if (prog && (prog.started || prog.lastAccessed || prog.videoProgress || prog.quizAttempted)) return "inProgress";
+    if (
+      completed === true ||
+      completed?.passed ||
+      completed?.completed ||
+      completed?.isCompleted
+    ) return "completed";
+
+    const cp = courseProgress?.[userId]?.[courseId];
+    if (cp?.completed || cp?.progressPercentage >= 100) return "completed";
+
+    const vp = videoProgress?.[userId]?.[courseId];
+    if (vp && typeof vp === "object") {
+      const vals = Object.values(vp);
+      const anyStarted = vals.some((v) => Number(v?.progressPercentage || v?.watchedPercent || 0) > 0 || v?.completed);
+      const allDone = vals.length > 0 && vals.every((v) => v?.completed || Number(v?.progressPercentage || v?.watchedPercent || 0) >= 100);
+      if (allDone) return "completed";
+      if (anyStarted) return "inProgress";
+    }
+
+    const userProgress = progress?.[userId] || {};
+    const hasVideoProgress = Object.values(userProgress).some((entry) => {
+      return String(entry?.courseId || "") === String(courseId) &&
+        (Number(entry?.watchedPercent || 0) > 0 || entry?.completed);
+    });
+    if (hasVideoProgress) return "inProgress";
+
     return "notStarted";
   };
 
@@ -141,7 +184,7 @@ function AssignedUsers() {
       const rate = assigned > 0 ? Math.round((completed / assigned) * 100) : 0;
       return { ...course, assigned, completed, inProgress, notStarted, rate, assignedUsers };
     }).sort((a, b) => b.assigned - a.assigned);
-  }, [courses, users, assignments, completedCourses, progress]);
+  }, [courses, users, assignments, completedCourses, progress, videoProgress, courseProgress]);
 
   const selectedCourse = useMemo(() => courseCards.find((c) => c.id === selectedCourseId), [courseCards, selectedCourseId]);
 

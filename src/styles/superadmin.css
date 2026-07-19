@@ -266,6 +266,92 @@
 
 .card-head a:hover { background: #dbeafe; }
 
+.view-all-link {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #059669;
+  text-decoration: none;
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: #dcfce7;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.view-all-link:hover {
+  background: #bbf7d0;
+}
+
+.export-btn {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #2563eb;
+  text-decoration: none;
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: #eff6ff;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.export-btn:hover {
+  background: #dbeafe;
+}
+
+/* ─── 4 Light Summary Cards ─── */
+.dash-four-cards {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding: 0 24px 16px;
+}
+
+.light-summary-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid #e8f5ee;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.light-summary-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
+}
+
+.light-card-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.light-card-text strong {
+  display: block;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.light-card-text span {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
 .card-title-row {
   display: flex;
   justify-content: space-between;
@@ -333,6 +419,15 @@
   font-weight: 700;
   font-size: 0.95rem;
   flex-shrink: 0;
+}
+
+.course-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #f1f5f9;
 }
 
 .course-info {
@@ -605,6 +700,7 @@
 /* ─── Responsive ─── */
 @media (max-width: 1100px) {
   .dash-stat-cards { grid-template-columns: repeat(3, 1fr); }
+  .dash-four-cards { grid-template-columns: repeat(2, 1fr); }
   .dash-bottom-row { grid-template-columns: 1fr 1fr; }
 }
 
@@ -624,8 +720,10 @@
   .stat-card-icon { width: 34px; height: 34px; }
   .stat-card-info strong { font-size: 1rem; }
   .dash-content-row { grid-template-columns: 1fr; padding: 0 12px 12px; }
-  .dash-gradient-cards { grid-template-columns: 1fr; padding: 0 12px 12px; }
-  .gradient-card { padding: 16px; }
+  .dash-four-cards { grid-template-columns: 1fr 1fr; padding: 0 12px 12px; }
+  .light-summary-card { padding: 12px; gap: 10px; }
+  .light-card-icon { width: 38px; height: 38px; }
+  .light-card-text strong { font-size: 1.1rem; }
   .dash-bottom-row { grid-template-columns: 1fr; padding: 0 12px 20px; }
 }
 
@@ -636,7 +734,7 @@
   .hero-stat strong { font-size: 0.95rem; }
   .hero-stat span { font-size: 0.65rem; }
   .dash-stat-cards { grid-template-columns: 1fr 1fr; padding: 0 8px 10px; gap: 6px; }
+  .dash-four-cards { grid-template-columns: 1fr; padding: 0 8px 10px; }
   .dash-content-row,
-  .dash-gradient-cards,
   .dash-bottom-row { padding: 0 8px 16px; gap: 10px; }
 }

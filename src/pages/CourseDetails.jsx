@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { ref, get } from "firebase/database";
 import { database, auth } from "../firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import "../styles/courseDetails.css";
 
 function CourseDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = location.pathname.startsWith("/department-admin") ? "/department-admin" : "";
 
   const [course, setCourse] = useState(null);
   const [videos, setVideos] = useState([]);
@@ -49,7 +51,7 @@ function CourseDetails() {
 
         if (!courseSnap.exists()) {
           alert("Course not found");
-          navigate("../assigned-courses");
+          navigate(`${basePath}/assigned-courses`);
           return;
         }
 
@@ -295,7 +297,7 @@ function CourseDetails() {
     <div className="course-detail-page">
       <button
         className="course-back-btn"
-        onClick={() => navigate("../assigned-courses")}
+        onClick={() => navigate(`${basePath}/assigned-courses`)}
       >
         ← Back to My Courses
       </button>

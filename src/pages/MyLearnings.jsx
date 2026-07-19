@@ -5,9 +5,9 @@ import { auth, database } from "../firebase";
 import {
   FaBookOpen,
   FaCheckCircle,
-  FaClock,
   FaChartLine,
   FaCertificate,
+  FaHistory,
   FaPlayCircle,
 } from "react-icons/fa";
 import "../styles/mylearnings.css";
@@ -45,16 +45,6 @@ const collectActivitySeconds = (value) => {
     (sum, child) => sum + collectActivitySeconds(child),
     0
   );
-};
-
-const formatDuration = (totalSeconds) => {
-  const safeSeconds = Math.max(0, Math.round(Number(totalSeconds || 0)));
-  const hours = Math.floor(safeSeconds / 3600);
-  const minutes = Math.floor((safeSeconds % 3600) / 60);
-
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  if (minutes > 0) return `${minutes}m`;
-  return safeSeconds > 0 ? "<1m" : "0m";
 };
 
 const formatAxisDuration = (seconds) => {
@@ -236,25 +226,6 @@ function MyLearnings() {
   }, [completedCourses]);
 
   const stats = useMemo(() => {
-    const activityTotalSeconds = Object.values(
-      learningActivity || {}
-    ).reduce(
-      (sum, dayData) => sum + collectActivitySeconds(dayData),
-      0
-    );
-
-    const progressTotalSeconds = progressValues.reduce(
-      (sum, item) => sum + getProgressWatchedSeconds(item),
-      0
-    );
-
-    // New tracking uses learningActivity. Legacy users fall back to progress.
-    // Never add both because that would double-count watched time.
-    const totalSeconds =
-      activityTotalSeconds > 0
-        ? activityTotalSeconds
-        : progressTotalSeconds;
-
     const completedVideos = progressValues.filter((item) => item.completed).length;
 
     const completedCourseIds = new Set(
@@ -293,7 +264,6 @@ function MyLearnings() {
     ).length;
 
     return {
-      totalTime: formatDuration(totalSeconds),
       completedVideos,
       inProgressVideos,
       finalTestsTaken: finalAttempts.length,
@@ -306,7 +276,6 @@ function MyLearnings() {
     finalAttempts,
     completedCourseValues,
     latestFinalAttemptByCourse,
-    learningActivity,
   ]);
 
   const recentActivities = useMemo(() => {
@@ -532,16 +501,16 @@ function MyLearnings() {
           <p>Your real training activity, progress, test scores and certificates.</p>
         </div>
 
-        <strong>{stats.totalTime}</strong>
+        <strong>{stats.completedVideos} Videos Done</strong>
       </div>
 
       <div className="learning-kpi-grid">
         <div className="learning-kpi-card">
-          <div className="learning-icon blue">
-            <FaClock />
+          <div className="learning-icon orange">
+            <FaHistory />
           </div>
-          <span>Total Time</span>
-          <h2>{stats.totalTime}</h2>
+          <span>In Progress</span>
+          <h2>{stats.inProgressVideos}</h2>
         </div>
 
         <div className="learning-kpi-card">
