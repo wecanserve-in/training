@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+
 import Login from "./pages/Login";
 
 import Dashboard from "./pages/Dashboard";
@@ -8,7 +9,7 @@ import ResultPage from "./pages/ResultPage";
 import CertificatePage from "./pages/CertificatePage";
 import MyResults from "./pages/MyResults";
 import CourseDetails from "./pages/CourseDetails";
-import CourseOverview from "./pages/CourseOverview"; // ✅ Added CourseOverview Import
+import CourseOverview from "./pages/CourseOverview";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import RoleRoute from "./components/RoleRoute";
@@ -44,6 +45,9 @@ import AdminResults from "./pages/AdminResults";
 import EditVideo from "./pages/EditVideo";
 import EditQuestion from "./pages/EditQuestion";
 
+import DoubtChat from "./pages/DoubtChat";
+import DoubtThread from "./pages/DoubtThread";
+
 import UserLayout from "./components/UserLayout";
 import AssignedCourses from "./pages/AssignedCourses";
 import Certificates from "./pages/Certificates";
@@ -67,34 +71,82 @@ function App() {
           }
         >
           <Route index element={<SuperAdminDashboard />} />
+
           <Route path="admins" element={<ManageAdmins />} />
           <Route path="users" element={<ManageUsers />} />
           <Route path="departments" element={<ManageDepartments />} />
 
           <Route path="analytics" element={<SuperAdminAnalytics />} />
-          <Route path="assignment-analytics" element={<DepartmentTrainingAnalytics />} />
+
+          <Route
+            path="assignment-analytics"
+            element={<DepartmentTrainingAnalytics />}
+          />
 
           <Route path="courses" element={<DepartmentCourses />} />
-          <Route path="assignments" element={<DepartmentAssignTraining />} />
+
+          <Route
+            path="assignments"
+            element={<DepartmentAssignTraining />}
+          />
+
           <Route path="assigned-users" element={<AssignedUsers />} />
 
-          <Route path="video-library" element={<DepartmentVideoLibrary />} />
+          <Route
+            path="video-library"
+            element={<DepartmentVideoLibrary />}
+          />
 
           <Route path="results" element={<AdminResults />} />
 
           <Route path="my-learnings" element={<MyLearnings />} />
-          <Route path="assigned-courses" element={<AssignedCourses />} />
+
+          <Route
+            path="assigned-courses"
+            element={<AssignedCourses />}
+          />
+
           <Route path="my-results" element={<MyResults />} />
           <Route path="certificates" element={<Certificates />} />
           <Route path="resources" element={<Resources />} />
           <Route path="profile" element={<Profile />} />
 
-          <Route path="course/:id" element={<CourseDetails />} />
-          <Route path="course-overview/:id" element={<CourseOverview />} /> {/* ✅ Added Route */}
-          <Route path="video/:id" element={<VideoPage />} />
-          <Route path="quiz/:id" element={<QuizPage />} />
-          <Route path="result/:id" element={<ResultPage />} />
-          <Route path="certificate/:id" element={<CertificatePage />} />
+          <Route
+            path="course/:id"
+            element={<CourseDetails />}
+          />
+
+          <Route
+            path="course-overview/:id"
+            element={<CourseOverview />}
+          />
+
+          <Route
+            path="course/:courseId/video/:videoId"
+            element={<VideoPage />}
+          />
+
+          <Route
+            path="quiz/:id"
+            element={<QuizPage />}
+          />
+
+          <Route
+            path="result/:id"
+            element={<ResultPage />}
+          />
+
+          <Route
+            path="certificate/:id"
+            element={<CertificatePage />}
+          />
+
+          <Route path="doubts" element={<DoubtChat />} />
+
+          <Route
+            path="doubts/:id"
+            element={<DoubtThread />}
+          />
         </Route>
 
         {/* ================= ADMIN ROUTES ================= */}
@@ -107,36 +159,93 @@ function App() {
           }
         >
           <Route index element={<AdminDashboard />} />
+
           <Route path="users" element={<ManageUsers />} />
           <Route path="departments" element={<ManageDepartments />} />
 
           <Route path="analytics" element={<AdminAnalytics />} />
-          <Route path="assignment-analytics" element={<DepartmentTrainingAnalytics />} />
+
+          <Route
+            path="assignment-analytics"
+            element={<DepartmentTrainingAnalytics />}
+          />
 
           <Route path="courses" element={<DepartmentCourses />} />
-          <Route path="assignments" element={<DepartmentAssignTraining />} />
+
+          <Route
+            path="assignments"
+            element={<DepartmentAssignTraining />}
+          />
+
           <Route path="assigned-users" element={<AssignedUsers />} />
 
-          <Route path="video-library" element={<DepartmentVideoLibrary />} />
+          <Route
+            path="video-library"
+            element={<DepartmentVideoLibrary />}
+          />
 
           <Route path="questions" element={<ManageQuestions />} />
-          <Route path="add-question" element={<AddQuestion />} />
+
+          <Route
+            path="add-question"
+            element={<AddQuestion />}
+          />
+
           <Route path="results" element={<AdminResults />} />
-          <Route path="questions/edit/:courseId/:questionId" element={<EditQuestion />} />
+
+          <Route
+            path="questions/edit/:courseId/:questionId"
+            element={<EditQuestion />}
+          />
 
           <Route path="my-learnings" element={<MyLearnings />} />
-          <Route path="assigned-courses" element={<AssignedCourses />} />
+
+          <Route
+            path="assigned-courses"
+            element={<AssignedCourses />}
+          />
+
           <Route path="my-results" element={<MyResults />} />
           <Route path="certificates" element={<Certificates />} />
           <Route path="resources" element={<Resources />} />
           <Route path="profile" element={<Profile />} />
 
-          <Route path="course/:id" element={<CourseDetails />} />
-          <Route path="course-overview/:id" element={<CourseOverview />} /> {/* ✅ Added Route */}
-          <Route path="video/:id" element={<VideoPage />} />
-          <Route path="quiz/:id" element={<QuizPage />} />
-          <Route path="result/:id" element={<ResultPage />} />
-          <Route path="certificate/:id" element={<CertificatePage />} />
+          <Route
+            path="course/:id"
+            element={<CourseDetails />}
+          />
+
+          <Route
+            path="course-overview/:id"
+            element={<CourseOverview />}
+          />
+
+          <Route
+            path="course/:courseId/video/:videoId"
+            element={<VideoPage />}
+          />
+
+          <Route
+            path="quiz/:id"
+            element={<QuizPage />}
+          />
+
+          <Route
+            path="result/:id"
+            element={<ResultPage />}
+          />
+
+          <Route
+            path="certificate/:id"
+            element={<CertificatePage />}
+          />
+
+          <Route path="doubts" element={<DoubtChat />} />
+
+          <Route
+            path="doubts/:id"
+            element={<DoubtThread />}
+          />
         </Route>
 
         {/* ================= DEPARTMENT ADMIN ROUTES ================= */}
@@ -149,37 +258,138 @@ function App() {
           }
         >
           <Route index element={<DepartmentAdminDashboard />} />
-          <Route path="members" element={<DepartmentMembers />} />
 
-          <Route path="courses" element={<DepartmentCourses />} />
-          <Route path="courses/create" element={<AddCourse />} />
+          <Route
+            path="members"
+            element={<DepartmentMembers />}
+          />
 
-          <Route path="assignments" element={<DepartmentAssignTraining />} />
-          <Route path="assigned-users" element={<AssignedUsers />} />
-          <Route path="test-logs" element={<DepartmentTestLogs />} />
+          <Route
+            path="courses"
+            element={<DepartmentCourses />}
+          />
 
-          <Route path="video-library" element={<DepartmentVideoLibrary />} />
-          <Route path="video-library/upload" element={<DepartmentUploadVideo />} />
+          <Route
+            path="courses/create"
+            element={<AddCourse />}
+          />
 
-          <Route path="videos" element={<ManageVideos />} />
-          <Route path="questions" element={<ManageQuestions />} />
-          <Route path="questions/add/:courseId" element={<AddQuestion />} />
-          <Route path="edit-video/:id" element={<EditVideo />} />
-          <Route path="questions/edit/:courseId/:questionId" element={<EditQuestion />} />
+          <Route
+            path="assignments"
+            element={<DepartmentAssignTraining />}
+          />
 
-          <Route path="my-learnings" element={<MyLearnings />} />
-          <Route path="assigned-courses" element={<AssignedCourses />} />
-          <Route path="my-results" element={<MyResults />} />
-          <Route path="certificates" element={<Certificates />} />
-          <Route path="resources" element={<Resources />} />
-          <Route path="profile" element={<Profile />} />
+          <Route
+            path="assigned-users"
+            element={<AssignedUsers />}
+          />
 
-          <Route path="course/:id" element={<CourseDetails />} />
-          <Route path="course-overview/:id" element={<CourseOverview />} /> {/* ✅ Added Route */}
-          <Route path="video/:id" element={<VideoPage />} />
-          <Route path="quiz/:id" element={<QuizPage />} />
-          <Route path="result/:id" element={<ResultPage />} />
-          <Route path="certificate/:id" element={<CertificatePage />} />
+          <Route
+            path="test-logs"
+            element={<DepartmentTestLogs />}
+          />
+
+          <Route
+            path="video-library"
+            element={<DepartmentVideoLibrary />}
+          />
+
+          <Route
+            path="video-library/upload"
+            element={<DepartmentUploadVideo />}
+          />
+
+          <Route
+            path="videos"
+            element={<ManageVideos />}
+          />
+
+          <Route
+            path="questions"
+            element={<ManageQuestions />}
+          />
+
+          <Route
+            path="questions/add/:courseId"
+            element={<AddQuestion />}
+          />
+
+          <Route
+            path="edit-video/:id"
+            element={<EditVideo />}
+          />
+
+          <Route
+            path="questions/edit/:courseId/:questionId"
+            element={<EditQuestion />}
+          />
+
+          <Route
+            path="my-learnings"
+            element={<MyLearnings />}
+          />
+
+          <Route
+            path="assigned-courses"
+            element={<AssignedCourses />}
+          />
+
+          <Route
+            path="my-results"
+            element={<MyResults />}
+          />
+
+          <Route
+            path="certificates"
+            element={<Certificates />}
+          />
+
+          <Route
+            path="resources"
+            element={<Resources />}
+          />
+
+          <Route
+            path="profile"
+            element={<Profile />}
+          />
+
+          <Route
+            path="course/:id"
+            element={<CourseDetails />}
+          />
+
+          <Route
+            path="course-overview/:id"
+            element={<CourseOverview />}
+          />
+
+          <Route
+            path="course/:courseId/video/:videoId"
+            element={<VideoPage />}
+          />
+
+          <Route
+            path="quiz/:id"
+            element={<QuizPage />}
+          />
+
+          <Route
+            path="result/:id"
+            element={<ResultPage />}
+          />
+
+          <Route
+            path="certificate/:id"
+            element={<CertificatePage />}
+          />
+
+          <Route path="doubts" element={<DoubtChat />} />
+
+          <Route
+            path="doubts/:id"
+            element={<DoubtThread />}
+          />
         </Route>
 
         {/* ================= USER ROUTES ================= */}
@@ -190,19 +400,80 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/assigned-courses" element={<AssignedCourses />} />
-          <Route path="/my-results" element={<MyResults />} />
-          <Route path="/course/:id" element={<CourseDetails />} />
-          <Route path="/course-overview/:id" element={<CourseOverview />} /> {/* ✅ Added Route */}
-          <Route path="/my-learnings" element={<MyLearnings />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/resources" element={<Resources />} />
-          <Route path="/video/:id" element={<VideoPage />} />
-          <Route path="/quiz/:id" element={<QuizPage />} />
-          <Route path="/result/:id" element={<ResultPage />} />
-          <Route path="/certificates" element={<Certificates />} />
-          <Route path="/certificate/:id" element={<CertificatePage />} />
+          <Route
+            path="/dashboard"
+            element={<Dashboard />}
+          />
+
+          <Route
+            path="/assigned-courses"
+            element={<AssignedCourses />}
+          />
+
+          <Route
+            path="/my-results"
+            element={<MyResults />}
+          />
+
+          <Route
+            path="/course/:id"
+            element={<CourseDetails />}
+          />
+
+          <Route
+            path="/course-overview/:id"
+            element={<CourseOverview />}
+          />
+
+          <Route
+            path="/my-learnings"
+            element={<MyLearnings />}
+          />
+
+          <Route
+            path="/profile"
+            element={<Profile />}
+          />
+
+          <Route
+            path="/resources"
+            element={<Resources />}
+          />
+
+          <Route
+            path="/course/:courseId/video/:videoId"
+            element={<VideoPage />}
+          />
+
+          <Route
+            path="/quiz/:id"
+            element={<QuizPage />}
+          />
+
+          <Route
+            path="/result/:id"
+            element={<ResultPage />}
+          />
+
+          <Route
+            path="/certificates"
+            element={<Certificates />}
+          />
+
+          <Route
+            path="/certificate/:id"
+            element={<CertificatePage />}
+          />
+
+          <Route
+            path="/doubts"
+            element={<DoubtChat />}
+          />
+
+          <Route
+            path="/doubts/:id"
+            element={<DoubtThread />}
+          />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase";
 import { loadUserProfile } from "../lib/userAccess";
+import { watchNotifications } from "../services/doubtService";
 import "../styles/superadminlayout.css";
 
 function AdminLayout() {
@@ -14,6 +15,7 @@ function AdminLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [userData, setUserData] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -58,6 +60,14 @@ function AdminLayout() {
 
     return () => unsubscribe();
   }, [navigate]);
+
+  useEffect(() => {
+    if (!userData?.id) return;
+    const unsub = watchNotifications(userData.id, (notifs) => {
+      setUnreadCount(notifs.filter((n) => !n.read).length);
+    });
+    return () => unsub();
+  }, [userData?.id]);
 
   return (
     <div className={`super-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
@@ -177,6 +187,11 @@ function AdminLayout() {
 
           <NavLink to="/admin/resources" onClick={closeMobileMenu} className="sidebar-top-link">
             News & Resources
+          </NavLink>
+
+          <NavLink to="/admin/doubts" onClick={closeMobileMenu} className="sidebar-top-link">
+            <span>Doubts</span>
+            {unreadCount > 0 && <span className="doubt-nav-badge">{unreadCount}</span>}
           </NavLink>
 
           <div className="sidebar-dropdown">

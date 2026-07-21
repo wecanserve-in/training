@@ -1,8 +1,22 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { get, ref, set, update } from "firebase/database";
 import { auth, database } from "../firebase";
-import { ref, get, set } from "firebase/database";
 import useBasePath from "../hooks/useBasePath";
+import {
+  coursePath,
+  courseVideosForCoursePath,
+  questionsForCoursePath,
+  videoProgressForCoursePath,
+  courseProgressForCoursePath,
+  quizAttemptsForCoursePath,
+  quizAttemptPath,
+  legacyCompletedCoursePath,
+  legacyAttemptsPath,
+  legacyAttemptPath,
+  legacyResultsPath,
+} from "../services/dbPaths";
 import "../styles/quizpage.css";
 
 function QuizPage() {
@@ -29,43 +43,725 @@ function QuizPage() {
   const [securityMessage, setSecurityMessage] = useState("");
   const [existingFinalResult, setExistingFinalResult] = useState(null);
 
-  useEffect(() => {
-    fetchQuizData();
-  }, [id, isVideoQuiz, resultMode, courseIdFromQuery, videoIdFromQuery]);
+  const submittedRef = useRef(false);
+  const warningCountRef = useRef(0);
+  const examRootRef = useRef(null);
+
+  const activeCourseId = isVideoQuiz ? courseIdFromQuery : id;
+  const activeVideoId = isVideoQuiz ? videoIdFromQuery || id : null;
+
+  const courseUrl = (courseId) => `${basePath}/course/${courseId}`;
+  const videoUrl = (courseId, targetVideoId) =>
+    `${basePath}/course/${courseId}/video/${targetVideoId}`;
+
+  const getQuestionText = (question) =>
+    question?.question || question?.questionText || "";
+
+  const getQuestionOptions = (question) => {
+    if (Array.isArray(question?.options)) return question.options;
+
+    return [
+      question?.optionA || question?.option1,
+      question?.optionB || question?.option2,
+      question?.optionC || question?.option3,
+      question?.optionD || question?.option4,
+    ].filter(Boolean);
+  };
+
+  const isAnswerCorrect = (question, selectedAnswer) => {
+    const options = getQuestionOptions(question);
+    const selectedIndex = options.findIndex(
+      (option) => String(option) === String(selectedAnswer)
+    );
+
+    if (selectedIndex < 0) return false;
+
+    const correctIndex = Number(question?.correctOptionIndex);
+    if (Number.isInteger(correctIndex) && correctIndex === selectedIndex) {
+      return true;
+    }
+
+    const correctOption = String(question?.correctOption || "").trim().toUpperCase();
+    if (
+      correctOption &&
+      correctOption === String.fromCharCode(65 + selectedIndex)
+    ) {
+      return true;
+    }
+
+    return String(question?.correctAnswer ?? "") === String(selectedAnswer);
+  };
 
   useEffect(() => {
-    const blockEvent = (e) => {
-      if (!quizStarted || submitted) return;
-      e.preventDefault();
+    setCourse(null);
+    setVideo(null);
+    setQuizQuestions([]);
+    setCurrentIndex(0);
+    setTimeLeft(60);
+    setAnswers({});
+    setSubmitted(false);
+    submittedRef.current = false;
+    setLoading(true);
+    setQuizStarted(false);
+    setWarningCount(0);
+    warningCountRef.current = 0;
+    setSecurityMessage("");
+    setExistingFinalResult(null);
+
+    const fetchQuizData = async () => {
+      const user = auth.currentUser;
+
+      if (!user) {
+        navigate("/");
+        return;
+      }
+
+      if (!activeCourseId) {
+        alert("Course not found");
+        navigate(`${basePath}/assigned-courses`);
+        return;
+      }
+
+      try {
+        const [
+          courseSnapshot,
+          oldVideosSnapshot,
+          videoLibrarySnapshot,
+          courseVideosSnapshot,
+          questionsSnapshot,
+          videoQuestionsSnapshot,
+          completedCourseSnapshot,
+          courseProgressSnapshot,
+          legacyAttemptsSnapshot,
+          legacyResultsSnapshot,
+          normalizedAttemptsSnapshot,
+        ] = await Promise.all([
+          get(ref(database, coursePath(activeCourseId))),
+          get(ref(database, "videos")),
+          get(ref(database, "videoLibrary")),
+          get(ref(database, courseVideosForCoursePath(activeCourseId))),
+          get(ref(database, questionsForCoursePath(activeCourseId))),
+          get(ref(database, "videoQuizzes")),
+          get(ref(database, legacyCompletedCoursePath(user.uid, activeCourseId))),
+          get(ref(database, courseProgressForCoursePath(user.uid, activeCourseId))),
+          get(ref(database, legacyAttemptsPath(user.uid))),
+          get(ref(database, legacyResultsPath(user.uid))),
+          get(ref(database, quizAttemptsForCoursePath(user.uid, activeCourseId))),
+        ]);
+
+        if (!courseSnapshot.exists()) {
+          alert("Course not found");
+          navigate(`${basePath}/assigned-courses`);
+          return;
+        }
+
+        const courseData = {
+          id: activeCourseId,
+          ...courseSnapshot.val(),
+        };
+        setCourse(courseData);
+
+        const oldVideos = oldVideosSnapshot.exists()
+          ? Object.entries(oldVideosSnapshot.val()).map(([videoId, item]) => ({
+              id: videoId,
+              ...(item || {}),
+            }))
+          : [];
+
+        const libraryVideos = videoLibrarySnapshot.exists()
+          ? Object.entries(videoLibrarySnapshot.val()).map(([videoId, item]) => ({
+              id: videoId,
+              ...(item || {}),
+            }))
+          : [];
+
+        const courseMappings = courseVideosSnapshot.exists()
+          ? courseVideosSnapshot.val() || {}
+          : {};
+
+        let courseVideos = [];
+
+        if (courseMappings && typeof courseMappings === "object") {
+          courseVideos = Object.entries(courseMappings).map(
+            ([mappingId, mappedVideo = {}]) => {
+              const actualVideoId = mappedVideo.videoId || mappingId;
+              const fullVideo =
+                libraryVideos.find((item) => item.id === actualVideoId) ||
+                oldVideos.find((item) => item.id === actualVideoId) ||
+                {};
+
+              return {
+                ...fullVideo,
+                ...mappedVideo,
+                id: actualVideoId,
+                mappingId,
+                courseId: activeCourseId,
+              };
+            }
+          );
+        } else if (Array.isArray(courseData.videoIds)) {
+          courseVideos = courseData.videoIds
+            .map(
+              (videoId) =>
+                libraryVideos.find((item) => item.id === videoId) ||
+                oldVideos.find((item) => item.id === videoId)
+            )
+            .filter(Boolean)
+            .map((item) => ({ ...item, courseId: activeCourseId }));
+        } else {
+          courseVideos = oldVideos
+            .filter((item) => item.courseId === activeCourseId)
+            .map((item) => ({ ...item, courseId: activeCourseId }));
+        }
+
+        courseVideos.sort(
+          (a, b) =>
+            Number(a.order || 0) - Number(b.order || 0) ||
+            new Date(a.createdAt || 0) - new Date(b.createdAt || 0)
+        );
+
+        const normalizedAttempts = normalizedAttemptsSnapshot.exists()
+          ? normalizedAttemptsSnapshot.val() || {}
+          : {};
+
+        if (!isVideoQuiz) {
+          const completedRecord = completedCourseSnapshot.exists()
+            ? completedCourseSnapshot.val()
+            : null;
+          const courseProgressRecord = courseProgressSnapshot.exists()
+            ? courseProgressSnapshot.val()
+            : null;
+          const legacyAttempts = legacyAttemptsSnapshot.exists()
+            ? legacyAttemptsSnapshot.val() || {}
+            : {};
+          const legacyResults = legacyResultsSnapshot.exists()
+            ? legacyResultsSnapshot.val() || {}
+            : {};
+
+          const finalRecords = [
+            ...Object.entries(normalizedAttempts)
+              .filter(([, attempt]) => attempt?.quizType === "final")
+              .map(([attemptId, attempt]) => ({
+                id: attemptId,
+                source: "quizAttempts",
+                ...attempt,
+              })),
+            ...Object.entries(legacyAttempts).map(([attemptId, attempt]) => ({
+              id: attemptId,
+              source: "attempts",
+              ...(attempt || {}),
+            })),
+            ...Object.entries(legacyResults).map(([resultId, result]) => ({
+              id: resultId,
+              source: "results",
+              ...(result || {}),
+            })),
+          ].filter(
+            (record) =>
+              record.courseId === activeCourseId &&
+              !record.videoId &&
+              record.quizType !== "practice"
+          );
+
+          const latestPassed = finalRecords
+            .filter(
+              (record) =>
+                record.passed === true ||
+                record.isPassed === true ||
+                String(record.status || "").toLowerCase() === "passed"
+            )
+            .sort(
+              (a, b) =>
+                new Date(
+                  b.submittedAt ||
+                    b.attemptedAt ||
+                    b.completedAt ||
+                    b.createdAt ||
+                    0
+                ) -
+                new Date(
+                  a.submittedAt ||
+                    a.attemptedAt ||
+                    a.completedAt ||
+                    a.createdAt ||
+                    0
+                )
+            )[0];
+
+          const courseAlreadyPassed =
+            completedRecord?.passed === true ||
+            courseProgressRecord?.courseTestPassed === true ||
+            Boolean(latestPassed);
+
+          if (courseAlreadyPassed) {
+            const source =
+              latestPassed || courseProgressRecord || completedRecord || {};
+            const correct = Number(
+              source.correct ?? completedRecord?.correct ?? 0
+            );
+            const total = Number(
+              source.total ??
+                source.totalMarks ??
+                source.totalQuestions ??
+                completedRecord?.total ??
+                completedRecord?.totalQuestions ??
+                0
+            );
+            const storedPercentage = Number(
+              source.percentage ??
+                source.score ??
+                completedRecord?.percentage ??
+                completedRecord?.score ??
+                NaN
+            );
+            const percentage = Number.isFinite(storedPercentage)
+              ? Math.max(0, Math.min(100, Math.round(storedPercentage)))
+              : total > 0
+                ? Math.round((correct / total) * 100)
+                : 0;
+
+            setExistingFinalResult({
+              passed: true,
+              percentage,
+              correct,
+              total,
+              submittedAt:
+                source.submittedAt ||
+                source.attemptedAt ||
+                source.completedAt ||
+                source.createdAt ||
+                completedRecord?.completedAt ||
+                "",
+              attemptId:
+                source.legacyAttemptId ||
+                source.attemptId ||
+                source.id ||
+                completedRecord?.attemptId ||
+                "",
+            });
+          }
+        }
+
+        const videoQuestionsData = videoQuestionsSnapshot.exists()
+          ? videoQuestionsSnapshot.val() || {}
+          : {};
+
+        let allQuestions = [];
+
+        if (isVideoQuiz) {
+          const currentVideo =
+            courseVideos.find(
+              (item) =>
+                item.id === activeVideoId || item.mappingId === activeVideoId
+            ) ||
+            oldVideos.find((item) => item.id === activeVideoId) ||
+            libraryVideos.find((item) => item.id === activeVideoId);
+
+          if (!currentVideo) {
+            alert("Video not found in this course");
+            navigate(courseUrl(activeCourseId));
+            return;
+          }
+
+          setVideo(currentVideo);
+
+          const acceptedIds = [
+            currentVideo.id,
+            currentVideo.mappingId,
+            activeVideoId,
+          ].filter(Boolean);
+
+          const questionMap = new Map();
+
+          const addQuestions = (source, sourceKey) => {
+            if (!source || typeof source !== "object") return;
+
+            Object.entries(source).forEach(([questionId, question]) => {
+              if (!question || typeof question !== "object") return;
+              if (!getQuestionText(question)) return;
+
+              const explicitVideoId =
+                question.videoId || question.videoID || question.lessonId;
+              if (explicitVideoId && !acceptedIds.includes(explicitVideoId)) {
+                return;
+              }
+
+              const uniqueKey = `${sourceKey}:${questionId}`;
+              if (!questionMap.has(uniqueKey)) {
+                questionMap.set(uniqueKey, {
+                  id: uniqueKey,
+                  videoId: currentVideo.id,
+                  ...question,
+                });
+              }
+            });
+          };
+
+          acceptedIds.forEach((videoKey) => {
+            addQuestions(videoQuestionsData?.[videoKey], `global:${videoKey}`);
+            addQuestions(
+              videoQuestionsData?.[activeCourseId]?.[videoKey],
+              `course:${activeCourseId}:${videoKey}`
+            );
+          });
+
+          Object.entries(videoQuestionsData).forEach(([questionId, question]) => {
+            if (!question || typeof question !== "object") return;
+            const explicitVideoId =
+              question.videoId || question.videoID || question.lessonId;
+            if (explicitVideoId && acceptedIds.includes(explicitVideoId)) {
+              addQuestions({ [questionId]: question }, "flat");
+            }
+          });
+
+          allQuestions = [...questionMap.values()].sort(
+            (a, b) => Number(a.order || 0) - Number(b.order || 0)
+          );
+
+          setTimeLeft(
+            Number(
+              currentVideo.testDuration || currentVideo.quizDuration || 60
+            )
+          );
+        } else {
+          const courseQuestions = questionsSnapshot.exists()
+            ? questionsSnapshot.val() || {}
+            : {};
+
+          allQuestions = Object.entries(courseQuestions)
+            .map(([questionId, question]) => ({
+              id: questionId,
+              courseId: activeCourseId,
+              ...(question || {}),
+            }))
+            .filter((question) => getQuestionText(question))
+            .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
+
+          setTimeLeft(
+            Number(courseData.testDuration || courseData.quizDuration || 60)
+          );
+        }
+
+        setQuizQuestions(allQuestions);
+
+        if (!isVideoQuiz && !resultMode && courseVideos.length > 0) {
+          const videoProgressSnapshot = await get(
+            ref(database, videoProgressForCoursePath(user.uid, activeCourseId))
+          );
+          const courseVideoProgress = videoProgressSnapshot.exists()
+            ? videoProgressSnapshot.val() || {}
+            : {};
+
+          const allVideosDone = courseVideos.every((courseVideo) => {
+            const progress = courseVideoProgress?.[courseVideo.id];
+            return (
+              progress?.completed === true ||
+              Number(progress?.watchedPercent || 0) >= 100
+            );
+          });
+
+          if (!allVideosDone) {
+            alert(
+              "Please complete all course videos before taking the final test."
+            );
+            navigate(courseUrl(activeCourseId));
+            return;
+          }
+
+          const videosWithRevisionQuiz = courseVideos.filter((courseVideo) => {
+            const acceptedIds = [courseVideo.id, courseVideo.mappingId].filter(
+              Boolean
+            );
+
+            return acceptedIds.some((videoKey) => {
+              const globalSource = videoQuestionsData?.[videoKey] || {};
+              const courseSource =
+                videoQuestionsData?.[activeCourseId]?.[videoKey] || {};
+
+              return [...Object.values(globalSource), ...Object.values(courseSource)].some(
+                (question) => getQuestionText(question)
+              );
+            });
+          });
+
+          if (videosWithRevisionQuiz.length > 0) {
+            const practiceAttempts = Object.values(normalizedAttempts).filter(
+              (attempt) => attempt?.quizType === "practice"
+            );
+
+            const allRevisionQuizzesPassed = videosWithRevisionQuiz.every(
+              (courseVideo) => {
+                const acceptedIds = new Set(
+                  [courseVideo.id, courseVideo.mappingId].filter(Boolean)
+                );
+
+                return practiceAttempts.some((attempt) => {
+                  const matchesVideo = acceptedIds.has(
+                    attempt?.videoId || attempt?.mappingId
+                  );
+                  const score = Number(attempt?.correct ?? attempt?.score ?? 0);
+                  const total = Number(attempt?.totalMarks ?? attempt?.total ?? 0);
+                  const calculatedPassed =
+                    total > 0 && score >= Math.ceil(total * 0.7);
+
+                  return (
+                    matchesVideo &&
+                    (attempt?.passed === true || calculatedPassed)
+                  );
+                });
+              }
+            );
+
+            if (!allRevisionQuizzesPassed) {
+              alert(
+                "Please pass every required revision quiz before taking the final test."
+              );
+              navigate(courseUrl(activeCourseId));
+              return;
+            }
+          }
+        }
+
+        setLoading(false);
+      } catch (error) {
+        console.error("Failed to load quiz:", error);
+        alert("Failed to load quiz");
+        setLoading(false);
+      }
+    };
+
+    fetchQuizData();
+  }, [
+    activeCourseId,
+    activeVideoId,
+    basePath,
+    isVideoQuiz,
+    navigate,
+    resultMode,
+  ]);
+
+  const currentQuestion = quizQuestions[currentIndex];
+
+  const progressPercent = useMemo(() => {
+    if (quizQuestions.length === 0) return 0;
+    return Math.round(((currentIndex + 1) / quizQuestions.length) * 100);
+  }, [currentIndex, quizQuestions.length]);
+
+  const formatTime = (seconds) => {
+    const safeSeconds = Math.max(0, Number(seconds || 0));
+    const mins = Math.floor(safeSeconds / 60);
+    const secs = Math.floor(safeSeconds % 60);
+    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  };
+
+  const submitQuiz = async (reason = "submitted") => {
+    if (submittedRef.current || !course) return;
+
+    if (!isVideoQuiz && existingFinalResult?.passed) {
+      submittedRef.current = true;
+      setSubmitted(true);
+      return;
+    }
+
+    const user = auth.currentUser;
+    if (!user) {
+      navigate("/");
+      return;
+    }
+
+    submittedRef.current = true;
+    setSubmitted(true);
+
+    let correct = 0;
+    quizQuestions.forEach((question) => {
+      if (isAnswerCorrect(question, answers[question.id])) {
+        correct += 1;
+      }
+    });
+
+    const total = quizQuestions.length;
+    const percentage = total > 0 ? Math.round((correct / total) * 100) : 100;
+    const nowIso = new Date().toISOString();
+
+    if (document.fullscreenElement) {
+      await document.exitFullscreen().catch(() => {});
+    }
+
+    try {
+      if (isVideoQuiz) {
+        const targetVideoId = video?.id || activeVideoId;
+        const quizId = `practice_${targetVideoId}_${Date.now()}`;
+        const passed = total === 0 || correct >= Math.ceil(total * 0.7);
+
+        await set(ref(database, quizAttemptPath(user.uid, course.id, quizId)), {
+          quizId,
+          quizType: "practice",
+          userId: user.uid,
+          userName: user.displayName || "",
+          courseId: course.id,
+          courseTitle: course.title || course.courseTitle || "",
+          videoId: targetVideoId,
+          mappingId: video?.mappingId || null,
+          videoTitle: video?.title || video?.videoTitle || "",
+          score: correct,
+          totalMarks: total,
+          correct,
+          percentage,
+          passed,
+          reason,
+          warningCount: warningCountRef.current,
+          answers,
+          attemptedAt: nowIso,
+        });
+
+        navigate(videoUrl(course.id, targetVideoId));
+        return;
+      }
+
+      const passingScore = Number(course.passingScore || 70);
+      const passed = total === 0 || percentage >= passingScore;
+      const legacyAttemptId = `${user.uid}_${course.id}_${Date.now()}`;
+      const quizId = `final_${course.id}_${Date.now()}`;
+
+      const normalizedAttempt = {
+        quizId,
+        quizType: "final",
+        userId: user.uid,
+        userName: user.displayName || "",
+        courseId: course.id,
+        courseTitle: course.title || course.courseTitle || "",
+        score: percentage,
+        totalMarks: total,
+        correct,
+        percentage,
+        passed,
+        attemptCount: 1,
+        legacyAttemptId,
+        reason,
+        warningCount: warningCountRef.current,
+        answers,
+        attemptedAt: nowIso,
+      };
+
+      await set(
+        ref(database, quizAttemptPath(user.uid, course.id, quizId)),
+        normalizedAttempt
+      );
+
+      // Kept temporarily because the existing Result page may still read this path.
+      await set(ref(database, legacyAttemptPath(user.uid, legacyAttemptId)), {
+        userId: user.uid,
+        userName: user.displayName || "",
+        courseId: course.id,
+        courseTitle: course.title || course.courseTitle || "",
+        score: percentage,
+        percentage,
+        total,
+        totalMarks: total,
+        correct,
+        passed,
+        quizId,
+        reason,
+        warningCount: warningCountRef.current,
+        submittedAt: nowIso,
+      });
+
+      if (passed) {
+        // Update only test/completion fields. Do not erase video counts already stored.
+        await update(
+          ref(database, courseProgressForCoursePath(user.uid, course.id)),
+          {
+            courseId: course.id,
+            progressPercentage: 100,
+            completed: true,
+            completedAt: nowIso,
+            lastAccessedAt: nowIso,
+            courseTestCompleted: true,
+            courseTestPassed: true,
+            score: percentage,
+            percentage,
+            correct,
+            totalMarks: total,
+            finalQuizAttemptId: quizId,
+            legacyAttemptId,
+          }
+        );
+
+        // Temporary migration write for older certificate/result screens.
+        await set(
+          ref(database, legacyCompletedCoursePath(user.uid, course.id)),
+          {
+            courseId: course.id,
+            courseTitle: course.title || course.courseTitle || "",
+            passed: true,
+            score: percentage,
+            percentage,
+            correct,
+            total,
+            totalMarks: total,
+            attemptId: legacyAttemptId,
+            quizId,
+            completedAt: nowIso,
+          }
+        );
+      }
+
+      navigate(`${basePath}/result/${legacyAttemptId}`);
+    } catch (error) {
+      submittedRef.current = false;
+      setSubmitted(false);
+      console.error("Failed to submit quiz:", error);
+      alert("Failed to submit quiz. Please try again.");
+    }
+  };
+
+  const handleSecurityViolation = async (message) => {
+    if (submittedRef.current) return;
+
+    setSecurityMessage(message);
+    const nextWarning = warningCountRef.current + 1;
+    warningCountRef.current = nextWarning;
+    setWarningCount(nextWarning);
+
+    if (nextWarning >= 2) {
+      await submitQuiz("security_violation");
+    }
+  };
+
+  useEffect(() => {
+    const blockEvent = (event) => {
+      if (!quizStarted || submittedRef.current) return;
+      event.preventDefault();
       setSecurityMessage("Copying or right-click is not allowed during quiz.");
     };
 
-    const blockKeys = (e) => {
-      if (!quizStarted || submitted) return;
+    const blockKeys = (event) => {
+      if (!quizStarted || submittedRef.current) return;
 
+      const key = String(event.key || "").toLowerCase();
       const blocked =
-        e.key === "F12" ||
-        (e.ctrlKey && ["c", "v", "x", "a", "s", "p", "u"].includes(e.key.toLowerCase())) ||
-        (e.ctrlKey && e.shiftKey && ["i", "j", "c"].includes(e.key.toLowerCase()));
+        event.key === "F12" ||
+        (event.ctrlKey && ["c", "v", "x", "a", "s", "p", "u"].includes(key)) ||
+        (event.ctrlKey && event.shiftKey && ["i", "j", "c"].includes(key));
 
       if (blocked) {
-        e.preventDefault();
+        event.preventDefault();
         setSecurityMessage("Keyboard shortcuts are disabled during quiz.");
       }
     };
 
     const handleVisibility = () => {
-      if (!quizStarted || submitted) return;
-
-      if (document.hidden) {
+      if (quizStarted && !submittedRef.current && document.hidden) {
         handleSecurityViolation("Tab switching detected.");
       }
     };
 
     const handleFullscreenChange = () => {
-      if (!quizStarted || submitted) return;
-
-      if (!document.fullscreenElement) {
+      if (
+        quizStarted &&
+        !submittedRef.current &&
+        !document.fullscreenElement
+      ) {
         handleSecurityViolation("Fullscreen exited.");
       }
     };
@@ -87,497 +783,49 @@ function QuizPage() {
       document.removeEventListener("visibilitychange", handleVisibility);
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
-  }, [quizStarted, submitted, warningCount]);
-
-  const handleSecurityViolation = async (message) => {
-    setSecurityMessage(message);
-    const nextWarning = warningCount + 1;
-    setWarningCount(nextWarning);
-
-    if (nextWarning >= 2) {
-      await submitQuiz("security_violation");
-    }
-  };
+  }, [quizStarted]);
 
   const startStrictQuiz = async () => {
     if (!isVideoQuiz && existingFinalResult?.passed) return;
 
+    const examElement = examRootRef.current;
+
+    if (!examElement) {
+      setSecurityMessage(
+        "Unable to start secure test. Please refresh the page and try again."
+      );
+      return;
+    }
+
     try {
-      await document.documentElement.requestFullscreen();
+      if (!document.fullscreenElement) {
+        await examElement.requestFullscreen();
+      }
+
+      setSecurityMessage("");
+      setQuizStarted(true);
     } catch (error) {
-      console.warn("Fullscreen failed", error);
-    }
-
-    setQuizStarted(true);
-  };
-
-  const fetchQuizData = async () => {
-    const user = auth.currentUser;
-
-    if (!user) {
-      navigate("/");
-      return;
-    }
-
-    const activeCourseId = isVideoQuiz ? courseIdFromQuery : id;
-    const activeVideoId = isVideoQuiz ? videoIdFromQuery || id : null;
-
-    if (!activeCourseId) {
-      alert("Course not found");
-      navigate(`${basePath}/assigned-courses`);
-      return;
-    }
-
-const [
-  courseSnapshot,
-  videosSnapshot,
-  videoLibrarySnapshot,
-  courseVideosSnapshot,
-  questionsSnapshot,
-  videoQuestionsSnapshot,
-  completedCourseSnapshot,
-  courseProgressSnapshot,
-  attemptsSnapshot,
-  resultsSnapshot,
-  newQuizAttemptsSnapshot,
-] = await Promise.all([
-      get(ref(database, `courses/${activeCourseId}`)),
-      get(ref(database, "videos")),
-      get(ref(database, "videoLibrary")),
-      get(ref(database, "courseVideos")),
-      get(ref(database, "questions")),
-      get(ref(database, "videoQuizzes")),
-      get(ref(database, `completedCourses/${user.uid}/${activeCourseId}`)),
-      get(ref(database, `courseProgress/${user.uid}/${activeCourseId}`)),
-      get(ref(database, `attempts/${user.uid}`)),
-      get(ref(database, `results/${user.uid}`)),
-      get(ref(database, `quizAttempts/${user.uid}/${activeCourseId}`)),
-    ]);
-
-    if (!courseSnapshot.exists()) {
-      alert("Course not found");
-      navigate(`${basePath}/assigned-courses`);
-      return;
-    }
-
-    const courseData = { id: activeCourseId, ...courseSnapshot.val() };
-    setCourse(courseData);
-
-    if (!isVideoQuiz) {
-      const completedRecord = completedCourseSnapshot.exists()
-        ? completedCourseSnapshot.val()
-        : null;
-
-      const courseProgressRecord = courseProgressSnapshot.exists()
-        ? courseProgressSnapshot.val()
-        : null;
-
-      const attemptsData = attemptsSnapshot.exists()
-        ? attemptsSnapshot.val()
-        : {};
-
-      const resultsData = resultsSnapshot.exists()
-        ? resultsSnapshot.val()
-        : {};
-
-      const newQuizAttemptsData = newQuizAttemptsSnapshot.exists()
-        ? newQuizAttemptsSnapshot.val()
-        : {};
-
-      const finalRecords = [
-        ...Object.entries(attemptsData || {}).map(([attemptId, item]) => ({
-          id: attemptId,
-          source: "attempts",
-          ...(item || {}),
-        })),
-        ...Object.entries(resultsData || {}).map(([resultId, item]) => ({
-          id: resultId,
-          source: "results",
-          ...(item || {}),
-        })),
-      ].filter(
-        (item) =>
-          item.courseId === activeCourseId &&
-          !item.videoId
+      console.error("Fullscreen failed:", error);
+      setQuizStarted(false);
+      setSecurityMessage(
+        "Fullscreen permission was blocked. Allow fullscreen in the browser and click Start again."
       );
-
-      // Also include records from new quizAttempts path
-      const newCourseAttempts = newQuizAttemptsData[activeCourseId] || {};
-      Object.entries(newCourseAttempts).forEach(([quizId, attempt]) => {
-        if (attempt && attempt.quizType === "final") {
-          finalRecords.push({
-            id: quizId,
-            source: "quizAttempts",
-            ...attempt,
-          });
-        }
-      });
-
-      const latestPassed = finalRecords
-        .filter(
-          (item) =>
-            item.passed === true ||
-            item.isPassed === true ||
-            String(item.status || "").toLowerCase() === "passed"
-        )
-        .sort(
-          (a, b) =>
-            new Date(
-              b.submittedAt || b.attemptedAt || b.completedAt || b.createdAt || 0
-            ) -
-            new Date(
-              a.submittedAt || a.attemptedAt || a.completedAt || a.createdAt || 0
-            )
-        )[0];
-
-      const courseAlreadyPassed =
-        completedRecord?.passed === true ||
-        courseProgressRecord?.courseTestPassed === true ||
-        Boolean(latestPassed);
-
-      if (courseAlreadyPassed) {
-        const source = latestPassed || courseProgressRecord || completedRecord || {};
-
-        const correct = Number(
-          source.correct ??
-          completedRecord?.correct ??
-          0
-        );
-
-        const total = Number(
-          source.total ??
-          source.totalMarks ??
-          source.totalQuestions ??
-          completedRecord?.total ??
-          completedRecord?.totalQuestions ??
-          0
-        );
-
-        const storedScore = Number(
-          source.score ??
-          source.percentage ??
-          completedRecord?.score ??
-          completedRecord?.percentage ??
-          0
-        );
-
-        const percentage =
-          Number.isFinite(storedScore) && storedScore >= 0
-            ? Math.max(0, Math.min(100, Math.round(storedScore)))
-            : total > 0
-              ? Math.round((correct / total) * 100)
-              : 0;
-
-        setExistingFinalResult({
-          passed: true,
-          percentage,
-          correct,
-          total,
-          submittedAt:
-            source.submittedAt ||
-            source.completedAt ||
-            source.createdAt ||
-            completedRecord?.completedAt ||
-            "",
-          attemptId:
-            source.id ||
-            source.attemptId ||
-            completedRecord?.attemptId ||
-            "",
-        });
-      } else {
-        setExistingFinalResult(null);
-      }
     }
-
-    const oldVideos = videosSnapshot.exists()
-      ? Object.entries(videosSnapshot.val()).map(([videoId, item]) => ({
-          id: videoId,
-          ...item,
-        }))
-      : [];
-
-    const libraryVideos = videoLibrarySnapshot.exists()
-      ? Object.entries(videoLibrarySnapshot.val()).map(([videoId, item]) => ({
-          id: videoId,
-          ...item,
-        }))
-      : [];
-
-    const courseVideosData = courseVideosSnapshot.exists()
-      ? courseVideosSnapshot.val()
-      : {};
-
-    let courseVideos = [];
-
-    if (courseVideosData?.[activeCourseId]) {
-      courseVideos = Object.entries(courseVideosData[activeCourseId]).map(
-        ([mappingId, mappedVideo]) => {
-          const actualVideoId = mappedVideo.videoId || mappingId;
-
-          const fullVideo =
-            libraryVideos.find((item) => item.id === actualVideoId) ||
-            oldVideos.find((item) => item.id === actualVideoId) ||
-            {};
-
-          return {
-            ...fullVideo,
-            ...mappedVideo,
-            id: actualVideoId,
-            mappingId,
-            courseId: activeCourseId,
-          };
-        }
-      );
-    } else if (Array.isArray(courseData.videoIds)) {
-      courseVideos = courseData.videoIds
-        .map((videoId) => libraryVideos.find((item) => item.id === videoId))
-        .filter(Boolean)
-        .map((item) => ({ ...item, courseId: activeCourseId }));
-    } else {
-      courseVideos = oldVideos.filter((item) => item.courseId === activeCourseId);
-    }
-
-    const questionsData = questionsSnapshot.exists() ? questionsSnapshot.val() : {};
-    const videoQuestionsData = videoQuestionsSnapshot.exists()
-  ? videoQuestionsSnapshot.val()
-  : {};
-
-    let allQuestions = [];
-
-    if (isVideoQuiz) {
-      const currentVideo =
-        courseVideos.find((item) => item.id === activeVideoId) ||
-        oldVideos.find((item) => item.id === activeVideoId) ||
-        libraryVideos.find((item) => item.id === activeVideoId);
-
-      setVideo(currentVideo || null);
-
- const videoQuestionSource =
-  videoQuestionsData?.[activeVideoId] ||
-  videoQuestionsData?.[currentVideo?.mappingId] ||
-  {};
-  
-      allQuestions = Object.entries(videoQuestionSource).map(
-        ([questionId, question]) => ({
-          id: `${activeVideoId}_${questionId}`,
-          videoId: activeVideoId,
-          ...question,
-        })
-      );
-
-      setTimeLeft(Number(currentVideo?.testDuration || currentVideo?.quizDuration || 60));
-   } else {
-
-  const courseQuestionSource = questionsData?.[activeCourseId] || {};
-
-  allQuestions = Object.entries(courseQuestionSource).map(
-    ([questionId, question]) => ({
-      id: questionId,
-      courseId: activeCourseId,
-      ...question,
-    })
-  );
-
-  setTimeLeft(
-    Number(courseData.testDuration || courseData.quizDuration || 60)
-  );
-}
-    setQuizQuestions(allQuestions);
-
-    if (!isVideoQuiz && !resultMode && courseVideos.length > 0) {
-      const videoProgressSnap = await get(ref(database, `videoProgress/${user.uid}`));
-      const legacyProgSnap = await get(ref(database, `progress/${user.uid}`));
-      const videoProgressData = videoProgressSnap.exists() ? videoProgressSnap.val() : {};
-      const legacyProgData = legacyProgSnap.exists() ? legacyProgSnap.val() : {};
-
-      const mergedProg = { ...legacyProgData };
-      Object.values(videoProgressData).forEach((cv) => {
-        if (cv && typeof cv === "object") {
-          Object.entries(cv).forEach(([vId, p]) => { if (!mergedProg[vId]) mergedProg[vId] = p; });
-        }
-      });
-
-      const allVideosDone = courseVideos.every((v) => {
-        const p = mergedProg[v.id];
-        return p?.completed || Number(p?.watchedPercent || 0) >= 100;
-      });
-
-      if (!allVideosDone) {
-        alert("Please complete all course videos before taking the final test.");
-        navigate(`../course/${activeCourseId}`);
-        return;
-      }
-
-      const videoQuizzesSnap = await get(ref(database, "videoQuizzes"));
-      const vqData = videoQuizzesSnap.exists() ? videoQuizzesSnap.val() : {};
-      const hasAnyRevisionQuiz = courseVideos.some((v) => {
-        const src = vqData?.[v.id] || vqData?.[v.mappingId] || {};
-        return Object.keys(src).some((qId) => src[qId]?.question || src[qId]?.questionText);
-      });
-
-      if (hasAnyRevisionQuiz) {
-        const quizAttemptsSnap = await get(ref(database, `quizAttempts/${user.uid}/${activeCourseId}`));
-        const qaData = quizAttemptsSnap.exists() ? quizAttemptsSnap.val() : {};
-        const allAttempts = Object.values(qaData).filter((a) => a?.quizType === "practice");
-
-        if (allAttempts.length === 0) {
-          alert("Please complete the revision quiz before taking the final test.");
-          navigate(`../course/${activeCourseId}`);
-          return;
-        }
-
-        const anyAttemptPassed = allAttempts.some((a) => {
-          const score = Number(a.score || 0);
-          const total = Number(a.totalMarks || 1);
-          return score >= Math.ceil(total * 0.7);
-        });
-
-        if (!anyAttemptPassed) {
-          alert("You need to pass the revision quiz before taking the final test.");
-          navigate(`../course/${activeCourseId}`);
-          return;
-        }
-      }
-    }
-
-    setLoading(false);
   };
 
-  const currentQuestion = quizQuestions[currentIndex];
+  useEffect(() => {
+    if (loading || !course) return;
 
-  const progressPercent = useMemo(() => {
-    if (quizQuestions.length === 0) return 0;
-    return Math.round(((currentIndex + 1) / quizQuestions.length) * 100);
-  }, [currentIndex, quizQuestions.length]);
+    document.body.classList.add("final-quiz-active");
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-  };
+    return () => {
+      document.body.classList.remove("final-quiz-active");
 
-  const submitQuiz = async (reason = "submitted") => {
-    if (submitted || !course) return;
-
-    if (!isVideoQuiz && existingFinalResult?.passed) {
-      setSubmitted(true);
-      return;
-    }
-
-    setSubmitted(true);
-
-    let correct = 0;
-
-    quizQuestions.forEach((q) => {
-      if (answers[q.id] === q.correctAnswer) correct += 1;
-    });
-
-    const total = quizQuestions.length;
-    const score = total > 0 ? Math.round((correct / total) * 100) : 100;
-    const user = auth.currentUser;
-
-    if (document.fullscreenElement) {
-      await document.exitFullscreen().catch(() => {});
-    }
-
-    if (isVideoQuiz) {
-      // Write to new normalized path: quizAttempts/{uid}/{courseId}/{quizId}
-      const videoQuizId = `practice_${video?.id || videoIdFromQuery || id}_${Date.now()}`;
-      await set(ref(database, `quizAttempts/${user.uid}/${course.id}/${videoQuizId}`), {
-        quizId: videoQuizId,
-        quizType: "practice",
-        userId: user.uid,
-        courseId: course.id,
-        courseTitle: course.title || course.courseTitle || "",
-        videoId: video?.id || videoIdFromQuery || id,
-        videoTitle: video?.title || video?.videoTitle || "",
-        score,
-        totalMarks: total,
-        correct,
-        percentage: total > 0 ? Math.round((correct / total) * 100) : 0,
-        passed: total > 0 && correct >= Math.ceil(total * 0.7),
-        reason,
-        warningCount,
-        answers,
-        attemptedAt: new Date().toISOString(),
-      });
-
-      navigate(`${basePath}/video/${video?.id || videoIdFromQuery || id}`);
-      return;
-    }
-
-    const passingScore = course.passingScore || 70;
-    const passed = total === 0 ? true : score >= passingScore;
-    const attemptId = `${user.uid}_${course.id}_${Date.now()}`;
-
-    // Write to new normalized path: quizAttempts/{uid}/{courseId}/{quizId}
-    const quizId = `final_${course.id}_${Date.now()}`;
-    await set(ref(database, `quizAttempts/${user.uid}/${course.id}/${quizId}`), {
-      quizId,
-      quizType: "final",
-      userId: user.uid,
-      userName: user.displayName || "",
-      courseId: course.id,
-      courseTitle: course.title || course.courseTitle || "",
-      score,
-      totalMarks: total,
-      correct,
-      percentage: total > 0 ? Math.round((correct / total) * 100) : 0,
-      passed,
-      attemptCount: 1,
-      reason,
-      warningCount,
-      answers,
-      attemptedAt: new Date().toISOString(),
-    });
-
-    // Also write to legacy attempts path for backward compatibility
-    await set(ref(database, `attempts/${user.uid}/${attemptId}`), {
-      userId: user.uid,
-      userName: user.displayName || "",
-      courseId: course.id,
-      courseTitle: course.title || course.courseTitle || "",
-      score,
-      total,
-      correct,
-      passed,
-      reason,
-      warningCount,
-      submittedAt: new Date().toISOString(),
-    });
-
-    if (passed) {
-      // Write completion to new courseProgress path
-      await set(ref(database, `courseProgress/${user.uid}/${course.id}`), {
-        courseId: course.id,
-        progressPercentage: 100,
-        completedVideos: 0,
-        totalVideos: 0,
-        lastAccessedAt: new Date().toISOString(),
-        completed: true,
-        completedAt: new Date().toISOString(),
-        courseTestCompleted: true,
-        courseTestPassed: true,
-        score,
-        totalMarks: total,
-      });
-
-      // Also write to legacy completedCourses for backward compatibility
-      await set(ref(database, `completedCourses/${user.uid}/${course.id}`), {
-        courseId: course.id,
-        courseTitle: course.title || course.courseTitle || "",
-        passed: true,
-        score,
-        correct,
-        total,
-        attemptId,
-        completedAt: new Date().toISOString(),
-      });
-    }
-
-    navigate(`${basePath}/result/${attemptId}`);
-  };
+      if (document.fullscreenElement === examRootRef.current) {
+        document.exitFullscreen().catch(() => {});
+      }
+    };
+  }, [loading, course]);
 
   useEffect(() => {
     if (loading || submitted || !course || !quizStarted) return;
@@ -587,14 +835,16 @@ const [
       return;
     }
 
-    const timer = setTimeout(() => {
-      setTimeLeft((prev) => prev - 1);
+    const timer = window.setTimeout(() => {
+      setTimeLeft((previous) => Math.max(0, previous - 1));
     }, 1000);
 
-    return () => clearTimeout(timer);
+    return () => window.clearTimeout(timer);
   }, [timeLeft, submitted, loading, course, quizStarted]);
 
-  if (loading) return <h2 className="quiz-status-msg">Loading Quiz...</h2>;
+  if (loading) {
+    return <h2 className="quiz-status-msg">Loading Quiz...</h2>;
+  }
 
   if (!course) {
     return <h1 className="quiz-status-msg error">Course not found</h1>;
@@ -605,12 +855,10 @@ const [
       <div className="quiz-clean-page">
         <div className="quiz-empty-card">
           <h1>{course.title || course.courseTitle}</h1>
-
           <p>You have already passed this final course test.</p>
 
           <div className="quiz-final-result-summary">
             <strong>{existingFinalResult.percentage}%</strong>
-
             <span>
               {existingFinalResult.total > 0
                 ? `${existingFinalResult.correct} / ${existingFinalResult.total} Correct Answers`
@@ -623,13 +871,18 @@ const [
           </p>
 
           <div className="quiz-result-actions">
-            <button onClick={() => navigate(`${basePath}/course/${course.id}`)}>
+            <button onClick={() => navigate(courseUrl(course.id))}>
               Back to Course
             </button>
-            {existingFinalResult?.attemptId && (
+
+            {existingFinalResult.attemptId && (
               <button
                 className="quiz-cert-btn"
-                onClick={() => navigate(`${basePath}/certificate/${existingFinalResult.attemptId}`)}
+                onClick={() =>
+                  navigate(
+                    `${basePath}/certificate/${existingFinalResult.attemptId}`
+                  )
+                }
               >
                 View Certificate
               </button>
@@ -645,7 +898,9 @@ const [
       <div className="quiz-clean-page">
         <div className="quiz-empty-card">
           <h1>{course.title || course.courseTitle}</h1>
-          <p>No final quiz is added. You can directly generate your certificate.</p>
+          <p>
+            No final quiz is added. You can directly generate your certificate.
+          </p>
           <button onClick={() => submitQuiz("no_quiz_auto_pass")}>
             Generate Certificate
           </button>
@@ -660,7 +915,11 @@ const [
         <div className="quiz-empty-card">
           <h1>{video?.title || video?.videoTitle || "Revision Quiz"}</h1>
           <p>No revision quiz questions added for this video.</p>
-          <button onClick={() => navigate(`${basePath}/video/${video?.id || videoIdFromQuery || id}`)}>
+          <button
+            onClick={() =>
+              navigate(videoUrl(course.id, video?.id || activeVideoId))
+            }
+          >
             Back to Video
           </button>
         </div>
@@ -668,123 +927,175 @@ const [
     );
   }
 
-  if (!quizStarted) {
-    return (
-      <div className="quiz-clean-page strict-start-page">
+  return createPortal(
+    <div
+      ref={examRootRef}
+      className={`final-quiz-overlay ${
+        quizStarted ? "quiz-secure-mode" : "strict-start-page"
+      }`}
+    >
+      {!quizStarted ? (
         <div className="strict-start-card">
-          <h1>{isVideoQuiz ? "Start Revision Quiz" : "Start Final Course Test"}</h1>
-          <p>This quiz will run in fullscreen mode. Copying, right-click, shortcuts, and tab switching are not allowed.</p>
+          <div className="strict-warning-label">
+            {isVideoQuiz ? "SECURE REVISION QUIZ" : "SECURE FINAL TEST"}
+          </div>
+
+          <h1>
+            {isVideoQuiz
+              ? "Start Revision Quiz"
+              : "Start Final Course Test"}
+          </h1>
+
+          <p>
+            The test will open in fullscreen mode. Do not switch tabs,
+            exit fullscreen, copy content, or use restricted keyboard
+            shortcuts during the examination.
+          </p>
+
+          <div className="quiz-danger-banner">
+            <div className="quiz-danger-icon">⚠</div>
+
+            <div className="quiz-danger-content">
+              <h3>Important warning</h3>
+              <p>
+                After <strong>2 violations</strong>, the test will be
+                submitted automatically and cannot be resumed.
+              </p>
+            </div>
+          </div>
 
           <div className="strict-rules">
             <span>Fullscreen required</span>
-            <span>No tab switching</span>
-            <span>No copy / paste</span>
-            <span>Auto-submit on violation</span>
-          </div>
-
-          <button onClick={startStrictQuiz}>Enter Fullscreen & Start</button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="quiz-clean-page quiz-secure-mode">
-      {securityMessage && (
-        <div className="quiz-warning-banner">
-          {securityMessage} Warning {warningCount}/2
-        </div>
-      )}
-
-      <div className="quiz-clean-card">
-        <div className="quiz-clean-header">
-          <div>
-            <span className="quiz-type-pill">
-              {isVideoQuiz ? "Revision Quiz" : "Course Quiz"}
+            <span>Tab switching monitored</span>
+            <span>Copy and paste blocked</span>
+            <span>
+              <strong>2 warnings</strong>&nbsp;= auto-submit
             </span>
-
-            <h1>
-              {isVideoQuiz
-                ? video?.title || video?.videoTitle || "Revision Quiz"
-                : course.title || course.courseTitle}
-            </h1>
-
-            <p>
-              Question {currentIndex + 1} of {quizQuestions.length}
-            </p>
           </div>
 
-          <div className="quiz-timer-clean">
-            <span>{formatTime(timeLeft)}</span>
-            <small>Total Marks: {quizQuestions.length}</small>
-          </div>
-        </div>
-
-        <div className="quiz-progress-line">
-          <span style={{ width: `${progressPercent}%` }}></span>
-        </div>
-
-        <div className="quiz-question-area">
-          <h2>{currentQuestion.question}</h2>
-
-          <div className="quiz-options-clean">
-            {(currentQuestion.options || []).map((option, index) => {
-              const isSelected = answers[currentQuestion.id] === option;
-              const label = String.fromCharCode(65 + index);
-
-              return (
-                <label
-                  key={option}
-                  className={`quiz-option-clean ${isSelected ? "selected" : ""}`}
-                >
-                  <input
-                    type="radio"
-                    name={`question-${currentQuestion.id}`}
-                    value={option}
-                    checked={isSelected}
-                    onChange={() =>
-                      setAnswers({
-                        ...answers,
-                        [currentQuestion.id]: option,
-                      })
-                    }
-                  />
-
-                  <span className="option-letter">{label}.</span>
-                  <span>{option}</span>
-                </label>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="quiz-bottom-actions">
-          <button
-            type="button"
-            className="quiz-prev-btn"
-            disabled={currentIndex === 0}
-            onClick={() => setCurrentIndex((prev) => prev - 1)}
-          >
-            Previous
-          </button>
-
-          {currentIndex === quizQuestions.length - 1 ? (
-            <button type="button" className="quiz-next-btn" onClick={() => submitQuiz()}>
-              Submit
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="quiz-next-btn"
-              onClick={() => setCurrentIndex((prev) => prev + 1)}
-            >
-              Next
-            </button>
+          {securityMessage && (
+            <div className="strict-start-error">{securityMessage}</div>
           )}
+
+          <button type="button" onClick={startStrictQuiz}>
+            Enter Fullscreen &amp; Start
+          </button>
         </div>
-      </div>
-    </div>
+      ) : (
+        <>
+          {securityMessage && (
+            <div className="quiz-warning-banner">
+              {securityMessage} Warning {warningCount}/2
+            </div>
+          )}
+
+          <div className="quiz-clean-card">
+            <div className="quiz-clean-header">
+              <div>
+                <span className="quiz-type-pill">
+                  {isVideoQuiz ? "Revision Quiz" : "Final Course Test"}
+                </span>
+
+                <h1>
+                  {isVideoQuiz
+                    ? video?.title ||
+                      video?.videoTitle ||
+                      "Revision Quiz"
+                    : course.title || course.courseTitle}
+                </h1>
+
+                <p>
+                  Question {currentIndex + 1} of {quizQuestions.length}
+                </p>
+              </div>
+
+              <div className="quiz-timer-clean">
+                <span>{formatTime(timeLeft)}</span>
+                <small>Total Marks: {quizQuestions.length}</small>
+              </div>
+            </div>
+
+            <div className="quiz-progress-line">
+              <span style={{ width: `${progressPercent}%` }} />
+            </div>
+
+            <div className="quiz-question-area">
+              <h2>{getQuestionText(currentQuestion)}</h2>
+
+              <div className="quiz-options-clean">
+                {getQuestionOptions(currentQuestion).map((option, index) => {
+                  const isSelected =
+                    String(answers[currentQuestion.id]) === String(option);
+                  const label = String.fromCharCode(65 + index);
+
+                  return (
+                    <label
+                      key={`${currentQuestion.id}-${index}`}
+                      className={`quiz-option-clean ${
+                        isSelected ? "selected" : ""
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name={`question-${currentQuestion.id}`}
+                        value={option}
+                        checked={isSelected}
+                        onChange={() =>
+                          setAnswers((previous) => ({
+                            ...previous,
+                            [currentQuestion.id]: option,
+                          }))
+                        }
+                      />
+
+                      <span className="option-letter">{label}.</span>
+                      <span>{option}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="quiz-bottom-actions">
+              <button
+                type="button"
+                className="quiz-prev-btn"
+                disabled={currentIndex === 0}
+                onClick={() =>
+                  setCurrentIndex((previous) => previous - 1)
+                }
+              >
+                Previous
+              </button>
+
+              {currentIndex === quizQuestions.length - 1 ? (
+                <button
+                  type="button"
+                  className="quiz-next-btn"
+                  disabled={submitted}
+                  onClick={() => submitQuiz()}
+                >
+                  {submitted ? "Submitting..." : "Submit"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="quiz-next-btn"
+                  onClick={() =>
+                    setCurrentIndex((previous) => previous + 1)
+                  }
+                >
+                  Next
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>,
+    document.body
   );
+
 }
 
 export default QuizPage;

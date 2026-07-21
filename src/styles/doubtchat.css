@@ -1,0 +1,695 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+/* ═══════════════════════════════════════════
+   Doubt Chat Page
+   ═══════════════════════════════════════════ */
+
+.doubt-page,
+.doubt-thread-page {
+  font-family: "Inter", sans-serif;
+  min-height: 100vh;
+  background: #f0faf5;
+  padding: 12px 24px 28px;
+}
+
+.doubt-loading {
+  min-height: 300px;
+  display: grid;
+  place-items: center;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* ─── Header ─── */
+.doubt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.doubt-header h1 {
+  margin: 0 0 2px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.doubt-header p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.doubt-new-btn {
+  border: none;
+  background: #059669;
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+  white-space: nowrap;
+}
+
+.doubt-new-btn:hover {
+  background: #047857;
+  transform: translateY(-1px);
+}
+
+/* ─── Filters ─── */
+.doubt-filters {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.doubt-filters input,
+.doubt-filters select {
+  height: 40px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #1e293b;
+  padding: 0 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  outline: none;
+  font-family: "Inter", sans-serif;
+  transition: 0.2s;
+}
+
+.doubt-filters input {
+  flex: 1;
+  min-width: 200px;
+}
+
+.doubt-filters input:focus,
+.doubt-filters select:focus {
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+}
+
+/* ─── Thread List ─── */
+.doubt-thread-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.doubt-thread-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e8f5ee;
+  border-radius: 12px;
+  padding: 14px 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.doubt-thread-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  border-color: #86efac;
+}
+
+.doubt-thread-card.unread {
+  border-color: #059669;
+  background: #f0fdf4;
+}
+
+.doubt-thread-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  flex: 1;
+}
+
+.doubt-thread-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+  color: #059669;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.doubt-thread-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.doubt-thread-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.doubt-thread-top h3 {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doubt-unread-badge {
+  background: #059669;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  flex-shrink: 0;
+}
+
+.doubt-thread-preview {
+  margin: 4px 0 0;
+  font-size: 0.76rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 500px;
+}
+
+.doubt-thread-preview strong {
+  color: #475569;
+}
+
+.doubt-thread-meta {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.doubt-thread-meta span {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.doubt-thread-right {
+  flex-shrink: 0;
+  margin-left: 16px;
+}
+
+/* ─── Status Badges ─── */
+.doubt-status-badge {
+  display: inline-flex;
+  padding: 4px 12px;
+  border-radius: 100px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.doubt-status-badge.open {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.doubt-status-badge.in_progress {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.doubt-status-badge.resolved {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+/* ─── Empty ─── */
+.doubt-empty {
+  padding: 60px 20px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+/* ═══════════════════════════════════════════
+   Thread Detail Page
+   ═══════════════════════════════════════════ */
+
+.doubt-thread-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 24px);
+}
+
+.doubt-thread-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid #e8f5ee;
+  flex-shrink: 0;
+}
+
+.doubt-back-btn {
+  border: none;
+  background: #f1f5f9;
+  color: #475569;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+  flex-shrink: 0;
+}
+
+.doubt-back-btn:hover {
+  background: #e2e8f0;
+}
+
+.doubt-thread-header-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.doubt-thread-header-info h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.doubt-thread-header-meta {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+
+.doubt-thread-header-meta span {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.doubt-status-select {
+  border: none;
+  padding: 6px 14px;
+  border-radius: 100px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+  font-family: "Inter", sans-serif;
+}
+
+.doubt-status-select.open {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.doubt-status-select.in_progress {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.doubt-status-select.resolved {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+/* ─── Messages Area ─── */
+.doubt-messages-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.doubt-message {
+  display: flex;
+  gap: 12px;
+  max-width: 75%;
+}
+
+.doubt-message.own {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.doubt-msg-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+  color: #059669;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.doubt-message.own .doubt-msg-avatar {
+  background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+  color: #2563eb;
+}
+
+.doubt-msg-content {
+  background: #fff;
+  border: 1px solid #e8f5ee;
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.doubt-message.own .doubt-msg-content {
+  background: #f0fdf4;
+  border-color: #dcfce7;
+}
+
+.doubt-msg-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.doubt-msg-header strong {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.doubt-msg-role {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 100px;
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.doubt-msg-time {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  font-weight: 500;
+  margin-left: auto;
+}
+
+.doubt-msg-text {
+  font-size: 0.84rem;
+  color: #334155;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ─── Reply Bar ─── */
+.doubt-reply-bar {
+  display: flex;
+  gap: 10px;
+  padding: 14px 0;
+  border-top: 1px solid #e8f5ee;
+  flex-shrink: 0;
+}
+
+.doubt-reply-bar input {
+  flex: 1;
+  height: 44px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #1e293b;
+  padding: 0 14px;
+  font-size: 0.84rem;
+  font-weight: 500;
+  outline: none;
+  font-family: "Inter", sans-serif;
+  transition: 0.2s;
+}
+
+.doubt-reply-bar input:focus {
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+}
+
+.doubt-send-btn {
+  border: none;
+  background: #059669;
+  color: #fff;
+  padding: 0 22px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+  white-space: nowrap;
+}
+
+.doubt-send-btn:hover:not(:disabled) {
+  background: #047857;
+}
+
+.doubt-send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.doubt-resolved-banner {
+  text-align: center;
+  padding: 14px;
+  background: #dcfce7;
+  color: #16a34a;
+  font-size: 0.84rem;
+  font-weight: 600;
+  border-radius: 10px;
+  margin-top: 10px;
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════
+   Create Modal
+   ═══════════════════════════════════════════ */
+
+.doubt-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: grid;
+  place-items: center;
+  z-index: 2000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.doubt-modal {
+  background: #fff;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 520px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  animation: slideUp 0.25s ease;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.doubt-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 22px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.doubt-modal-header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.doubt-modal-close {
+  border: none;
+  background: #f1f5f9;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  color: #64748b;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: 0.2s;
+}
+
+.doubt-modal-close:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.doubt-modal-body {
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.doubt-modal-body label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #475569;
+  margin-top: 4px;
+}
+
+.doubt-modal-body input,
+.doubt-modal-body select,
+.doubt-modal-body textarea {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #1e293b;
+  padding: 10px 12px;
+  font-size: 0.84rem;
+  font-weight: 500;
+  outline: none;
+  font-family: "Inter", sans-serif;
+  transition: 0.2s;
+  resize: vertical;
+}
+
+.doubt-modal-body input:focus,
+.doubt-modal-body select:focus,
+.doubt-modal-body textarea:focus {
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+  background: #fff;
+}
+
+.doubt-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 22px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.doubt-cancel-btn {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #475569;
+  padding: 9px 18px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.doubt-cancel-btn:hover {
+  background: #f8fafc;
+}
+
+.doubt-submit-btn {
+  border: none;
+  background: #059669;
+  color: #fff;
+  padding: 9px 20px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.doubt-submit-btn:hover:not(:disabled) {
+  background: #047857;
+}
+
+.doubt-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ─── Notification Badge (for sidebars) ─── */
+.doubt-nav-badge {
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  margin-left: 6px;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .doubt-page,
+  .doubt-thread-page {
+    padding: 12px;
+  }
+
+  .doubt-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .doubt-filters {
+    flex-direction: column;
+  }
+
+  .doubt-filters input {
+    min-width: auto;
+  }
+
+  .doubt-thread-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .doubt-thread-right {
+    margin-left: 0;
+  }
+
+  .doubt-message {
+    max-width: 90%;
+  }
+
+  .doubt-thread-header {
+    flex-wrap: wrap;
+  }
+}

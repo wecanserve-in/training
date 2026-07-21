@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase";
 import { loadUserProfile } from "../lib/userAccess";
+import { watchNotifications } from "../services/doubtService";
 import "../styles/departmentadminlayout.css";
 
 function DepartmentAdminLayout() {
@@ -14,6 +15,7 @@ function DepartmentAdminLayout() {
   const [openReports, setOpenReports] = useState(false);
   const [openMyLearning, setOpenMyLearning] = useState(false);
   const [profile, setProfile] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
@@ -32,6 +34,14 @@ function DepartmentAdminLayout() {
 
     return () => unsubscribe();
   }, [navigate]);
+
+  useEffect(() => {
+    if (!profile?.id) return;
+    const unsub = watchNotifications(profile.id, (notifs) => {
+      setUnreadCount(notifs.filter((n) => !n.read).length);
+    });
+    return () => unsub();
+  }, [profile?.id]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -143,6 +153,11 @@ function DepartmentAdminLayout() {
 
           <NavLink to="/department-admin/resources" onClick={closeSidebar}>
             <span>News & Resources</span>
+          </NavLink>
+
+          <NavLink to="/department-admin/doubts" onClick={closeSidebar}>
+            <span>Doubts</span>
+            {unreadCount > 0 && <span className="doubt-nav-badge">{unreadCount}</span>}
           </NavLink>
 
           <div className="dept-sidebar-dropdown">

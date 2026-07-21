@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase";
 import { loadUserProfile } from "../lib/userAccess";
+import { watchNotifications } from "../services/doubtService";
 import "../styles/userLayout.css";
 
 function UserLayout() {
@@ -11,6 +12,7 @@ function UserLayout() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [userData, setUserData] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -30,6 +32,14 @@ function UserLayout() {
 
     return () => unsubscribe();
   }, [navigate]);
+
+  useEffect(() => {
+    if (!userData?.id) return;
+    const unsub = watchNotifications(userData.id, (notifs) => {
+      setUnreadCount(notifs.filter((n) => !n.read).length);
+    });
+    return () => unsub();
+  }, [userData?.id]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -135,8 +145,13 @@ function UserLayout() {
             Certificates
           </NavLink>
 
-             <NavLink to="/resources" onClick={closeMobileSidebar}>
+          <NavLink to="/resources" onClick={closeMobileSidebar}>
             News & Resources
+          </NavLink>
+
+          <NavLink to="/doubts" onClick={closeMobileSidebar}>
+            Doubts
+            {unreadCount > 0 && <span className="doubt-nav-badge">{unreadCount}</span>}
           </NavLink>
 
           <NavLink to="/my-learnings" onClick={closeMobileSidebar}>

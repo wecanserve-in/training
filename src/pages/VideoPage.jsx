@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ref, get, update, runTransaction } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, database } from "../firebase";
 import {
+  videoProgressForCoursePath,
   videoProgressForVideoPath,
   courseProgressForCoursePath,
   learningActivityVideoPath,
@@ -11,8 +12,25 @@ import {
 import "../styles/videopage.css";
 
 function VideoPage() {
-  const { id } = useParams();
+  const { courseId, videoId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const portalBasePath = location.pathname.startsWith("/super-admin")
+    ? "/super-admin"
+    : location.pathname.startsWith("/department-admin")
+      ? "/department-admin"
+      : location.pathname.startsWith("/admin")
+        ? "/admin"
+        : "";
+
+  const getCoursePath = () => `${portalBasePath}/course/${courseId}`;
+
+  const getVideoPath = (targetVideoId) =>
+    `${portalBasePath}/course/${courseId}/video/${targetVideoId}`;
+
+  const getQuizPath = (mode = "") =>
+    `${portalBasePath}/quiz/${courseId}${mode ? `?mode=${mode}` : ""}`;
 
   const videoRef = useRef(null);
   const watchedSecondsRef = useRef(new Set());
@@ -87,31 +105,23 @@ function VideoPage() {
           oldVideosSnap,
           videoLibrarySnap,
           courseVideosSnap,
-          newProgressSnap,
-          legacyProgressSnap,
+          courseVideoProgressSnap,
           videoQuizzesSnap,
-          newQuizAttemptsSnap,
-          legacyQuizAttemptsSnap,
+          courseQuizAttemptsSnap,
           completedCourseSnap,
           courseProgressSnap,
           resultsSnap,
         ] = await Promise.all([
-            get(ref(database, "videos")),
-            get(ref(database, "videoLibrary")),
-            get(ref(database, "courseVideos")),
-            // Try new path first
-            get(ref(database, `videoProgress/${user.uid}`)),
-            // Fallback to legacy path
-            get(ref(database, `progress/${user.uid}`)),
-            get(ref(database, "videoQuizzes")),
-            // Try new quiz attempts path
-            get(ref(database, `quizAttempts/${user.uid}`)),
-            // Also read legacy videoQuizAttempts for backward compat
-            get(ref(database, `videoQuizAttempts/${user.uid}`)),
-            get(ref(database, `completedCourses/${user.uid}`)),
-            get(ref(database, `courseProgress/${user.uid}`)),
-            get(ref(database, `results/${user.uid}`)),
-          ]);
+          get(ref(database, "videos")),
+          get(ref(database, "videoLibrary")),
+          get(ref(database, "courseVideos")),
+          get(ref(database, videoProgressForCoursePath(user.uid, courseId))),
+          get(ref(database, "videoQuizzes")),
+          get(ref(database, `quizAttempts/${user.uid}/${courseId}`)),
+          get(ref(database, `completedCourses/${user.uid}/${courseId}`)),
+          get(ref(database, `courseProgress/${user.uid}/${courseId}`)),
+          get(ref(database, `results/${user.uid}`)),
+        ]);
 
         const oldVideos = oldVideosSnap.exists()
           ? Object.entries(oldVideosSnap.val()).map(([videoId, item]) => ({
@@ -131,76 +141,85 @@ function VideoPage() {
           ? courseVideosSnap.val()
           : {};
 
-        let foundVideo =
-          oldVideos.find((item) => item.id === id) ||
-          libraryVideos.find((item) => item.id === id);
+        const currentCourseMappings = Object.entries(
+          courseVideosData?.[courseId] || {}
+        );
 
-        let resolvedCourseId = foundVideo?.courseId || null;
+        const matchedEntry = currentCourseMappings.find(
+          ([mappingId, item]) =>
+            mappingId === videoId || item?.videoId === videoId
+        );
 
-        if (!resolvedCourseId) {
-          Object.entries(courseVideosData).some(([courseId, courseVideoList]) => {
-            const matchedEntry = Object.entries(courseVideoList || {}).find(
-              ([mappingId, item]) => mappingId === id || item.videoId === id
+        let foundVideo = null;
+
+        if (matchedEntry) {
+          const [mappingId, mappedVideo] = matchedEntry;
+          const actualVideoId = mappedVideo?.videoId || mappingId;
+
+          const fullVideo =
+            libraryVideos.find((item) => item.id === actualVideoId) ||
+            oldVideos.find((item) => item.id === actualVideoId) ||
+            {};
+
+          foundVideo = {
+            ...fullVideo,
+            ...mappedVideo,
+            id: actualVideoId,
+            mappingId,
+            courseId,
+          };
+        } else {
+          const fallbackVideo =
+            libraryVideos.find((item) => item.id === videoId) ||
+            oldVideos.find(
+              (item) => item.id === videoId && item.courseId === courseId
             );
 
-            if (!matchedEntry) return false;
-
-            const [mappingId, mappedVideo] = matchedEntry;
-            const actualVideoId = mappedVideo.videoId || mappingId;
-
-            const fullVideo =
-              libraryVideos.find((item) => item.id === actualVideoId) ||
-              oldVideos.find((item) => item.id === actualVideoId) ||
-              {};
-
+          if (fallbackVideo) {
             foundVideo = {
-              ...fullVideo,
-              ...mappedVideo,
-              id: actualVideoId,
-              mappingId,
+              ...fallbackVideo,
+              id: videoId,
               courseId,
             };
-
-            resolvedCourseId = courseId;
-            return true;
-          });
+          }
         }
 
-        if (!foundVideo || !resolvedCourseId) {
+        if (!foundVideo) {
           setVideo(null);
           setLoading(false);
           return;
         }
 
-        const courseSnap = await get(ref(database, `courses/${resolvedCourseId}`));
+        const courseSnap = await get(ref(database, `courses/${courseId}`));
 
         if (courseSnap.exists()) {
-          setCourse({ id: resolvedCourseId, ...courseSnap.val() });
+          setCourse({ id: courseId, ...courseSnap.val() });
         }
 
         let courseLessons = [];
 
-        if (courseVideosData?.[resolvedCourseId]) {
-          courseLessons = Object.entries(courseVideosData[resolvedCourseId]).map(
+        if (courseVideosData?.[courseId]) {
+          courseLessons = Object.entries(courseVideosData[courseId]).map(
             ([mappingId, mappedVideo]) => {
-              const actualVideoId = mappedVideo.videoId || mappingId;
+              const actualVideoId = mappedVideo?.videoId || mappingId;
               const fullVideo =
                 libraryVideos.find((item) => item.id === actualVideoId) ||
                 oldVideos.find((item) => item.id === actualVideoId) ||
                 {};
+
               return {
                 ...fullVideo,
                 ...mappedVideo,
                 id: actualVideoId,
                 mappingId,
-                courseId: resolvedCourseId,
+                courseId,
               };
             }
           );
         } else {
-          courseLessons = oldVideos.filter(
-            (item) => item.courseId === resolvedCourseId
-          );
+          courseLessons = oldVideos
+            .filter((item) => item.courseId === courseId)
+            .map((item) => ({ ...item, courseId }));
         }
 
         courseLessons = courseLessons.sort(
@@ -209,21 +228,9 @@ function VideoPage() {
             new Date(a.createdAt || 0) - new Date(b.createdAt || 0)
         );
 
-        // Merge progress data from new and legacy paths
-        const newProgressData = newProgressSnap.exists() ? newProgressSnap.val() : {};
-        const legacyProgressData = legacyProgressSnap.exists() ? legacyProgressSnap.val() : {};
-        // New path: videoProgress/{uid}/{courseId}/{videoId} - flatten to videoId keyed map
-        const mergedProgressData = { ...legacyProgressData };
-        Object.values(newProgressData).forEach((courseVideos) => {
-          if (courseVideos && typeof courseVideos === "object") {
-            Object.entries(courseVideos).forEach(([videoId, videoProg]) => {
-              if (!mergedProgressData[videoId]) {
-                mergedProgressData[videoId] = videoProg;
-              }
-            });
-          }
-        });
-        const progressData = mergedProgressData;
+        const progressData = courseVideoProgressSnap.exists()
+          ? courseVideoProgressSnap.val()
+          : {};
 
         setVideo(foundVideo);
         setLessons(courseLessons);
@@ -260,7 +267,7 @@ function VideoPage() {
         if (videoQuizzesSnap.exists()) {
           const vqData = videoQuizzesSnap.val() || {};
           const acceptedVideoIds = new Set(
-            [foundVideo.id, foundVideo.mappingId, id].filter(Boolean)
+            [foundVideo.id, foundVideo.mappingId, videoId].filter(Boolean)
           );
 
           const videoQuestions = [];
@@ -300,8 +307,8 @@ function VideoPage() {
           acceptedVideoIds.forEach((videoKey) => {
             addQuestionsFromSource(vqData?.[videoKey], videoKey);
             addQuestionsFromSource(
-              vqData?.[resolvedCourseId]?.[videoKey],
-              `${resolvedCourseId}:${videoKey}`
+              vqData?.[courseId]?.[videoKey],
+              `${courseId}:${videoKey}`
             );
           });
 
@@ -320,33 +327,15 @@ function VideoPage() {
           );
           setQuizQuestions(videoQuestions);
 
-          if (newQuizAttemptsSnap.exists() || legacyQuizAttemptsSnap.exists()) {
-            // Merge quiz attempts from new and legacy paths
+          if (courseQuizAttemptsSnap.exists()) {
             const allAttempts = [];
+            const courseAttempts = courseQuizAttemptsSnap.val() || {};
 
-            // New path: quizAttempts/{uid}/{courseId}/{quizId}
-            if (newQuizAttemptsSnap.exists()) {
-              const newAttempts = newQuizAttemptsSnap.val() || {};
-              Object.values(newAttempts).forEach((courseAttempts) => {
-                if (courseAttempts && typeof courseAttempts === "object") {
-                  Object.values(courseAttempts).forEach((attempt) => {
-                    if (attempt && attempt.quizType === "practice") {
-                      allAttempts.push(attempt);
-                    }
-                  });
-                }
-              });
-            }
-
-            // Legacy path: videoQuizAttempts/{uid}/{attemptId}
-            if (legacyQuizAttemptsSnap.exists()) {
-              const legacyAttempts = legacyQuizAttemptsSnap.val() || {};
-              Object.values(legacyAttempts).forEach((attempt) => {
-                if (attempt) {
-                  allAttempts.push(attempt);
-                }
-              });
-            }
+            Object.values(courseAttempts).forEach((attempt) => {
+              if (attempt && attempt.quizType === "practice") {
+                allAttempts.push(attempt);
+              }
+            });
 
             let latestAttempt = null;
 
@@ -354,8 +343,7 @@ function VideoPage() {
               const attemptMatchesVideo = acceptedVideoIds.has(
                 attempt?.videoId || attempt?.mappingId
               );
-              const attemptMatchesCourse =
-                !attempt?.courseId || attempt.courseId === resolvedCourseId;
+              const attemptMatchesCourse = attempt?.courseId === courseId;
 
               if (attemptMatchesVideo && attemptMatchesCourse) {
                 if (
@@ -378,16 +366,13 @@ function VideoPage() {
           }
         }
 
-        const completedCoursesData = completedCourseSnap.exists()
+        const completedRecord = completedCourseSnap.exists()
           ? completedCourseSnap.val()
-          : {};
-        const courseProgressData = courseProgressSnap.exists()
+          : null;
+        const courseProgressRecord = courseProgressSnap.exists()
           ? courseProgressSnap.val()
-          : {};
+          : null;
         const resultsData = resultsSnap.exists() ? resultsSnap.val() : {};
-
-        const completedRecord = completedCoursesData?.[resolvedCourseId] || null;
-        const courseProgressRecord = courseProgressData?.[resolvedCourseId] || null;
 
         // Gather final test results from multiple sources
         const finalRecords = [
@@ -397,13 +382,12 @@ function VideoPage() {
             ...(item || {}),
           })),
         ].filter(
-          (item) => item.courseId === resolvedCourseId && !item.videoId
+          (item) => item.courseId === courseId && !item.videoId
         );
 
-        // Also check new quizAttempts path for final tests
-        if (newQuizAttemptsSnap.exists()) {
-          const allQuizAttempts = newQuizAttemptsSnap.val() || {};
-          const courseAttempts = allQuizAttempts[resolvedCourseId] || {};
+        // Also check the current course's normalized quiz attempts.
+        if (courseQuizAttemptsSnap.exists()) {
+          const courseAttempts = courseQuizAttemptsSnap.val() || {};
           Object.entries(courseAttempts).forEach(([quizId, attempt]) => {
             if (attempt && attempt.quizType === "final") {
               finalRecords.push({
@@ -463,7 +447,7 @@ function VideoPage() {
             });
             setLoading(false);
             if (firstIncomplete) {
-              navigate(`../video/${firstIncomplete.id}`, { replace: true });
+              navigate(getVideoPath(firstIncomplete.id), { replace: true });
               return;
             }
           }
@@ -486,31 +470,88 @@ function VideoPage() {
     });
 
     return () => unsubscribe();
-  }, [id, navigate]);
+  }, [courseId, videoId, navigate, location.pathname]);
 
-  const saveProgress = async (percentValue, completed = false, currentTime = 0) => {
+  const saveProgress = async (
+    percentValue,
+    completed = false,
+    currentTime = 0
+  ) => {
     const user = auth.currentUser;
-    if (!user || !video) return;
+    if (!user || !video || !courseId) return;
 
     const watchedSecondsObject = {};
     watchedSecondsRef.current.forEach((second) => {
       watchedSecondsObject[second] = true;
     });
 
+    const nowIso = new Date().toISOString();
+    const safePercent = completed
+      ? 100
+      : Math.max(0, Math.min(100, Number(percentValue || 0)));
+
     const progressData = {
       videoId: video.id,
-      courseId: video.courseId,
+      mappingId: video.mappingId || null,
+      courseId,
       videoTitle: video.title || video.videoTitle || "",
       completed,
-      watchedPercent: completed ? 100 : percentValue,
+      watchedPercent: safePercent,
       watchedSeconds: watchedSecondsObject,
-      duration: videoDuration,
-      lastPosition: completed ? 0 : Math.floor(currentTime),
-      updatedAt: new Date().toISOString(),
-      ...(completed && { completedAt: new Date().toISOString() }),
+      duration: Number(videoDuration || 0),
+      lastPosition: completed ? 0 : Math.floor(currentTime || 0),
+      updatedAt: nowIso,
+      ...(completed && { completedAt: nowIso }),
     };
 
-    const nowIso = new Date().toISOString();
+    await update(ref(database), {
+      [videoProgressForVideoPath(user.uid, courseId, video.id)]: progressData,
+    });
+
+    const nextProgressMap = {
+      ...progressMap,
+      [video.id]: progressData,
+    };
+
+    const progressForLesson = (lesson) => {
+      const lessonProgress = nextProgressMap?.[lesson.id];
+      if (lessonProgress?.completed) return 100;
+
+      return Math.max(
+        0,
+        Math.min(100, Number(lessonProgress?.watchedPercent || 0))
+      );
+    };
+
+    const completedVideos = lessons.filter(
+      (lesson) => progressForLesson(lesson) >= 100
+    ).length;
+
+    const progressPercentage =
+      lessons.length > 0
+        ? Math.floor(
+            lessons.reduce(
+              (sum, lesson) => sum + progressForLesson(lesson),
+              0
+            ) / lessons.length
+          )
+        : 0;
+
+    const allVideosCompleted =
+      lessons.length > 0 && completedVideos === lessons.length;
+
+    await update(ref(database), {
+      [courseProgressForCoursePath(user.uid, courseId)]: {
+        courseId,
+        progressPercentage,
+        completedVideos,
+        totalVideos: lessons.length,
+        lastAccessedAt: nowIso,
+        completed: allVideosCompleted,
+        ...(allVideosCompleted && { completedAt: nowIso }),
+      },
+    });
+
     const localDayKey = new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Kolkata",
       year: "numeric",
@@ -524,39 +565,13 @@ function VideoPage() {
       currentWatchedCount - lastLoggedWatchedCountRef.current
     );
 
-    const courseId = video.courseId || "unknown";
-
-    // Write to new normalized path: videoProgress/{uid}/{courseId}/{videoId}
-    await update(ref(database), {
-      [videoProgressForVideoPath(user.uid, courseId, video.id)]: progressData,
-    });
-
-    // Also write to legacy path for backward compatibility during migration
-    await update(ref(database), {
-      [`progress/${user.uid}/${video.id}`]: progressData,
-    });
-
-    // Update course progress summary
-    const courseProgressRef = ref(database, courseProgressForCoursePath(user.uid, courseId));
-    const courseProgressSnap = await get(courseProgressRef);
-    const existingCourseProgress = courseProgressSnap.exists() ? courseProgressSnap.val() : {};
-    const currentCompletedVideos = existingCourseProgress.completedVideos || 0;
-    const newCompletedVideos = completed ? Math.max(currentCompletedVideos, currentCompletedVideos + 1) : currentCompletedVideos;
-
-    await update(ref(database), {
-      [courseProgressForCoursePath(user.uid, courseId)]: {
-        courseId,
-        progressPercentage: courseOverallProgress,
-        completedVideos: newCompletedVideos,
-        totalVideos: lessons.length,
-        lastAccessedAt: nowIso,
-        completed: allCourseVideosCompleted,
-        ...(allCourseVideosCompleted && { completedAt: nowIso }),
-      },
-    });
-
     if (newlyWatchedSeconds > 0) {
-      const activityBase = learningActivityVideoPath(user.uid, localDayKey, video.id);
+      const activityBase = learningActivityVideoPath(
+        user.uid,
+        localDayKey,
+        courseId,
+        video.id
+      );
 
       await runTransaction(
         ref(database, `${activityBase}/seconds`),
@@ -566,17 +581,15 @@ function VideoPage() {
       await update(ref(database), {
         [`${activityBase}/videoId`]: video.id,
         [`${activityBase}/courseId`]: courseId,
-        [`${activityBase}/videoTitle`]: video.title || video.videoTitle || "",
+        [`${activityBase}/videoTitle`]:
+          video.title || video.videoTitle || "",
         [`${activityBase}/updatedAt`]: nowIso,
       });
 
       lastLoggedWatchedCountRef.current = currentWatchedCount;
     }
 
-    setProgressMap((prev) => ({
-      ...prev,
-      [video.id]: progressData,
-    }));
+    setProgressMap(nextProgressMap);
   };
 
   const handleLoadedMetadata = (e) => {
@@ -691,8 +704,9 @@ function VideoPage() {
 
   const currentIndex = lessons.findIndex((lesson) => lesson.id === video?.id);
 
-  const isVideoCompleted =
-    watchPercent >= 98 || progressMap?.[video?.id]?.completed;
+  const isVideoCompleted = Boolean(
+    progressMap?.[video?.id]?.completed
+  );
 
   const getLessonProgressPercent = (lesson) => {
     if (lesson.id === video?.id) {
@@ -725,11 +739,14 @@ function VideoPage() {
 
   const allCourseVideosCompleted =
     lessons.length > 0 &&
-    lessons.every((lesson) =>
-      lesson.id === video?.id
-        ? isVideoCompleted
-        : progressMap?.[lesson.id]?.completed
-    );
+    lessons.every((lesson) => {
+      const progress = progressMap?.[lesson.id];
+
+      return Boolean(
+        progress?.completed ||
+          Number(progress?.watchedPercent || 0) >= 100
+      );
+    });
 
   const markCurrentVideoComplete = async () => {
     setWatchPercent(100);
@@ -781,7 +798,7 @@ function VideoPage() {
     }
 
     if (currentIndex < lessons.length - 1) {
-      navigate(`../video/${lessons[currentIndex + 1].id}`);
+      navigate(getVideoPath(lessons[currentIndex + 1].id));
       return;
     }
 
@@ -848,25 +865,10 @@ function VideoPage() {
     }));
   };
 
-  const handleSubmitAnswer = () => {
-    if (selectedAnswer === null) return;
-    setShowResult(true);
-
-    const q = quizQuestions[currentQuizIndex];
-    const correct = isCorrectOption(q, selectedAnswer);
-    if (correct) setQuizScore((prev) => prev + 1);
-
-    setQuizAnswers((prev) => ({
-      ...prev,
-      [currentQuizIndex]: { selected: selectedAnswer, correct },
-    }));
-  };
-
   const saveQuizAttempt = async (finalScore) => {
     const user = auth.currentUser;
     if (!user || !video) return;
 
-    const courseId = video.courseId || "unknown";
     const quizId = `practice_${video.id}_${Date.now()}`;
 
     // Write to new normalized path: quizAttempts/{uid}/{courseId}/{quizId}
@@ -919,7 +921,7 @@ function VideoPage() {
     handleCloseQuiz();
 
     if (currentIndex < lessons.length - 1) {
-      navigate(`../video/${lessons[currentIndex + 1].id}`);
+      navigate(getVideoPath(lessons[currentIndex + 1].id));
       return;
     }
 
@@ -943,7 +945,6 @@ function VideoPage() {
   const videoUrl = video?.videoUrl || video?.url || video?.fileUrl || "";
   const hasRevisionQuiz = quizQuestions.length > 0;
   const revisionQuizPassed = hasRevisionQuiz && quizPreviouslyCompleted && previousScore.total > 0 && previousScore.correct >= Math.ceil(previousScore.total * 0.7);
-  const courseId = video?.courseId;
 
   if (loading)
     return <h2 className="video-status-msg">Loading Video...</h2>;
@@ -973,7 +974,7 @@ function VideoPage() {
             <div className="modal-actions">
               <button
                 className="modal-secondary-btn"
-                onClick={() => navigate(`../course/${courseId}`)}
+                onClick={() => navigate(getCoursePath())}
               >
                 Back to Course
               </button>
@@ -983,8 +984,8 @@ function VideoPage() {
                   onClick={() =>
                     navigate(
                       finalCourseResult?.passed
-                        ? `../quiz/${courseId}?mode=result`
-                        : `../quiz/${courseId}`
+                        ? getQuizPath("result")
+                        : getQuizPath()
                     )
                   }
                 >
@@ -1138,7 +1139,7 @@ function VideoPage() {
 
       <button
         className="video-back-btn"
-        onClick={() => navigate(`../course/${courseId}`)}
+        onClick={() => navigate(getCoursePath())}
       >
         ← Back to Course
       </button>
@@ -1229,8 +1230,11 @@ function VideoPage() {
                     key={item.id}
                     className={`video-list-item ${active ? "active" : ""} ${completed ? "completed" : ""} ${locked ? "locked" : ""}`}
                     disabled={locked}
-                    onClick={() => !locked && navigate(`../video/${item.id}`)}
-                    onClick={() => navigate(`../video/${item.id}`)}
+                    onClick={() => {
+                      if (!locked) {
+                        navigate(getVideoPath(item.id));
+                      }
+                    }}
                   >
                     <div className="video-list-thumb">
                       {thumb ? (
@@ -1353,7 +1357,7 @@ function VideoPage() {
                 <button
                   className="quiz-btn active"
                   onClick={() =>
-                    navigate(`../quiz/${courseId}?mode=result`)
+                    navigate(getQuizPath("result"))
                   }
                 >
                   View Marks
@@ -1372,7 +1376,7 @@ function VideoPage() {
                   <p>All lessons completed.</p>
                   <button
                     className="quiz-btn active"
-                    onClick={() => navigate(`../quiz/${courseId}`)}
+                    onClick={() => navigate(getQuizPath())}
                   >
                     Start Final Test
                   </button>
