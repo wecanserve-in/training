@@ -36,6 +36,9 @@ function SuperAdminAnalytics() {
   const [completedCourses, setCompletedCourses] = useState({});
   const [results, setResults] = useState({});
   const [assignments, setAssignments] = useState({});
+  const [courseProgress, setCourseProgress] = useState({});
+  const [videoProgress, setVideoProgress] = useState({});
+  const [selectedUser, setSelectedUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const [drillLevel, setDrillLevel] = useState("overview");
@@ -50,12 +53,22 @@ function SuperAdminAnalytics() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [usersSnap, coursesSnap, completedSnap, resultsSnap, assignmentsSnap] = await Promise.all([
+        const [
+          usersSnap,
+          coursesSnap,
+          completedSnap,
+          resultsSnap,
+          assignmentsSnap,
+          courseProgressSnap,
+          videoProgressSnap,
+        ] = await Promise.all([
           get(ref(database, "users")),
           get(ref(database, "courses")),
           get(ref(database, "completedCourses")),
           get(ref(database, "results")),
           get(ref(database, "userAssignments")),
+          get(ref(database, "courseProgress")),
+          get(ref(database, "videoProgress")),
         ]);
 
         if (usersSnap.exists()) {
@@ -69,6 +82,8 @@ function SuperAdminAnalytics() {
         if (completedSnap.exists()) setCompletedCourses(completedSnap.val());
         if (resultsSnap.exists()) setResults(resultsSnap.val());
         if (assignmentsSnap.exists()) setAssignments(assignmentsSnap.val());
+        if (courseProgressSnap.exists()) setCourseProgress(courseProgressSnap.val());
+        if (videoProgressSnap.exists()) setVideoProgress(videoProgressSnap.val());
       } catch (e) { console.error("Analytics fetch error:", e); } finally { setLoading(false); }
     };
     fetchData();
@@ -76,35 +91,169 @@ function SuperAdminAnalytics() {
 
   const employeeUsers = useMemo(() => users.filter((u) => !isSuperAdmin(u)), [users]);
 
-  const getCompletedCount = (userId) => {
-    const userCompleted = completedCourses[userId];
-    if (!userCompleted) return 0;
-    return Object.keys(userCompleted).length;
+  const getUserKeys = (userOrId) => {
+    if (!userOrId) return [];
+
+    if (typeof userOrId === "string") {
+      return [userOrId];
+    }
+
+    return [...new Set([userOrId.id, userOrId.uid].filter(Boolean))];
   };
 
-  const getCertificateCount = (userId) => {
-    const userResults = results[userId];
-    if (!userResults) return 0;
-    return Object.values(userResults).filter((r) => r?.passed || r?.isPassed || r?.status === "passed").length;
+  const mergeUserNode = (root, userOrId) => {
+    return getUserKeys(userOrId).reduce(
+      (merged, key) => ({
+        ...merged,
+        ...(root?.[key] || {}),
+      }),
+      {}
+    );
   };
 
-  const getAssignedCount = (userId) => {
-    const userAssignments = assignments[userId];
-    if (!userAssignments) return 0;
-    return Object.values(userAssignments).filter((a) => a?.assigned).length;
+  const isAssignmentActive = (assignment) => {
+    return (
+      assignment === true ||
+      assignment?.assigned === true ||
+      assignment?.active === true ||
+      String(assignment?.status || "").toLowerCase() === "assigned" ||
+      String(assignment?.status || "").toLowerCase() === "active"
+    );
   };
 
-  const getUserCompletion = (userId) => {
-    const assigned = getAssignedCount(userId);
-    const completed = getCompletedCount(userId);
-    return assigned > 0 ? Math.round((completed / assigned) * 100) : 0;
+  const isCompletedRecord = (record) => {
+    return (
+      record === true ||
+      record?.completed === true ||
+      record?.passed === true ||
+      record?.isCompleted === true ||
+      record?.isPassed === true ||
+      String(record?.status || "").toLowerCase() === "completed" ||
+      String(record?.status || "").toLowerCase() === "passed"
+    );
+  };
+
+  const getCompletedCount = (userOrId) => {
+    const userCompleted = mergeUserNode(completedCourses, userOrId);
+
+    return Object.values(userCompleted).filter(isCompletedRecord).length;
+  };
+
+  const getCertificateCount = (userOrId) => {
+    const userResults = mergeUserNode(results, userOrId);
+
+    return Object.values(userResults).filter(
+      (record) =>
+        record?.certificateUrl ||
+        record?.certificateId ||
+        record?.certificateIssued ||
+        record?.passed ||
+        record?.isPassed ||
+        String(record?.status || "").toLowerCase() === "passed"
+    ).length;
+  };
+
+  const getAssignedCourseEntries = (userOrId) => {
+    const userAssignments = mergeUserNode(assignments, userOrId);
+
+    return Object.entries(userAssignments).filter(([, assignment]) =>
+      isAssignmentActive(assignment)
+    );
+  };
+
+  const getAssignedCount = (userOrId) => {
+    return getAssignedCourseEntries(userOrId).length;
+  };
+
+  const getCourseProgressPercent = (userOrId, courseId) => {
+    const directCourseProgress =
+      mergeUserNode(courseProgress, userOrId)?.[courseId] || {};
+
+    const directCandidates = [
+      directCourseProgress.percentage,
+      directCourseProgress.progress,
+      directCourseProgress.progressPercent,
+      directCourseProgress.completionPercent,
+      directCourseProgress.completedPercent,
+      directCourseProgress.watchedPercent,
+    ];
+
+    const directValue = directCandidates
+      .map(Number)
+      .find((value) => Number.isFinite(value) && value >= 0);
+
+    if (directValue !== undefined) {
+      return Math.max(0, Math.min(100, Math.round(directValue)));
+    }
+
+    const courseVideos =
+      mergeUserNode(videoProgress, userOrId)?.[courseId] || {};
+
+    const progressValues = Object.values(courseVideos)
+      .map((video) => {
+        if (video?.completed) return 100;
+
+        const value = Number(
+          video?.watchedPercent ??
+            video?.progressPercent ??
+            video?.progress ??
+            0
+        );
+
+        return Number.isFinite(value)
+          ? Math.max(0, Math.min(100, value))
+          : 0;
+      });
+
+    if (progressValues.length === 0) return 0;
+
+    return Math.round(
+      progressValues.reduce((sum, value) => sum + value, 0) /
+        progressValues.length
+    );
+  };
+
+  const getCourseCompletionRecord = (userOrId, courseId) => {
+    return mergeUserNode(completedCourses, userOrId)?.[courseId];
+  };
+
+  const getCourseResultRecord = (userOrId, courseId) => {
+    const userResults = mergeUserNode(results, userOrId);
+
+    return (
+      userResults?.[courseId] ||
+      Object.values(userResults).find(
+        (result) => String(result?.courseId || "") === String(courseId)
+      )
+    );
+  };
+
+  const getCourseStatus = (userOrId, courseId) => {
+    const completedRecord = getCourseCompletionRecord(userOrId, courseId);
+
+    if (isCompletedRecord(completedRecord)) {
+      return "completed";
+    }
+
+    const progressPercent = getCourseProgressPercent(userOrId, courseId);
+
+    return progressPercent > 0 ? "inProgress" : "notStarted";
+  };
+
+  const getUserCompletion = (userOrId) => {
+    const assigned = getAssignedCount(userOrId);
+    const completed = getCompletedCount(userOrId);
+
+    return assigned > 0
+      ? Math.min(100, Math.round((completed / assigned) * 100))
+      : 0;
   };
 
   const getGroupStats = (groupUsers) => {
     const total = groupUsers.length;
-    const completed = groupUsers.reduce((s, u) => s + getCompletedCount(u.id), 0);
-    const certs = groupUsers.reduce((s, u) => s + getCertificateCount(u.id), 0);
-    const assigned = groupUsers.reduce((s, u) => s + getAssignedCount(u.id), 0);
+    const completed = groupUsers.reduce((s, u) => s + getCompletedCount(u), 0);
+    const certs = groupUsers.reduce((s, u) => s + getCertificateCount(u), 0);
+    const assigned = groupUsers.reduce((s, u) => s + getAssignedCount(u), 0);
     const rate = assigned > 0 ? Math.round((completed / assigned) * 100) : 0;
     return { total, completed, certs, assigned, rate };
   };
@@ -187,12 +336,138 @@ function SuperAdminAnalytics() {
 
   const overallStats = useMemo(() => getGroupStats(employeeUsers), [employeeUsers, courses, completedCourses, results, assignments]);
 
+  const selectedUserCourseRows = useMemo(() => {
+    if (!selectedUser) return [];
+
+    const assignedEntries = getAssignedCourseEntries(selectedUser);
+
+    return assignedEntries
+      .map(([courseId, assignment]) => {
+        const course = courses.find(
+          (item) => String(item.id) === String(courseId)
+        );
+
+        const completionRecord = getCourseCompletionRecord(
+          selectedUser,
+          courseId
+        );
+
+        const resultRecord = getCourseResultRecord(
+          selectedUser,
+          courseId
+        );
+
+        const status = getCourseStatus(selectedUser, courseId);
+        const progressPercent =
+          status === "completed"
+            ? 100
+            : getCourseProgressPercent(selectedUser, courseId);
+
+        return {
+          courseId,
+          title:
+            course?.title ||
+            course?.courseTitle ||
+            course?.courseName ||
+            course?.name ||
+            assignment?.courseTitle ||
+            "Untitled Course",
+          department:
+            course?.departmentName ||
+            course?.department ||
+            assignment?.departmentName ||
+            assignment?.department ||
+            "Not specified",
+          assignedAt:
+            assignment?.assignedAt ||
+            assignment?.createdAt ||
+            assignment?.dateAssigned ||
+            "",
+          status,
+          progressPercent,
+          certificate:
+            resultRecord?.certificateUrl ||
+            resultRecord?.certificateId ||
+            completionRecord?.certificateUrl ||
+            completionRecord?.certificateId ||
+            "",
+          score:
+            resultRecord?.percentage ??
+            resultRecord?.scorePercentage ??
+            resultRecord?.marksPercentage ??
+            "",
+        };
+      })
+      .sort((a, b) => {
+        const aTime = new Date(a.assignedAt || 0).getTime();
+        const bTime = new Date(b.assignedAt || 0).getTime();
+        return bTime - aTime;
+      });
+  }, [
+    selectedUser,
+    courses,
+    assignments,
+    completedCourses,
+    results,
+    courseProgress,
+    videoProgress,
+  ]);
+
+  const selectedUserStats = useMemo(() => {
+    if (!selectedUser) {
+      return {
+        assigned: 0,
+        completed: 0,
+        inProgress: 0,
+        notStarted: 0,
+        certificates: 0,
+        completion: 0,
+      };
+    }
+
+    const assigned = selectedUserCourseRows.length;
+    const completed = selectedUserCourseRows.filter(
+      (course) => course.status === "completed"
+    ).length;
+    const inProgress = selectedUserCourseRows.filter(
+      (course) => course.status === "inProgress"
+    ).length;
+    const notStarted = selectedUserCourseRows.filter(
+      (course) => course.status === "notStarted"
+    ).length;
+
+    return {
+      assigned,
+      completed,
+      inProgress,
+      notStarted,
+      certificates: getCertificateCount(selectedUser),
+      completion:
+        assigned > 0
+          ? Math.round((completed / assigned) * 100)
+          : 0,
+    };
+  }, [selectedUser, selectedUserCourseRows, results]);
+
+  const formatDate = (value) => {
+    if (!value) return "—";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "—";
+
+    return date.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
   const downloadReport = () => {
     const rows = filteredUsers.map((u) => ({
       Name: u.name || "", Email: u.email || "", Role: getRole(u), Designation: u.designation || "",
       Zone: getVal(u, ["zone", "Zone"]), State: getVal(u, ["state", "State"]), City: getVal(u, ["cityArea", "city", "City"]),
-      "Assigned": getAssignedCount(u.id), "Completed": getCompletedCount(u.id),
-      "Certificates": getCertificateCount(u.id), "Completion %": `${getUserCompletion(u.id)}%`,
+      "Assigned": getAssignedCount(u), "Completed": getCompletedCount(u),
+      "Certificates": getCertificateCount(u), "Completion %": `${getUserCompletion(u)}%`,
     }));
     const headers = Object.keys(rows[0] || {});
     const csv = [headers.join(","), ...rows.map((r) => headers.map((h) => `"${String(r[h] || "").replace(/"/g, '""')}"`).join(","))].join("\n");
@@ -296,15 +571,15 @@ function SuperAdminAnalytics() {
         </div>
         <div className="sa-kpi sa-kpi-completed sa-kpi-enter" style={{ animationDelay: "60ms" }}>
           <div className="sa-kpi-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg></div>
-          <div><span>Completed</span><strong>{filteredUsers.reduce((s, u) => s + getCompletedCount(u.id), 0)}</strong></div>
+          <div><span>Completed</span><strong>{filteredUsers.reduce((s, u) => s + getCompletedCount(u), 0)}</strong></div>
         </div>
         <div className="sa-kpi sa-kpi-certs sa-kpi-enter" style={{ animationDelay: "120ms" }}>
           <div className="sa-kpi-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 15l-2 5l9-13h-5l2-5-9 13h5z"/></svg></div>
-          <div><span>Certificates</span><strong>{filteredUsers.reduce((s, u) => s + getCertificateCount(u.id), 0)}</strong></div>
+          <div><span>Certificates</span><strong>{filteredUsers.reduce((s, u) => s + getCertificateCount(u), 0)}</strong></div>
         </div>
         <div className="sa-kpi sa-kpi-rate sa-kpi-enter" style={{ animationDelay: "180ms" }}>
           <div className="sa-kpi-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
-          <div><span>Rate</span><strong>{filteredUsers.length > 0 ? Math.round((filteredUsers.reduce((s, u) => s + getCompletedCount(u.id), 0) / (filteredUsers.reduce((s, u) => s + getAssignedCount(u.id), 0) || 1)) * 100) : 0}%</strong></div>
+          <div><span>Rate</span><strong>{filteredUsers.length > 0 ? Math.round((filteredUsers.reduce((s, u) => s + getCompletedCount(u), 0) / (filteredUsers.reduce((s, u) => s + getAssignedCount(u), 0) || 1)) * 100) : 0}%</strong></div>
         </div>
       </div>
 
@@ -337,7 +612,7 @@ function SuperAdminAnalytics() {
           <div className="sa-table-head">
             <div>
               <h2>User Training Report — {currentLabel}</h2>
-              <p>{filteredUsers.length} users • {filteredUsers.reduce((s, u) => s + getCompletedCount(u.id), 0)} completed</p>
+              <p>{filteredUsers.length} users • {filteredUsers.reduce((s, u) => s + getCompletedCount(u), 0)} completed</p>
             </div>
           </div>
           <div className="sa-table-wrap">
@@ -361,13 +636,34 @@ function SuperAdminAnalytics() {
                 {filteredUsers.length === 0 ? (
                   <tr><td colSpan="11" className="sa-empty">No users found.</td></tr>
                 ) : filteredUsers.map((u, idx) => {
-                  const assigned = getAssignedCount(u.id);
-                  const comp = getCompletedCount(u.id);
-                  const pct = getUserCompletion(u.id);
+                  const assigned = getAssignedCount(u);
+                  const comp = getCompletedCount(u);
+                  const pct = getUserCompletion(u);
                   return (
-                    <tr key={u.id} className="sa-table-row-enter" style={{ animationDelay: `${idx * 30}ms` }}>
+                    <tr
+                      key={u.id}
+                      className="sa-table-row-enter sa-user-clickable-row"
+                      style={{ animationDelay: `${idx * 30}ms` }}
+                      onClick={() => setSelectedUser(u)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setSelectedUser(u);
+                        }
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`View complete progress for ${
+                        u.name || "this user"
+                      }`}
+                      title="Click anywhere in this row to view complete user progress"
+                    >
                       <td className="sa-td-idx">{idx + 1}</td>
-                      <td className="sa-td-name"><strong>{u.name || "-"}</strong></td>
+                      <td className="sa-td-name">
+                        <strong className="sa-user-row-name">
+                          {u.name || "-"}
+                        </strong>
+                      </td>
                       <td className="sa-td-email">{u.email || "-"}</td>
                       <td>{u.designation || "-"}</td>
                       <td>{getVal(u, ["zone", "Zone"]) || "-"}</td>
@@ -375,7 +671,7 @@ function SuperAdminAnalytics() {
                       <td>{getVal(u, ["cityArea", "city", "City"]) || "-"}</td>
                       <td>{assigned}</td>
                       <td><strong>{comp}</strong></td>
-                      <td>{getCertificateCount(u.id)}</td>
+                      <td>{getCertificateCount(u)}</td>
                       <td>
                         <div className="sa-pct-cell">
                           <div className="sa-pct-bar"><span style={{ width: `${pct}%` }} /></div>
@@ -388,6 +684,197 @@ function SuperAdminAnalytics() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {selectedUser && (
+        <div
+          className="sa-user-detail-backdrop"
+          onClick={() => setSelectedUser(null)}
+        >
+          <aside
+            className="sa-user-detail-drawer"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="sa-user-detail-header">
+              <div className="sa-user-detail-profile">
+                <div className="sa-user-detail-avatar">
+                  {(selectedUser.name || selectedUser.email || "U")
+                    .split(" ")
+                    .map((word) => word[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()}
+                </div>
+
+                <div>
+                  <h2>{selectedUser.name || "Unnamed User"}</h2>
+                  <p>{selectedUser.email || "Email not available"}</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="sa-user-detail-close"
+                onClick={() => setSelectedUser(null)}
+                aria-label="Close user progress"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="sa-user-detail-body">
+              <div className="sa-user-location-grid">
+                <div>
+                  <span>Designation</span>
+                  <strong>{selectedUser.designation || "Not specified"}</strong>
+                </div>
+
+                <div>
+                  <span>Zone</span>
+                  <strong>
+                    {getVal(selectedUser, ["zone", "Zone", "zoneName"]) ||
+                      "Not assigned"}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>State</span>
+                  <strong>
+                    {getVal(selectedUser, ["state", "State", "stateName"]) ||
+                      "Not assigned"}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>City</span>
+                  <strong>
+                    {getVal(selectedUser, [
+                      "cityArea",
+                      "city",
+                      "City",
+                      "Area",
+                      "area",
+                    ]) || "Not assigned"}
+                  </strong>
+                </div>
+              </div>
+
+              <div className="sa-user-progress-summary">
+                <div className="sa-user-summary-card assigned">
+                  <strong>{selectedUserStats.assigned}</strong>
+                  <span>Assigned</span>
+                </div>
+
+                <div className="sa-user-summary-card completed">
+                  <strong>{selectedUserStats.completed}</strong>
+                  <span>Completed</span>
+                </div>
+
+                <div className="sa-user-summary-card progress">
+                  <strong>{selectedUserStats.inProgress}</strong>
+                  <span>In Progress</span>
+                </div>
+
+                <div className="sa-user-summary-card pending">
+                  <strong>{selectedUserStats.notStarted}</strong>
+                  <span>Not Started</span>
+                </div>
+
+                <div className="sa-user-summary-card certificate">
+                  <strong>{selectedUserStats.certificates}</strong>
+                  <span>Certificates</span>
+                </div>
+
+                <div className="sa-user-summary-card rate">
+                  <strong>{selectedUserStats.completion}%</strong>
+                  <span>Completion</span>
+                </div>
+              </div>
+
+              <div className="sa-user-course-section">
+                <div className="sa-user-course-head">
+                  <div>
+                    <h3>Assigned Course Progress</h3>
+                    <p>
+                      Course-wise progress for {selectedUser.name || "this user"}
+                    </p>
+                  </div>
+
+                  <span>{selectedUserCourseRows.length} courses</span>
+                </div>
+
+                <div className="sa-user-course-list">
+                  {selectedUserCourseRows.length === 0 ? (
+                    <div className="sa-user-no-courses">
+                      No courses are currently assigned to this user.
+                    </div>
+                  ) : (
+                    selectedUserCourseRows.map((course, index) => (
+                      <div
+                        className="sa-user-course-card"
+                        key={course.courseId}
+                      >
+                        <div className="sa-user-course-number">
+                          {index + 1}
+                        </div>
+
+                        <div className="sa-user-course-content">
+                          <div className="sa-user-course-title-row">
+                            <div>
+                              <h4>{course.title}</h4>
+                              <p>
+                                {course.department}
+                                {course.assignedAt
+                                  ? ` • Assigned ${formatDate(
+                                      course.assignedAt
+                                    )}`
+                                  : ""}
+                              </p>
+                            </div>
+
+                            <span
+                              className={`sa-course-status ${course.status}`}
+                            >
+                              {course.status === "completed"
+                                ? "Completed"
+                                : course.status === "inProgress"
+                                ? "In Progress"
+                                : "Not Started"}
+                            </span>
+                          </div>
+
+                          <div className="sa-user-course-progress-row">
+                            <div className="sa-user-course-progress-track">
+                              <span
+                                style={{
+                                  width: `${course.progressPercent}%`,
+                                }}
+                              />
+                            </div>
+
+                            <strong>{course.progressPercent}%</strong>
+                          </div>
+
+                          {(course.score !== "" || course.certificate) && (
+                            <div className="sa-user-course-extra">
+                              {course.score !== "" && (
+                                <span>Test score: {course.score}%</span>
+                              )}
+
+                              {course.certificate && (
+                                <span>Certificate issued</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </aside>
         </div>
       )}
 

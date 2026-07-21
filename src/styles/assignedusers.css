@@ -39,6 +39,7 @@
   align-items: center;
   overflow: hidden;
   position: relative;
+  margin-top: 14px;
 }
 
 .au-hero::before {
