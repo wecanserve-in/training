@@ -4,6 +4,7 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase";
 import { loadUserProfile } from "../lib/userAccess";
 import { watchNotifications } from "../services/doubtService";
+import FloatingDoubtButton from "./FloatingDoubtButton";
 import "../styles/userLayout.css";
 
 function UserLayout() {
@@ -177,6 +178,8 @@ function UserLayout() {
       <main className="learner-main-area">
         <Outlet />
       </main>
+
+      <FloatingDoubtButton />
     </div>
   );
 }

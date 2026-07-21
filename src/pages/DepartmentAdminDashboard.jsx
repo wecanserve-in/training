@@ -638,57 +638,6 @@ function DepartmentAdminDashboard() {
         </div>
       </section>
 
-      {/* Assigned User Progress Table */}
-      <section className="dash-content-row" style={{ padding: "0 24px 28px" }}>
-        <div className="dash-card courses-card" style={{ gridColumn: "1 / -1" }}>
-          <div className="card-head">
-            <div>
-              <h2>Assigned User Progress</h2>
-              <p>Detailed breakdown of all assigned users</p>
-            </div>
-            <button type="button" onClick={downloadReport} className="export-btn">
-              Export Report
-            </button>
-          </div>
-
-          <div style={{ width: "100%", overflowX: "auto" }}>
-            <table className="dept-table">
-              <thead>
-                <tr>
-                  <th>User</th>
-                  <th>Email</th>
-                  <th>Department</th>
-                  <th>Designation</th>
-                  <th>Assigned</th>
-                  <th>Completed</th>
-                  <th>In Progress</th>
-                  <th>Not Started</th>
-                  <th>Completion</th>
-                </tr>
-              </thead>
-              <tbody>
-                {userRows.length > 0 ? (
-                  userRows.map((user) => (
-                    <tr key={user.id}>
-                      <td><strong>{user.name}</strong></td>
-                      <td>{user.email}</td>
-                      <td>{user.department}</td>
-                      <td>{user.designation}</td>
-                      <td>{user.assigned}</td>
-                      <td>{user.completed}</td>
-                      <td>{user.inProgress}</td>
-                      <td>{user.notStarted}</td>
-                      <td><b>{user.rate}%</b></td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr><td colSpan="9">No assigned users found.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

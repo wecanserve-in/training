@@ -1,0 +1,347 @@
+.fab-doubt-btn {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 9999;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+
+  min-height: 50px;
+  padding: 12px 18px;
+
+  border: none;
+  border-radius: 999px;
+
+  background: #059669;
+  color: #ffffff;
+
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+
+  cursor: pointer;
+  white-space: nowrap;
+
+  box-shadow: 0 10px 26px rgba(5, 150, 105, 0.3);
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.fab-doubt-btn svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.fab-doubt-btn:hover {
+  background: #047857;
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px rgba(5, 150, 105, 0.38);
+}
+
+.fab-doubt-btn:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.fab-doubt-btn:focus-visible {
+  outline: 3px solid rgba(5, 150, 105, 0.22);
+  outline-offset: 3px;
+}
+
+.fab-doubt-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+
+  display: flex;
+  justify-content: flex-end;
+
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(2px);
+
+  animation: fabFadeIn 0.2s ease;
+}
+
+@keyframes fabFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.fab-doubt-drawer {
+  width: 410px;
+  max-width: 92vw;
+  height: 100vh;
+
+  display: flex;
+  flex-direction: column;
+
+  background: #ffffff;
+  box-shadow: -10px 0 34px rgba(15, 23, 42, 0.16);
+
+  font-family: "Inter", sans-serif;
+
+  animation: fabSlideIn 0.28s ease;
+}
+
+@keyframes fabSlideIn {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+.fab-doubt-drawer-header {
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  padding: 20px 22px;
+
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.fab-doubt-drawer-header h3 {
+  margin: 0;
+
+  color: #1e293b;
+
+  font-size: 1.08rem;
+  font-weight: 750;
+}
+
+.fab-doubt-drawer-close {
+  width: 34px;
+  height: 34px;
+
+  display: grid;
+  place-items: center;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+
+  background: #f8fafc;
+  color: #64748b;
+
+  font-size: 1.2rem;
+  line-height: 1;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.fab-doubt-drawer-close:hover {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+.fab-doubt-drawer-body {
+  flex: 1;
+
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  padding: 20px 22px;
+
+  overflow-y: auto;
+}
+
+.fab-doubt-drawer-body label {
+  margin-top: 6px;
+  margin-bottom: 2px;
+
+  color: #475569;
+
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.fab-doubt-drawer-body input,
+.fab-doubt-drawer-body select,
+.fab-doubt-drawer-body textarea {
+  width: 100%;
+  box-sizing: border-box;
+
+  border: 1px solid #dbe3ec;
+  border-radius: 10px;
+
+  background: #f8fafc;
+  color: #1e293b;
+
+  padding: 11px 12px;
+
+  font-family: "Inter", sans-serif;
+  font-size: 0.86rem;
+  font-weight: 500;
+
+  outline: none;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.fab-doubt-drawer-body textarea {
+  min-height: 130px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.fab-doubt-drawer-body input::placeholder,
+.fab-doubt-drawer-body textarea::placeholder {
+  color: #94a3b8;
+}
+
+.fab-doubt-drawer-body input:focus,
+.fab-doubt-drawer-body select:focus,
+.fab-doubt-drawer-body textarea:focus {
+  border-color: #059669;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.11);
+}
+
+.fab-doubt-field-value {
+  padding: 11px 12px;
+
+  border: 1px solid #dbe3ec;
+  border-radius: 10px;
+
+  background: #f1f5f9;
+  color: #334155;
+
+  font-size: 0.84rem;
+  font-weight: 600;
+
+  cursor: default;
+}
+
+.fab-doubt-drawer-footer {
+  flex-shrink: 0;
+
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+
+  padding: 16px 22px;
+
+  border-top: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.fab-doubt-cancel-btn,
+.fab-doubt-submit-btn {
+  min-height: 40px;
+
+  padding: 9px 18px;
+
+  border-radius: 10px;
+
+  font-family: "Inter", sans-serif;
+  font-size: 0.83rem;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.fab-doubt-cancel-btn {
+  border: 1px solid #dbe3ec;
+  background: #ffffff;
+  color: #475569;
+}
+
+.fab-doubt-cancel-btn:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.fab-doubt-submit-btn {
+  border: none;
+  background: #059669;
+  color: #ffffff;
+}
+
+.fab-doubt-submit-btn:hover:not(:disabled) {
+  background: #047857;
+  transform: translateY(-1px);
+}
+
+.fab-doubt-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .fab-doubt-btn {
+    right: 16px;
+    bottom: 16px;
+
+    min-height: 46px;
+    padding: 11px 15px;
+
+    font-size: 13px;
+  }
+
+  .fab-doubt-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .fab-doubt-drawer {
+    width: 100vw;
+    max-width: 100vw;
+  }
+}
+
+@media (max-width: 480px) {
+  .fab-doubt-btn span {
+    display: none;
+  }
+
+  .fab-doubt-btn {
+    width: 48px;
+    min-width: 48px;
+    height: 48px;
+    min-height: 48px;
+
+    padding: 0;
+    border-radius: 50%;
+  }
+
+  .fab-doubt-drawer-header,
+  .fab-doubt-drawer-body,
+  .fab-doubt-drawer-footer {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}

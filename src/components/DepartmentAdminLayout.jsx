@@ -4,6 +4,7 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase";
 import { loadUserProfile } from "../lib/userAccess";
 import { watchNotifications } from "../services/doubtService";
+import FloatingDoubtButton from "./FloatingDoubtButton";
 import "../styles/departmentadminlayout.css";
 
 function DepartmentAdminLayout() {
@@ -200,6 +201,8 @@ function DepartmentAdminLayout() {
       <main className="dept-admin-page">
         <Outlet />
       </main>
+
+      <FloatingDoubtButton />
     </div>
   );
 }
