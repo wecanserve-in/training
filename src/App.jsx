@@ -37,6 +37,7 @@ import DepartmentTrainingAnalytics from "./pages/DepartmentTrainingAnalytics";
 import AssignedUsers from "./pages/AssignedUsers";
 
 import AddCourse from "./pages/AddCourse";
+import EditCourse from "./pages/EditCourse";
 
 import ManageVideos from "./pages/ManageVideos";
 import AddQuestion from "./pages/AddQuestion";
@@ -84,6 +85,8 @@ function App() {
           />
 
           <Route path="courses" element={<DepartmentCourses />} />
+
+          <Route path="courses/edit/:id" element={<EditCourse />} />
 
           <Route
             path="assignments"
@@ -171,6 +174,8 @@ function App() {
           />
 
           <Route path="courses" element={<DepartmentCourses />} />
+
+          <Route path="courses/edit/:id" element={<EditCourse />} />
 
           <Route
             path="assignments"
@@ -272,6 +277,11 @@ function App() {
           <Route
             path="courses/create"
             element={<AddCourse />}
+          />
+
+          <Route
+            path="courses/edit/:id"
+            element={<EditCourse />}
           />
 
           <Route

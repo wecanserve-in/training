@@ -189,7 +189,7 @@ function DoubtThread() {
           className="doubt-back-btn"
           onClick={() => navigate(`${basePath}/doubts`)}
         >
-          ← Back to Doubts
+          ← Back to Chats
         </button>
       </div>
     );
@@ -306,7 +306,7 @@ function DoubtThread() {
 
       {thread.status === "resolved" && (
         <div className="doubt-resolved-banner">
-          This doubt has been resolved.
+          This chat has been resolved.
         </div>
       )}
     </div>

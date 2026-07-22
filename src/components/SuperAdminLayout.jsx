@@ -191,7 +191,7 @@ function SuperAdminLayout() {
           </NavLink>
 
           <NavLink to="/super-admin/doubts" onClick={closeMobileMenu} className="sidebar-top-link">
-            <span>Doubts</span>
+            <span>Chats</span>
             {unreadCount > 0 && <span className="doubt-nav-badge">{unreadCount}</span>}
           </NavLink>
 

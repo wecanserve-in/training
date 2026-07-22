@@ -515,6 +515,22 @@
   border-bottom: 1px solid var(--co-border);
 }
 
+.co-modal-thumb {
+  width: 100%;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.co-modal-thumb img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+  max-height: 180px;
+}
+
 .co-modal-details h2 {
   margin: 0 0 8px 0;
   font-size: 1.1rem;

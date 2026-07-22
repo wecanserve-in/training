@@ -257,7 +257,7 @@ function DoubtChat() {
       navigate(`${basePath}/doubts/${threadId}`);
     } catch (err) {
       console.error(err);
-      alert("Failed to create doubt.");
+      alert("Failed to create chat.");
     } finally {
       setCreating(false);
     }
@@ -295,7 +295,7 @@ function DoubtChat() {
   if (loading) {
     return (
       <div className="doubt-page">
-        <div className="doubt-loading">Loading Doubts...</div>
+        <div className="doubt-loading">Loading chats...</div>
       </div>
     );
   }
@@ -304,27 +304,27 @@ function DoubtChat() {
     <div className="doubt-page">
       <div className="doubt-header">
         <div>
-          <h1>Doubts & Questions</h1>
+          <h1>Chat with others</h1>
           <p>
             {canSeeAll
-              ? "Manage doubts from all users."
+              ? "Manage chats from all users."
               : isDeptAdmin
-              ? "Doubts from your department."
-              : "Your doubt threads."}
+              ? "Chats from your department."
+              : "Your chat threads."}
           </p>
         </div>
         <button
           className="doubt-new-btn"
           onClick={() => setShowCreate(true)}
         >
-          + New Doubt
+          + New Chat
         </button>
       </div>
 
       <div className="doubt-filters">
         <input
           type="text"
-          placeholder="Search doubts..."
+          placeholder="Search chats..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -368,7 +368,7 @@ function DoubtChat() {
       <div className="doubt-thread-list">
         {filteredThreads.length === 0 ? (
           <div className="doubt-empty">
-            No doubts found.
+            No chats found.
           </div>
         ) : (
           filteredThreads.map((thread) => (
@@ -434,7 +434,7 @@ function DoubtChat() {
         <div className="doubt-modal-backdrop">
           <div className="doubt-modal">
             <div className="doubt-modal-header">
-              <h2>Ask a Doubt</h2>
+              <h2>Chat with others</h2>
               <button
                 className="doubt-modal-close"
                 onClick={() => setShowCreate(false)}
@@ -446,7 +446,7 @@ function DoubtChat() {
               <label>Subject</label>
               <input
                 type="text"
-                placeholder="Brief subject of your doubt"
+                placeholder="Brief subject"
                 value={newSubject}
                 onChange={(e) => setNewSubject(e.target.value)}
               />
@@ -465,7 +465,7 @@ function DoubtChat() {
               <label>Message</label>
               <textarea
                 rows={5}
-                placeholder="Describe your doubt in detail..."
+                placeholder="Describe your question in detail..."
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
               />
@@ -482,7 +482,7 @@ function DoubtChat() {
                 onClick={handleCreate}
                 disabled={creating}
               >
-                {creating ? "Posting..." : "Post Doubt"}
+                {creating ? "Posting..." : "Post"}
               </button>
             </div>
           </div>

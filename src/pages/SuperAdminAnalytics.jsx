@@ -614,6 +614,7 @@ function SuperAdminAnalytics() {
               <h2>User Training Report — {currentLabel}</h2>
               <p>{filteredUsers.length} users • {filteredUsers.reduce((s, u) => s + getCompletedCount(u), 0)} completed</p>
             </div>
+            <span className="sa-click-hint">Click a row to view details</span>
           </div>
           <div className="sa-table-wrap">
             <table>

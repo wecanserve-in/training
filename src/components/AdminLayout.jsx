@@ -191,7 +191,7 @@ function AdminLayout() {
           </NavLink>
 
           <NavLink to="/admin/doubts" onClick={closeMobileMenu} className="sidebar-top-link">
-            <span>Doubts</span>
+            <span>Chats</span>
             {unreadCount > 0 && <span className="doubt-nav-badge">{unreadCount}</span>}
           </NavLink>
 

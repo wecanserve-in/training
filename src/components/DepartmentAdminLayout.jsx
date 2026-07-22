@@ -157,7 +157,7 @@ function DepartmentAdminLayout() {
           </NavLink>
 
           <NavLink to="/department-admin/doubts" onClick={closeSidebar}>
-            <span>Doubts</span>
+            <span>Chats</span>
             {unreadCount > 0 && <span className="doubt-nav-badge">{unreadCount}</span>}
           </NavLink>
 

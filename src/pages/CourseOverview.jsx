@@ -203,6 +203,11 @@ function CourseOverview() {
             </div>
 
             <div className="co-modal-details">
+              {selectedVideo.thumbnailUrl && (
+                <div className="co-modal-thumb">
+                  <img src={selectedVideo.thumbnailUrl} alt={selectedVideo.title || "Video thumbnail"} />
+                </div>
+              )}
               <h2>{selectedVideo.title || selectedVideo.videoTitle}</h2>
               <p>{selectedVideo.description || "No description provided for this video."}</p>
               <div className="co-modal-meta">

@@ -151,7 +151,7 @@ function UserLayout() {
           </NavLink>
 
           <NavLink to="/doubts" onClick={closeMobileSidebar}>
-            Doubts
+            Chats
             {unreadCount > 0 && <span className="doubt-nav-badge">{unreadCount}</span>}
           </NavLink>
 
