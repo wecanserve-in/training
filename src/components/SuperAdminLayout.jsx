@@ -182,6 +182,10 @@ function SuperAdminLayout() {
                 <NavLink to="/super-admin/results" onClick={closeMobileMenu}>
                   Test Records
                 </NavLink>
+
+                <NavLink to="/super-admin/all-certificates" onClick={closeMobileMenu}>
+                  Certifications
+                </NavLink>
               </div>
             )}
           </div>

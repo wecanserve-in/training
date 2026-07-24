@@ -148,6 +148,10 @@ function DepartmentAdminLayout() {
                 <NavLink to="/department-admin/assigned-users" onClick={closeSidebar}>
                   Assigned Users
                 </NavLink>
+
+                <NavLink to="/department-admin/all-certificates" onClick={closeSidebar}>
+                  Certifications
+                </NavLink>
               </div>
             )}
           </div>

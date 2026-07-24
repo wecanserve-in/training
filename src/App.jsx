@@ -52,6 +52,7 @@ import DoubtThread from "./pages/DoubtThread";
 import UserLayout from "./components/UserLayout";
 import AssignedCourses from "./pages/AssignedCourses";
 import Certificates from "./pages/Certificates";
+import AllCertificates from "./pages/AllCertificates";
 import MyLearnings from "./pages/MyLearnings";
 import Profile from "./pages/Profile";
 import Resources from "./pages/Resources";
@@ -212,6 +213,7 @@ function App() {
 
           <Route path="my-results" element={<MyResults />} />
           <Route path="certificates" element={<Certificates />} />
+          <Route path="all-certificates" element={<AllCertificates />} />
           <Route path="resources" element={<Resources />} />
           <Route path="profile" element={<Profile />} />
 
@@ -344,25 +346,11 @@ function App() {
             element={<AssignedCourses />}
           />
 
-          <Route
-            path="my-results"
-            element={<MyResults />}
-          />
-
-          <Route
-            path="certificates"
-            element={<Certificates />}
-          />
-
-          <Route
-            path="resources"
-            element={<Resources />}
-          />
-
-          <Route
-            path="profile"
-            element={<Profile />}
-          />
+          <Route path="my-results" element={<MyResults />} />
+          <Route path="certificates" element={<Certificates />} />
+          <Route path="all-certificates" element={<AllCertificates />} />
+          <Route path="resources" element={<Resources />} />
+          <Route path="profile" element={<Profile />} />
 
           <Route
             path="course/:id"

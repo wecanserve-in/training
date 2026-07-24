@@ -182,6 +182,10 @@ function AdminLayout() {
                 <NavLink to="/admin/results" onClick={closeMobileMenu}>
                   Test Records
                 </NavLink>
+
+                <NavLink to="/admin/all-certificates" onClick={closeMobileMenu}>
+                  Certifications
+                </NavLink>
               </div>
             )}
           </div>

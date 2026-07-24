@@ -382,7 +382,7 @@ function Login() {
           <div className="left-content">
             <div className="brand-section">
               <img
-                src="/Logo.webp"
+                src="/zuvius-logo.png"
                 alt="Company logo"
                 className="brand-logo"
               />
