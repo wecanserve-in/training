@@ -27,6 +27,8 @@ function Dashboard() {
   const [results, setResults] = useState({});
   const [completedCourses, setCompletedCourses] = useState({});
   const [quizAttempts, setQuizAttempts] = useState({});
+  const [courseContentUpdates, setCourseContentUpdates] = useState({});
+  const [courseProgressData, setCourseProgressData] = useState({});
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -43,13 +45,14 @@ function Dashboard() {
           assignmentsSnapshot,
           resultsSnapshot,
           completedSnapshot,
-          ,
+          courseProgressSnapshot,
           videoProgressSnapshot,
           coursesSnapshot,
           videosSnapshot,
           courseVideosSnapshot,
           videoLibrarySnapshot,
           quizAttemptsSnapshot,
+          courseContentUpdatesSnapshot,
         ] = await Promise.all([
           get(ref(database, `users/${user.uid}`)),
           get(ref(database, `userAssignments/${user.uid}`)),
@@ -62,6 +65,7 @@ function Dashboard() {
           get(ref(database, "courseVideos")),
           get(ref(database, "videoLibrary")),
           get(ref(database, `quizAttempts/${user.uid}`)),
+          get(ref(database, "courseContentUpdates")),
         ]);
 
         if (userSnapshot.exists()) {
@@ -96,6 +100,10 @@ function Dashboard() {
         setCompletedCourses(userCompletedCourses);
         setProgressMap(mergedProgressMap);
         setQuizAttempts(quizAttemptsSnapshot.exists() ? quizAttemptsSnapshot.val() : {});
+        setCourseContentUpdates(courseContentUpdatesSnapshot.exists() ? courseContentUpdatesSnapshot.val() : {});
+
+        const userCourseProgress = courseProgressSnapshot.exists() ? courseProgressSnapshot.val() : {};
+        setCourseProgressData(userCourseProgress);
 
         if (!assignmentsSnapshot.exists() || !coursesSnapshot.exists()) {
           setCourses([]);
@@ -350,6 +358,57 @@ function Dashboard() {
       .slice(0, 3);
   }, [courses]);
 
+  const newInCoursesVideos = useMemo(() => {
+    const results = [];
+    courses.forEach((course) => {
+      const contentUpdate = courseContentUpdates[course.id];
+      if (!contentUpdate?.newVideoIds?.length) return;
+
+      const lastAccessed = courseProgressData[course.id]?.lastAccessedAt
+        || course.assignment?.assignedAt
+        || course.createdAt
+        || "";
+
+      const videos = courseVideosMap[course.id] || [];
+      contentUpdate.newVideoIds.forEach((videoId) => {
+        const video = videos.find((v) => v.id === videoId);
+        if (!video) return;
+        const addedAt = video.addedAt || contentUpdate.lastUpdatedAt || "";
+        if (lastAccessed && addedAt && new Date(addedAt) <= new Date(lastAccessed)) return;
+        if (progressMap[videoId]?.completed) return;
+        results.push({
+          ...video,
+          courseId: course.id,
+          courseTitle: course.title || course.courseTitle,
+          courseThumbnail: getCourseThumbnail(course),
+          addedAt,
+        });
+      });
+    });
+    results.sort((a, b) => new Date(b.addedAt || 0) - new Date(a.addedAt || 0));
+    return results.slice(0, 6);
+  }, [courses, courseContentUpdates, courseVideosMap, progressMap, courseProgressData]);
+
+  const recentlyCompletedCourses = useMemo(() => {
+    return courses
+      .filter((course) => {
+        const progress = courseProgressData[course.id];
+        return progress?.completed || progress?.courseTestPassed
+          || completedCourses?.[course.id]?.completed
+          || completedCourses?.[course.id]?.passed;
+      })
+      .sort((a, b) => {
+        const aDate = courseProgressData[a.id]?.completedAt
+          || completedCourses?.[a.id]?.completedAt
+          || "";
+        const bDate = courseProgressData[b.id]?.completedAt
+          || completedCourses?.[b.id]?.completedAt
+          || "";
+        return new Date(bDate).getTime() - new Date(aDate).getTime();
+      })
+      .slice(0, 4);
+  }, [courses, courseProgressData, completedCourses]);
+
   if (loading) {
     return <h2 className="dashboard-loading">Loading Dashboard...</h2>;
   }
@@ -484,6 +543,42 @@ return (
       </section>
     )}
 
+
+     {newInCoursesVideos.length > 0 && (
+      <section className="new-content-section">
+        <div className="card-head">
+          <div>
+            <h2>New in Your Courses</h2>
+            <p>Newly added videos you haven&apos;t watched yet</p>
+          </div>
+        </div>
+        <div className="new-content-grid">
+          {newInCoursesVideos.map((video) => (
+            <Link to={`${basePath}/course/${video.courseId}`} className="new-content-card" key={`${video.courseId}-${video.id}`}>
+              <div className="new-content-thumb">
+                {video.thumbnailUrl ? (
+                  <img src={video.thumbnailUrl} alt={video.title} />
+                ) : (
+                  <div className="new-content-placeholder">
+                    <FaPlay />
+                  </div>
+                )}
+                <span className="new-badge">NEW</span>
+              </div>
+              <div className="new-content-info">
+                <h4>{video.title || video.videoTitle || "Untitled"}</h4>
+                <span className="new-content-course">{video.courseTitle}</span>
+                {video.metadata?.organName && (
+                  <span className="new-content-meta">{video.metadata.organName}{video.metadata?.videoType ? ` \u2022 ${video.metadata.videoType}` : ""}</span>
+                )}
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+    )}
+
+
     <section className="newly-courses-section">
       <div className="card-head">
         <div>
@@ -528,6 +623,60 @@ return (
         )}
       </div>
     </section>
+
+   
+    {recentlyCompletedCourses.length > 0 && (
+      <section className="completed-courses-section">
+        <div className="card-head">
+          <div>
+            <h2>Recently Completed</h2>
+            <p>Courses you&apos;ve finished</p>
+          </div>
+          <Link to={`${basePath}/assigned-courses`}>View All</Link>
+        </div>
+        <div className="completed-courses-grid">
+          {recentlyCompletedCourses.map((course, i) => {
+            const colors = ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#ec4899"];
+            const letter = (course.title || course.courseTitle || "C").charAt(0).toUpperCase();
+            const thumbnail = getCourseThumbnail(course);
+            const completedAt = courseProgressData[course.id]?.completedAt
+              || completedCourses?.[course.id]?.completedAt
+              || "";
+            const score = courseProgressData[course.id]?.score
+              || courseProgressData[course.id]?.percentage
+              || "";
+            return (
+              <Link to={`${basePath}/course/${course.id}`} className="completed-course-card" key={course.id}>
+                <div className="completed-course-thumb">
+                  {thumbnail ? (
+                    <img src={thumbnail} alt={course.title || course.courseTitle} />
+                  ) : (
+                    <div className="completed-course-placeholder" style={{ background: colors[i % colors.length] }}>
+                      {letter}
+                    </div>
+                  )}
+                  <div className="completed-check">
+                    <FaCheckCircle />
+                  </div>
+                </div>
+                <div className="completed-course-info">
+                  <h3>{course.title || course.courseTitle}</h3>
+                  <span>{course.department || "Training"}</span>
+                  {completedAt && (
+                    <span className="completed-date">
+                      Completed {new Date(completedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                    </span>
+                  )}
+                  {score !== "" && (
+                    <span className="completed-score">Score: {Math.round(score)}%</span>
+                  )}
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+    )}
   </div>
 );
 }

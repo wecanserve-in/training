@@ -28,6 +28,8 @@ function EditCourse() {
   const [filterType, setFilterType] = useState("");
   const [showAddVideos, setShowAddVideos] = useState(false);
 
+  const [originalVideoIds, setOriginalVideoIds] = useState([]);
+
   const [dragIndex, setDragIndex] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
 
@@ -106,6 +108,7 @@ function EditCourse() {
         .map(([id, v]) => ({ id, ...v }))
         .sort((a, b) => (a.order || 0) - (b.order || 0));
       setCourseVideos(videos);
+      setOriginalVideoIds(videos.map((v) => v.id));
     }
   };
 
@@ -267,6 +270,18 @@ function EditCourse() {
           })
         )
       );
+
+      const newVideoIds = courseVideos
+        .filter((v) => !originalVideoIds.includes(v.id))
+        .map((v) => v.id);
+
+      if (newVideoIds.length > 0) {
+        await set(ref(database, `courseContentUpdates/${courseId}`), {
+          lastUpdatedAt: new Date().toISOString(),
+          updatedBy: currentUser.id,
+          newVideoIds,
+        });
+      }
 
       alert("Course updated successfully.");
       navigate(`${basePath}/courses`);

@@ -329,6 +329,26 @@ export const notificationPath = (
 
 
 // ============================================================
+// COURSE CONTENT UPDATES (tracks new video additions)
+// ============================================================
+
+/**
+ * Structure:
+ *
+ * courseContentUpdates/{courseId}
+ * {
+ *   lastUpdatedAt: "ISO string",
+ *   updatedBy: "uid",
+ *   newVideoIds: ["videoId1", "videoId2"]
+ * }
+ */
+export const courseContentUpdatesRoot = "courseContentUpdates";
+
+export const courseContentUpdatePath = (courseId) =>
+  `courseContentUpdates/${courseId}`;
+
+
+// ============================================================
 // LEGACY PATHS
 // ============================================================
 
