@@ -112,6 +112,11 @@ function App() {
 
           <Route path="my-results" element={<MyResults />} />
           <Route path="certificates" element={<Certificates />} />
+          <Route
+  path="all-certificates"
+  element={<AllCertificates />}
+/>
+
           <Route path="resources" element={<Resources />} />
           <Route path="profile" element={<Profile />} />
 

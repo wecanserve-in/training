@@ -374,19 +374,26 @@ function Login() {
 
   return (
     <div className="login-page">
+
+         <div className="page-logo">
+      <img
+        src="/Logo.webp"
+        alt="Company logo"
+      />
+    </div>
       <div className="login-box">
         {/* LEFT PANEL */}
         <div className="left-panel">
           <div className="left-overlay" />
 
           <div className="left-content">
-            <div className="brand-section">
+            {/* <div className="brand-section">
               <img
-                src="/zuvius-logo.png"
+                src="/Logo.webp"
                 alt="Company logo"
                 className="brand-logo"
               />
-            </div>
+            </div> */}
 
             <div className="hero-section">
               <h1>

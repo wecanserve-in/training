@@ -6,6 +6,7 @@ import { auth, database } from "../firebase";
 import {
   watchThreads,
   createDoubtThread,
+  deleteDoubtThread,
   notifyAdminsOfNewDoubt,
   markThreadRead,
 } from "../services/doubtService";
@@ -132,6 +133,7 @@ function DoubtChat() {
   const isAdmin = rawRole === "admin";
   const isDeptAdmin = rawRole === "departmentadmin";
   const canSeeAll = isSuperAdmin || isAdmin;
+  const canDeleteThread = isSuperAdmin || isAdmin || isDeptAdmin;
 
   const filteredThreads = useMemo(() => {
     return threads.filter((t) => {
@@ -199,6 +201,17 @@ function DoubtChat() {
     deptFilter,
     courseFilter,
   ]);
+
+  const handleDeleteThread = async (e, threadId) => {
+    e.stopPropagation();
+    if (!window.confirm("Delete this chat and all its messages? This cannot be undone.")) return;
+    try {
+      await deleteDoubtThread(threadId);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete chat.");
+    }
+  };
 
   const handleCreate = async () => {
     if (!newSubject.trim() || !newMessage.trim()) {
@@ -424,6 +437,15 @@ function DoubtChat() {
                     ? "In Progress"
                     : "Resolved"}
                 </span>
+                {canDeleteThread && (
+                  <button
+                    className="doubt-delete-btn"
+                    title="Delete chat"
+                    onClick={(e) => handleDeleteThread(e, thread.threadId)}
+                  >
+                    ×
+                  </button>
+                )}
               </div>
             </div>
           ))

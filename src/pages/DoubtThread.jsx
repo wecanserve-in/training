@@ -8,6 +8,7 @@ import {
   watchThreadMessages,
   sendDoubtMessage,
   updateThreadStatus,
+  deleteDoubtThread,
   markThreadRead,
   notifyThreadOwner,
   notifyOtherParticipants,
@@ -103,6 +104,7 @@ function DoubtThread() {
   const isDeptAdmin = rawRole === "departmentadmin";
   const canChangeStatus = isSuperAdmin || isAdmin || isDeptAdmin;
   const canReply = isSuperAdmin || isAdmin || isDeptAdmin;
+  const canDeleteThread = isSuperAdmin || isAdmin || isDeptAdmin;
 
   const handleSend = async () => {
     if (!newMsg.trim() || sending) return;
@@ -148,6 +150,17 @@ function DoubtThread() {
       setThread((prev) => ({ ...prev, status: newStatus }));
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleDeleteThread = async () => {
+    if (!window.confirm("Delete this chat and all its messages? This cannot be undone.")) return;
+    try {
+      await deleteDoubtThread(threadId);
+      navigate(`${basePath}/doubts`);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete chat.");
     }
   };
 
@@ -225,6 +238,15 @@ function DoubtThread() {
             <option value="in_progress">In Progress</option>
             <option value="resolved">Resolved</option>
           </select>
+        )}
+        {canDeleteThread && (
+          <button
+            className="doubt-delete-btn doubt-delete-header"
+            title="Delete chat"
+            onClick={handleDeleteThread}
+          >
+            ×
+          </button>
         )}
       </div>
 

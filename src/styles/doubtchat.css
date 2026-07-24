@@ -209,11 +209,6 @@
   font-weight: 500;
 }
 
-.doubt-thread-right {
-  flex-shrink: 0;
-  margin-left: 16px;
-}
-
 /* ─── Status Badges ─── */
 .doubt-status-badge {
   display: inline-flex;
@@ -237,6 +232,43 @@
 .doubt-status-badge.resolved {
   background: #dcfce7;
   color: #16a34a;
+}
+
+/* ─── Delete Button ─── */
+.doubt-delete-btn {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 1.1rem;
+  font-weight: 700;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.2s;
+  line-height: 1;
+  margin-left: 6px;
+}
+
+.doubt-delete-btn:hover {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.doubt-thread-right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: 16px;
+}
+
+.doubt-delete-header {
+  width: 32px;
+  height: 32px;
+  font-size: 1.2rem;
 }
 
 /* ─── Empty ─── */

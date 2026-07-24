@@ -3,6 +3,7 @@ import {
   set,
   push,
   update,
+  remove,
   ref,
   query,
   orderByChild,
@@ -94,6 +95,12 @@ export const markThreadRead = async (threadId) => {
   await update(ref(database, `${doubtThreadsRoot}/${threadId}`), {
     unreadCount: 0,
   });
+};
+
+// ─── Delete Thread (admin only) ───
+export const deleteDoubtThread = async (threadId) => {
+  await remove(ref(database, doubtMessagesForThreadPath(threadId)));
+  await remove(ref(database, `${doubtThreadsRoot}/${threadId}`));
 };
 
 // ─── Get Single Thread ───
