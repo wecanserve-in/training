@@ -196,22 +196,28 @@ function Dashboard() {
   }, [navigate]);
 
   const getCourseProgress = (courseId) => {
+    const courseVideos = courseVideosMap[courseId] || [];
+
+    if (courseVideos.length > 0) {
+      const total = courseVideos.reduce((sum, video) => {
+        const progress = progressMap?.[video.id];
+        if (progress?.completed) return sum + 100;
+        return sum + Number(progress?.watchedPercent || 0);
+      }, 0);
+      const calculated = Math.round(total / courseVideos.length);
+
+      if (calculated >= 100 && (completedCourses?.[courseId]?.passed || completedCourses?.[courseId]?.completed)) {
+        return 100;
+      }
+
+      return calculated;
+    }
+
     if (completedCourses?.[courseId]?.passed || completedCourses?.[courseId]?.completed) {
       return 100;
     }
 
-    const courseVideos = courseVideosMap[courseId] || [];
-    if (courseVideos.length === 0) return 0;
-
-    const total = courseVideos.reduce((sum, video) => {
-      const progress = progressMap?.[video.id];
-
-      if (progress?.completed) return sum + 100;
-
-      return sum + Number(progress?.watchedPercent || 0);
-    }, 0);
-
-    return Math.round(total / courseVideos.length);
+    return 0;
   };
 
   const getCourseThumbnail = (course) => {

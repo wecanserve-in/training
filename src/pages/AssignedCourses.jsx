@@ -196,13 +196,6 @@ function AssignedCourses() {
   }, []);
 
   const getCourseProgress = (courseId) => {
-    if (
-      completedCourses?.[courseId]?.passed ||
-      completedCourses?.[courseId]?.completed
-    ) {
-      return 100;
-    }
-
     const videos = courseVideosMap?.[courseId] || [];
 
     if (videos.length > 0) {
@@ -211,7 +204,17 @@ function AssignedCourses() {
         if (progress?.completed) return sum + 100;
         return sum + Number(progress?.watchedPercent || 0);
       }, 0);
-      return Math.max(0, Math.min(100, Math.round(totalProgress / videos.length)));
+      const calculated = Math.max(0, Math.min(100, Math.round(totalProgress / videos.length)));
+
+      if (calculated >= 100 && (completedCourses?.[courseId]?.passed || completedCourses?.[courseId]?.completed)) {
+        return 100;
+      }
+
+      return calculated;
+    }
+
+    if (completedCourses?.[courseId]?.passed || completedCourses?.[courseId]?.completed) {
+      return 100;
     }
 
     const courseProgressItems = Object.values(progressMap || {}).filter(

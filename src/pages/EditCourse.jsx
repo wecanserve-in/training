@@ -281,6 +281,23 @@ function EditCourse() {
           updatedBy: currentUser.id,
           newVideoIds,
         });
+
+        const assignmentsSnap = await get(ref(database, "userAssignments"));
+        if (assignmentsSnap.exists()) {
+          const allAssignments = assignmentsSnap.val();
+          const updates = {};
+
+          Object.entries(allAssignments).forEach(([uid, userCourses]) => {
+            if (userCourses?.[courseId]?.assigned) {
+              updates[`completedCourses/${uid}/${courseId}`] = null;
+              updates[`courseProgress/${uid}/${courseId}`] = null;
+            }
+          });
+
+          if (Object.keys(updates).length > 0) {
+            await update(ref(database), updates);
+          }
+        }
       }
 
       alert("Course updated successfully.");

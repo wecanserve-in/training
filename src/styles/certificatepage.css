@@ -171,20 +171,25 @@
 /* ── CERTIFICATE PREVIEW FRAME ── */
 .cert-canvas-preview-frame {
   width: 100%;
+  max-width: 1220px;
+  height: calc(1100px * 0.48);
+  margin: 0 auto;
+
   background: #fff;
   border: 1px solid #e8f5ee;
   border-radius: 14px;
   padding: 0;
   overflow: hidden;
+
   display: flex;
   justify-content: center;
   align-items: flex-start;
+
   position: relative;
   box-shadow: 0 2px 12px rgba(5, 150, 105, 0.06);
-  animation: certCardUp 0.4s ease;
-  height: calc(1100px * 0.55);
-}
 
+  animation: none;
+}
 .cert-canvas-preview-frame::before {
   content: "";
   position: absolute;
@@ -217,10 +222,7 @@
   transition: all 0.3s ease;
 }
 
-.cert-canvas-element:hover {
-  transform: scale(0.56) translateY(-4px) !important;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.16);
-}
+
 
 /* ── FOOTER ── */
 .cert-trigger-footer {
@@ -326,3 +328,4 @@
   .cert-canvas-element:hover { transform: scale(0.292) translateY(-4px) !important; }
   .cert-header-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
 }
+

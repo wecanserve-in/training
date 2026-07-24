@@ -218,15 +218,15 @@ function CertificatePage() {
             backgroundImage: "url('/certificate/certificate.png')",
             backgroundSize: "100% 100%",
             backgroundRepeat: "no-repeat",
-            margin: "0 auto",
-            transform: "scale(0.55)",
+            margin: "25px auto 0",
+            transform: "scale(0.45)",
             transformOrigin: "top center",
           }}
         >
           <div
             style={{
               position: "absolute",
-              top: "480px",
+              top: "450px",
               left: "0",
               width: "100%",
               textAlign: "center",
@@ -244,11 +244,11 @@ function CertificatePage() {
           <div
             style={{
               position: "absolute",
-              top: "640px",
+              top: "605px",
               left: "0",
               width: "100%",
               textAlign: "center",
-              fontSize: "30px",
+              fontSize: "40px",
               fontFamily: "'Times New Roman', serif",
               fontWeight: "600",
               color: "#101828",
@@ -261,9 +261,10 @@ function CertificatePage() {
           <div
             style={{
               position: "absolute",
-              top: "825px",
-              left: "520px",
-              fontSize: "24px",
+              top: "800px",
+              left: "770px",
+              fontSize: "28px",
+               fontWeight: "600",
               fontFamily: "Arial, sans-serif",
               color: "#101828",
               lineHeight: "1",
@@ -272,7 +273,7 @@ function CertificatePage() {
             {date}
           </div>
 
-          <div
+          {/* <div
             style={{
               position: "absolute",
               top: "825px",
@@ -284,7 +285,7 @@ function CertificatePage() {
             }}
           >
             {certificateId}
-          </div>
+          </div> */}
         </div>
       </div>
 
