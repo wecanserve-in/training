@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { get, push, ref, set } from "firebase/database";
 import { database } from "../firebase";
+import { createNotification } from "../services/doubtService";
 import "../styles/addvideo.css";
 
 const createSafeSlug = (value = "") =>
@@ -443,6 +444,30 @@ function AddVideo() {
       );
 
       setUploadProgress(100);
+
+      try {
+        const assignmentsSnap = await get(ref(database, "userAssignments"));
+        if (assignmentsSnap.exists()) {
+          const allAssignments = assignmentsSnap.val();
+          const notifyPromises = [];
+          Object.entries(allAssignments).forEach(([userId, userCourses]) => {
+            if (userCourses?.[courseId]?.assigned) {
+              notifyPromises.push(
+                createNotification(userId, {
+                  type: "course_updated",
+                  courseId: courseId,
+                  courseTitle: courseTitle,
+                  title: "Course Updated",
+                  message: `New video(s) have been added to '${courseTitle}'.`,
+                })
+              );
+            }
+          });
+          await Promise.all(notifyPromises);
+        }
+      } catch (notifError) {
+        console.error("Failed to send notifications:", notifError);
+      }
 
       alert("Video uploaded and saved successfully.");
 

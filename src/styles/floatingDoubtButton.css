@@ -523,6 +523,29 @@
   padding: 20px 22px;
 }
 
+.fab-selected-video {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #ecfdf5;
+  border: 1px solid #d1fae5;
+  border-radius: 10px;
+  margin-top: 4px;
+}
+
+.fab-video-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #047857;
+}
+
+.fab-video-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #065f46;
+}
+
 .fab-doubt-drawer-body label {
   margin-top: 6px;
   margin-bottom: 2px;
@@ -652,6 +675,125 @@
 .fab-doubt-submit-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* ── New Chat Area (WhatsApp-style) ── */
+.fab-new-chat-area {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.fab-new-chat-video-row {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e8f5ee;
+}
+
+.fab-video-select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d1fae5;
+  border-radius: 10px;
+  background: #ecfdf5;
+  color: #065f46;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: "Inter", sans-serif;
+  outline: none;
+  cursor: pointer;
+}
+
+.fab-video-select:focus {
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.11);
+}
+
+.fab-type-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border-top: 1px solid #e8f5ee;
+  margin-top: auto;
+}
+
+.fab-type-back {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: #e8f5ee;
+  color: #059669;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.fab-type-back:hover {
+  background: #d1fae5;
+}
+
+.fab-type-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 24px;
+  background: #ffffff;
+  color: #1e293b;
+  font-size: 0.85rem;
+  font-family: "Inter", sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.fab-type-input:focus {
+  border-color: #059669;
+}
+
+.fab-type-input::placeholder {
+  color: #94a3b8;
+}
+
+.fab-type-send {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: #059669;
+  color: #ffffff;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.fab-type-send:hover:not(:disabled) {
+  background: #047857;
+}
+
+.fab-type-send:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+.fab-thread-video-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #ecfdf5;
+  color: #047857;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-top: 4px;
 }
 
 @media (max-width: 768px) {

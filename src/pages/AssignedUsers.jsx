@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { get, ref, remove } from "firebase/database";
 import { auth, database } from "../firebase";
+import { createNotification } from "../services/doubtService";
 import "../styles/assignedusers.css";
 
 const AVATAR_COLORS = [
@@ -212,6 +213,13 @@ function AssignedUsers() {
         }
         return copy;
       });
+      createNotification(userId, {
+        type: "course_removed",
+        courseId: courseId,
+        courseTitle: selectedCourse?.title || selectedCourse?.courseTitle || "",
+        title: "Course Removed",
+        message: `Your access to '${selectedCourse?.title || selectedCourse?.courseTitle || "a course"}' has been removed.`,
+      }).catch((e) => console.error("Failed to send unassign notification:", e));
     } catch (e) {
       console.error(e);
       alert("Failed to unassign.");
@@ -256,32 +264,137 @@ function AssignedUsers() {
         </div>
       </section>
 
-      {/* ─── COURSE LIST (overview) ─── */}
+      {/* ─── COURSE-WISE PROGRESS OVERVIEW ─── */}
       {!selectedCourseId && (
         <div key={`courses-${animKey}`} className="au-fade-in">
-          <div className="au-section-head">
-            <h2>All Courses</h2>
-            <p>{courseCards.length} courses — click to view assigned users</p>
+          <div className="au-section-head au-course-section-head">
+            <div>
+              <h2>Course-wise Progress</h2>
+              <p>View assigned users and completion progress for every course</p>
+            </div>
+
+            <span className="au-course-count">
+              {courseCards.length} Courses
+            </span>
           </div>
-          <div className="au-course-list">
+
+          <div className="au-course-grid">
             {courseCards.map((course, idx) => {
               const av = AVATAR_COLORS[idx % AVATAR_COLORS.length];
-              const initial = (course.title || "C").charAt(0).toUpperCase();
+              const title =
+                course.title ||
+                course.courseTitle ||
+                course.courseName ||
+                "Untitled Course";
+
+              const thumbnail =
+                course.thumbnailUrl ||
+                course.courseThumbnail ||
+                course.thumbnail ||
+                course.image ||
+                "";
+
               return (
-                <div className="au-course-row au-card-enter" key={course.id} style={{ animationDelay: `${idx * 50}ms` }} onClick={() => { setSelectedCourseId(course.id); setAnimKey((k) => k + 1); }}>
-                  <div className="au-course-avatar" style={{ background: av.bg, color: av.color }}>{initial}</div>
-                  <div className="au-course-info">
-                    <h3>{course.title}</h3>
-                    <span>{course.assigned} Assigned • {course.completed} Done • {course.inProgress} In Progress</span>
+                <button
+                  type="button"
+                  className="au-course-card au-card-enter"
+                  key={course.id}
+                  style={{ animationDelay: `${idx * 45}ms` }}
+                  onClick={() => {
+                    setSelectedCourseId(course.id);
+                    setAnimKey((k) => k + 1);
+                  }}
+                >
+                  <div className="au-course-card-media">
+                    {thumbnail ? (
+                      <img src={thumbnail} alt={title} />
+                    ) : (
+                      <div
+                        className="au-course-card-placeholder"
+                        style={{ background: av.bg, color: av.color }}
+                      >
+                        {title.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+
+                    <span className="au-course-rate-badge">
+                      {course.rate}%
+                    </span>
                   </div>
-                  <div className="au-course-progress-wrap">
-                    <div className="au-course-progress-bar"><span style={{ width: `${course.rate}%` }} /></div>
-                    <strong>{course.rate}%</strong>
+
+                  <div className="au-course-card-body">
+                    <h3 title={title}>{title}</h3>
+
+                    <div className="au-course-assigned-row">
+                      <div className="au-assigned-icon">
+                        <svg
+                          width="15"
+                          height="15"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                          <circle cx="9" cy="7" r="4" />
+                          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                      </div>
+
+                      <div>
+                        <strong>{course.assigned}</strong>
+                        <span>Assigned Users</span>
+                      </div>
+                    </div>
+
+                    <div className="au-course-status-row">
+                      <span>
+                        <i className="au-status-dot au-dot-completed"></i>
+                        {course.completed} Completed
+                      </span>
+
+                      <span>
+                        <i className="au-status-dot au-dot-progress"></i>
+                        {course.inProgress} In Progress
+                      </span>
+                    </div>
+
+                    <div className="au-course-card-progress-head">
+                      <span>Overall Progress</span>
+                      <strong>{course.rate}%</strong>
+                    </div>
+
+                    <div className="au-course-card-progress">
+                      <span style={{ width: `${course.rate}%` }}></span>
+                    </div>
+
+                    <div className="au-course-card-footer">
+                      <span>{course.notStarted} not started</span>
+
+                      <span className="au-view-users-link">
+                        View Users
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M5 12h14" />
+                          <path d="m13 6 6 6-6 6" />
+                        </svg>
+                      </span>
+                    </div>
                   </div>
-                </div>
+                </button>
               );
             })}
-            {courseCards.length === 0 && <p className="au-empty">No courses found.</p>}
+
+            {courseCards.length === 0 && (
+              <p className="au-empty">No courses found.</p>
+            )}
           </div>
         </div>
       )}

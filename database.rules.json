@@ -6,39 +6,45 @@
         ".write": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'superAdmin' || root.child('users').child(auth.uid).child('role').val() === 'admin')"
       }
     },
-
-    "doubtThreads": {
-      ".read": "auth != null",
-      "$threadId": {
-        ".write": "auth != null",
-        ".validate": "newData.hasChildren(['createdBy', 'subject'])"
-      }
-    },
-
-    "doubtMessages": {
-      ".read": "auth != null",
-      "$threadId": {
-        ".read": "auth != null",
-        "$messageId": {
-          ".write": "auth != null",
-          ".validate": "newData.hasChildren(['senderId', 'message'])"
+    "courseDiscussions": {
+      "$courseId": {
+        ".read": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'superAdmin' || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'departmentAdmin' || root.child('userAssignments').child(auth.uid).child($courseId).exists())",
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'superAdmin' || root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'departmentAdmin' || root.child('userAssignments').child(auth.uid).child($courseId).exists())",
+        "channels": {
+          "$channelId": {
+            "messages": {
+              "$messageId": {
+                ".validate": "newData.hasChildren(['messageId','courseId','channelId','senderId','senderName','message','createdAt']) && newData.child('courseId').val() === $courseId && newData.child('channelId').val() === $channelId && newData.child('senderId').val() === auth.uid && newData.child('message').isString() && newData.child('message').val().length > 0 && newData.child('message').val().length <= 2000"
+              }
+            }
+          }
         }
       }
     },
-
     "notifications": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         "$notifId": {
-          ".write": "auth != null && auth.uid === $uid"
+          ".write": "auth != null && (!data.exists() || auth.uid === $uid)",
+          ".validate": "newData.hasChildren(['notificationId','type','title','message','read','createdAt'])"
         }
       }
     },
-
     "courses": {
       ".read": "auth != null"
     },
-
+    "courseVideos": {
+      ".read": "auth != null"
+    },
+    "videoLibrary": {
+      ".read": "auth != null"
+    },
+    "videos": {
+      ".read": "auth != null"
+    },
+    "userAssignments": {
+      ".read": "auth != null"
+    },
     "departments": {
       ".read": "auth != null"
     }

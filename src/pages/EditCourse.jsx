@@ -11,6 +11,7 @@ import {
 
 import { auth, database } from "../firebase";
 import useBasePath from "../hooks/useBasePath";
+import { createNotification } from "../services/doubtService";
 import "../styles/editcourse.css";
 
 /* ======================================================
@@ -1320,49 +1321,15 @@ function EditCourse() {
     }
 
     /*
-     * Reset only final-course completion.
-     * Do not reset video progress.
-     * Do not delete practice/revision quiz attempts.
+     * Only reset the course-completed flag so progress
+     * shows the new content as unwatched.
+     * Preserve courseTestPassed, scores, and
+     * completedCourses — the user already earned the
+     * certificate and should not re-take the exam.
      */
-    progressUpdates[
-      `completedCourses/${userId}/${courseId}`
-    ] = null;
-
     progressUpdates[
       `courseProgress/${userId}/${courseId}/completed`
     ] = false;
-
-    progressUpdates[
-      `courseProgress/${userId}/${courseId}/courseTestCompleted`
-    ] = false;
-
-    progressUpdates[
-      `courseProgress/${userId}/${courseId}/courseTestPassed`
-    ] = false;
-
-    progressUpdates[
-      `courseProgress/${userId}/${courseId}/score`
-    ] = null;
-
-    progressUpdates[
-      `courseProgress/${userId}/${courseId}/percentage`
-    ] = null;
-
-    progressUpdates[
-      `courseProgress/${userId}/${courseId}/correct`
-    ] = null;
-
-    progressUpdates[
-      `courseProgress/${userId}/${courseId}/totalMarks`
-    ] = null;
-
-    progressUpdates[
-      `courseProgress/${userId}/${courseId}/finalQuizAttemptId`
-    ] = null;
-
-    progressUpdates[
-      `courseProgress/${userId}/${courseId}/legacyAttemptId`
-    ] = null;
 
     /*
      * Read existing attempts and remove only final attempts.
@@ -1890,6 +1857,58 @@ function EditCourse() {
         );
 
         await resetAssignedUsersProgress();
+
+        if (newlyAddedVideoIds.length > 0) {
+          try {
+            const assignmentsSnap = await get(ref(database, "userAssignments"));
+            if (assignmentsSnap.exists()) {
+              const allAssignments = assignmentsSnap.val();
+              const notifyPromises = [];
+              Object.entries(allAssignments).forEach(([userId, userCourses]) => {
+                if (userCourses?.[courseId]?.assigned) {
+                  notifyPromises.push(
+                    createNotification(userId, {
+                      type: "course_updated",
+                      courseId: courseId,
+                      courseTitle: title.trim(),
+                      title: "Course Updated",
+                      message: `New video(s) have been added to '${title.trim()}'.`,
+                    })
+                  );
+                }
+              });
+              await Promise.all(notifyPromises);
+            }
+          } catch (notifError) {
+            console.error("Failed to send notifications:", notifError);
+          }
+        }
+
+        if (quizChanged) {
+          try {
+            const assignmentsSnap = await get(ref(database, "userAssignments"));
+            if (assignmentsSnap.exists()) {
+              const allAssignments = assignmentsSnap.val();
+              const notifyPromises = [];
+              Object.entries(allAssignments).forEach(([userId, userCourses]) => {
+                if (userCourses?.[courseId]?.assigned) {
+                  notifyPromises.push(
+                    createNotification(userId, {
+                      type: "quiz_updated",
+                      courseId: courseId,
+                      courseTitle: title.trim(),
+                      title: "Quiz Updated",
+                      message: `The quiz for '${title.trim()}' has been updated.`,
+                    })
+                  );
+                }
+              });
+              await Promise.all(notifyPromises);
+            }
+          } catch (notifError) {
+            console.error("Failed to send quiz notifications:", notifError);
+          }
+        }
       }
 
       setOriginalVideoIds(

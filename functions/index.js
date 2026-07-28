@@ -103,6 +103,9 @@ exports.deleteUser = onRequest(async (req, res) => {
     // Certificates
     updates[`certificates/${uid}`] = null;
 
+    // Notifications
+    updates[`notifications/${uid}`] = null;
+
     // Learning activity
     updates[`learningActivity/${uid}`] = null;
 
@@ -112,6 +115,39 @@ exports.deleteUser = onRequest(async (req, res) => {
     updates[`attempts/${uid}`] = null;
     updates[`results/${uid}`] = null;
     updates[`videoQuizAttempts/${uid}`] = null;
+
+    // ─── Step 1b: Clean up discussion messages sent by this user ───
+    const coursesSnap = await db.ref("courses").once("value");
+    if (coursesSnap.exists()) {
+      const courseIds = Object.keys(coursesSnap.val());
+
+      for (const courseId of courseIds) {
+        const channelsSnap = await db
+          .ref(`courseDiscussions/${courseId}/channels`)
+          .once("value");
+
+        if (!channelsSnap.exists()) continue;
+
+        const channelIds = Object.keys(channelsSnap.val());
+
+        for (const channelId of channelIds) {
+          const messagesSnap = await db
+            .ref(`courseDiscussions/${courseId}/channels/${channelId}/messages`)
+            .once("value");
+
+          if (!messagesSnap.exists()) continue;
+
+          const messages = messagesSnap.val();
+          Object.entries(messages).forEach(([messageId, msg]) => {
+            if (msg && msg.senderId === uid) {
+              updates[
+                `courseDiscussions/${courseId}/channels/${channelId}/messages/${messageId}`
+              ] = null;
+            }
+          });
+        }
+      }
+    }
 
     await db.ref().update(updates);
 

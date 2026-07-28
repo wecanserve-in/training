@@ -72,6 +72,7 @@ export const buildUserProfile = (
   return {
     ...profileData,
 
+    id: firebaseUser.uid,
     uid: firebaseUser.uid,
     email,
     name,

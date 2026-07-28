@@ -4,6 +4,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { get, ref, set, update } from "firebase/database";
 import { auth, database } from "../firebase";
 import useBasePath from "../hooks/useBasePath";
+import { createNotification } from "../services/doubtService";
 import {
   coursePath,
   courseVideosForCoursePath,
@@ -704,6 +705,25 @@ function QuizPage() {
             completedAt: nowIso,
           }
         );
+
+        try {
+          await createNotification(user.uid, {
+            type: "course_completed",
+            courseId: course.id,
+            courseTitle: course.title || course.courseTitle || "",
+            title: "Congratulations",
+            message: `You have successfully completed '${course.title || course.courseTitle || ""}'.`,
+          });
+          await createNotification(user.uid, {
+            type: "certificate_ready",
+            courseId: course.id,
+            courseTitle: course.title || course.courseTitle || "",
+            title: "Certificate Ready",
+            message: `Your certificate for '${course.title || course.courseTitle || ""}' is now available.`,
+          });
+        } catch (notifError) {
+          console.error("Failed to send completion notification:", notifError);
+        }
       }
 
       navigate(`${basePath}/result/${legacyAttemptId}`);
@@ -936,41 +956,24 @@ function QuizPage() {
     >
       {!quizStarted ? (
         <div className="strict-start-card">
-          <div className="strict-warning-label">
-            {isVideoQuiz ? "SECURE REVISION QUIZ" : "SECURE FINAL TEST"}
-          </div>
-
           <h1>
             {isVideoQuiz
               ? "Start Revision Quiz"
               : "Start Final Course Test"}
           </h1>
 
-          <p>
-            The test will open in fullscreen mode. Do not switch tabs,
-            exit fullscreen, copy content, or use restricted keyboard
-            shortcuts during the examination.
-          </p>
-
           <div className="quiz-danger-banner">
             <div className="quiz-danger-icon">⚠</div>
-
             <div className="quiz-danger-content">
-              <h3>Important warning</h3>
               <p>
-                After <strong>2 violations</strong>, the test will be
-                submitted automatically and cannot be resumed.
+                This is a <strong>secured test</strong>. You <strong>cannot</strong> switch tabs,
+                exit fullscreen, copy content, or use restricted keyboard shortcuts.
+              </p>
+              <p>
+                After <strong>2 violations</strong>, your test will be
+                <strong> auto-submitted</strong> and you won&apos;t be able to resume.
               </p>
             </div>
-          </div>
-
-          <div className="strict-rules">
-            <span>Fullscreen required</span>
-            <span>Tab switching monitored</span>
-            <span>Copy and paste blocked</span>
-            <span>
-              <strong>2 warnings</strong>&nbsp;= auto-submit
-            </span>
           </div>
 
           {securityMessage && (

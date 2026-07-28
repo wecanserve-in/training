@@ -5,6 +5,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { get, push, ref, set } from "firebase/database";
 import * as XLSX from "xlsx";
 import { auth, database } from "../firebase";
+import { createNotification } from "../services/doubtService";
 import "../styles/videolibrary.css";
 
 
@@ -529,6 +530,31 @@ function DepartmentUploadVideo() {
           departmentType,
           createdAt: q.createdAt || new Date().toISOString(),
         });
+      }
+
+      try {
+        const usersSnap = await get(ref(database, "users"));
+        if (usersSnap.exists()) {
+          const allUsers = usersSnap.val();
+          const notifyPromises = [];
+          Object.entries(allUsers).forEach(([uid, u]) => {
+            if (uid === currentUser?.id) return;
+            const userDept = String(u.department || "").trim();
+            const videoDept = String(department || "").trim();
+            if (userDept && videoDept && userDept === videoDept) {
+              notifyPromises.push(
+                createNotification(uid, {
+                  type: "new_video",
+                  title: "New Training Video",
+                  message: `${currentUser?.name || "Admin"} uploaded a new training video "${title.trim()}" in ${department}`,
+                })
+              );
+            }
+          });
+          await Promise.all(notifyPromises);
+        }
+      } catch (notifError) {
+        console.error("Failed to send notifications:", notifError);
       }
 
       setTitle("");

@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 
 import { database, auth } from "../firebase";
+import CourseDiscussionDrawer from "../components/CourseDiscussionDrawer";
 import {
   coursePath,
   courseProgressForCoursePath,
@@ -33,6 +34,7 @@ function CourseDetails() {
   const [progressMap, setProgressMap] = useState({});
   const [finalResult, setFinalResult] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showDiscussion, setShowDiscussion] = useState(false);
 
   /**
    * Detect the current portal.
@@ -741,6 +743,14 @@ function CourseDetails() {
           )}
 
           <div className="course-meta">
+            <button
+              type="button"
+              className="course-discussion-link"
+              onClick={() => setShowDiscussion(true)}
+            >
+              💬 Discussion
+            </button>
+
             <span>
               {videos.length} Videos
             </span>
@@ -1004,6 +1014,15 @@ function CourseDetails() {
           </div>
         )}
       </section>
+
+      <CourseDiscussionDrawer
+        open={showDiscussion}
+        onClose={() => setShowDiscussion(false)}
+        courseId={courseId}
+        courseTitle={courseTitle || "Course"}
+        videos={videos}
+        initialVideoId={null}
+      />
     </div>
   );
 }

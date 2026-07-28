@@ -8,7 +8,7 @@ import {
 } from "firebase/auth";
 import { ref, set, get, update, remove, push } from "firebase/database";
 import { auth } from "../firebase";
-import { deleteUserCompletely } from "../services/userDeletionService";
+import { deleteUserFully } from "../services/userDeletionService";
 import * as XLSX from "xlsx";
 import { database, firebaseConfig } from "../firebase";
 import { locations } from "../data/masterData";
@@ -90,8 +90,11 @@ function ManageUsers() {
     if (!snap.exists()) return setUsers([]);
     const data = snap.val();
     const userList = Object.entries(data)
-      .filter(([_, user]) => user.role === "user" || user.role === "departmentAdmin")
-      .map(([id, user]) => ({ id, ...user }));
+      .map(([id, user]) => ({ id, ...user }))
+      .filter((user) => {
+        const role = String(user?.role || "").trim().toLowerCase();
+        return role === "user" || role === "departmentadmin" || role === "department admin" || role === "department_admin" || role === "deptadmin" || role === "dept admin" || role === "admin" || role === "superadmin";
+      });
     setUsers(userList);
   };
 
@@ -217,8 +220,9 @@ function ManageUsers() {
   const deleteUser = async (uid) => {
     if (!window.confirm("Remove this user and ALL their data from the system? This cannot be undone.")) return;
     try {
-      await deleteUserCompletely(uid);
-      alert("User and all associated data deleted successfully.");
+      const idToken = await auth.currentUser.getIdToken();
+      const result = await deleteUserFully(uid, idToken);
+      alert(result.message || "User deleted successfully.");
       fetchUsers();
     } catch (error) {
       alert(error.message);
@@ -299,12 +303,37 @@ function ManageUsers() {
     const searchText = [user.name, user.email, user.designation, user.department, user.zone, user.state, user.cityArea, user.role, user.seniority]
       .map((v) => String(v ?? "")).join(" ").toLowerCase();
     return searchText.includes(searchTerm.toLowerCase());
+  }).sort((a, b) => {
+    const rolePriority = (r) => {
+      const v = String(r || "").trim().toLowerCase();
+      if (v === "superadmin") return 0;
+      if (v === "admin") return 1;
+      if (v === "departmentadmin" || v === "department admin" || v === "department_admin" || v === "deptadmin" || v === "dept admin") return 2;
+      return 3;
+    };
+    return rolePriority(a.role) - rolePriority(b.role);
   });
 
   const seniorityColor = (s) => {
     if (s === "senior") return { bg: "#dcfce7", color: "#166534" };
     if (s === "junior") return { bg: "#dbeafe", color: "#1e40af" };
     return { bg: "#fef3c7", color: "#92400e" };
+  };
+
+  const getRoleLabel = (role) => {
+    const r = String(role || "").trim().toLowerCase();
+    if (r === "superadmin") return "Super Admin";
+    if (r === "admin") return "Admin";
+    if (r === "departmentadmin" || r === "department admin" || r === "department_admin" || r === "deptadmin" || r === "dept admin") return "Dept Admin";
+    return "User";
+  };
+
+  const roleBadgeColor = (role) => {
+    const r = String(role || "").trim().toLowerCase();
+    if (r === "superadmin") return { bg: "#ede9fe", color: "#7c3aed" };
+    if (r === "admin") return { bg: "#fef3c7", color: "#b45309" };
+    if (r === "departmentadmin" || r === "department admin" || r === "department_admin" || r === "deptadmin" || r === "dept admin") return { bg: "#dbeafe", color: "#1d4ed8" };
+    return { bg: "#f1f5f9", color: "#475569" };
   };
 
   return (
@@ -331,8 +360,17 @@ function ManageUsers() {
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
             </div>
             <div>
-              <strong>{users.filter((u) => u.role === "departmentAdmin").length}</strong>
+              <strong>{users.filter((u) => { const r = String(u?.role || "").trim().toLowerCase(); return r === "departmentadmin" || r === "department admin" || r === "department_admin" || r === "deptadmin" || r === "dept admin"; }).length}</strong>
               <span>Dept Admins</span>
+            </div>
+          </div>
+          <div className="mu-hero-stat">
+            <div className="mu-hero-stat-icon" style={{ background: "#ede9fe", color: "#7c3aed" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div>
+              <strong>{users.filter((u) => String(u?.role || "").trim().toLowerCase() === "superadmin").length}</strong>
+              <span>Super Admins</span>
             </div>
           </div>
         </div>
@@ -426,6 +464,7 @@ function ManageUsers() {
                 <th>#</th>
                 <th>Name</th>
                 <th>Email</th>
+                <th>Role</th>
                 <th>Department</th>
                 <th>Designation</th>
                 <th>Seniority</th>
@@ -441,6 +480,11 @@ function ManageUsers() {
                   <td className="mu-td-idx">{idx + 1}</td>
                   <td className="mu-td-name">{user.name}</td>
                   <td className="mu-td-email">{user.email}</td>
+                  <td>
+                    <span className="mu-role-badge" style={roleBadgeColor(user.role)}>
+                      {getRoleLabel(user.role)}
+                    </span>
+                  </td>
                   <td>{user.department || "-"}</td>
                   <td>{user.designation || "-"}</td>
                   <td>
@@ -452,6 +496,7 @@ function ManageUsers() {
                   <td>{user.state || "-"}</td>
                   <td>{user.cityArea || "-"}</td>
                   <td>
+                    {String(user?.role || "").trim().toLowerCase() !== "superadmin" ? (
                     <div className="mu-actions">
                       <button className="mu-action-edit" onClick={() => startEditUser(user)} title="Edit">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
@@ -463,11 +508,14 @@ function ManageUsers() {
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                       </button>
                     </div>
+                    ) : (
+                      <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>Protected</span>
+                    )}
                   </td>
                 </tr>
               ))}
               {filteredUsers.length === 0 && (
-                <tr><td colSpan="10" className="mu-empty">No users found.</td></tr>
+                <tr><td colSpan="11" className="mu-empty">No users found.</td></tr>
               )}
             </tbody>
           </table>

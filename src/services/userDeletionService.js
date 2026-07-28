@@ -42,6 +42,9 @@ export const deleteUserCompletely = async (uid) => {
   // Certificates
   updates[certificatesPath(uid)] = null;
 
+  // Notifications
+  updates[`notifications/${uid}`] = null;
+
   // Learning activity
   updates[`learningActivity/${uid}`] = null;
 

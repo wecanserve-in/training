@@ -351,6 +351,15 @@
   text-transform: capitalize;
 }
 
+.mu-role-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .mu-empty {
   text-align: center;
   color: #94a3b8;

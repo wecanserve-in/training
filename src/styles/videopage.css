@@ -303,6 +303,25 @@ video::-webkit-media-controls-panel {
   gap: 4px;
 }
 
+.video-discussion-btn {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  color: #fff;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.video-discussion-btn:hover {
+  background: linear-gradient(135deg, #047857 0%, #065f46 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+}
+
 /* ── DESCRIPTION ── */
 .video-about-card {
   background: var(--vp-card);
@@ -1284,5 +1303,61 @@ video::-webkit-media-controls-panel {
   .video-title-right {
     flex-direction: row;
     align-items: center;
+  }
+
+  .vp-discuss-fab {
+    bottom: 16px;
+    right: 16px;
+    padding: 10px 16px;
+    font-size: 0.78rem;
+  }
+}
+
+/* ─── Floating Discussion Button ─── */
+.vp-discuss-fab {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 100px;
+  background: #059669;
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(5, 150, 105, 0.35);
+  transition: 0.25s;
+  animation: vpFabIn 0.4s ease backwards;
+  font-family: "Inter", sans-serif;
+  line-height: 1;
+}
+
+.vp-discuss-fab:hover {
+  background: #047857;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(5, 150, 105, 0.45);
+}
+
+.vp-discuss-fab:active {
+  transform: translateY(0);
+}
+
+.vp-discuss-fab svg {
+  flex-shrink: 0;
+}
+
+@keyframes vpFabIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }

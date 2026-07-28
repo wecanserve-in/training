@@ -46,9 +46,6 @@ import AdminResults from "./pages/AdminResults";
 import EditVideo from "./pages/EditVideo";
 import EditQuestion from "./pages/EditQuestion";
 
-import DoubtChat from "./pages/DoubtChat";
-import DoubtThread from "./pages/DoubtThread";
-
 import UserLayout from "./components/UserLayout";
 import AssignedCourses from "./pages/AssignedCourses";
 import Certificates from "./pages/Certificates";
@@ -56,6 +53,7 @@ import AllCertificates from "./pages/AllCertificates";
 import MyLearnings from "./pages/MyLearnings";
 import Profile from "./pages/Profile";
 import Resources from "./pages/Resources";
+import Notifications from "./pages/Notifications";
 
 function App() {
   return (
@@ -150,11 +148,9 @@ function App() {
             element={<CertificatePage />}
           />
 
-          <Route path="doubts" element={<DoubtChat />} />
-
           <Route
-            path="doubts/:id"
-            element={<DoubtThread />}
+            path="notifications"
+            element={<Notifications />}
           />
         </Route>
 
@@ -252,11 +248,9 @@ function App() {
             element={<CertificatePage />}
           />
 
-          <Route path="doubts" element={<DoubtChat />} />
-
           <Route
-            path="doubts/:id"
-            element={<DoubtThread />}
+            path="notifications"
+            element={<Notifications />}
           />
         </Route>
 
@@ -387,11 +381,9 @@ function App() {
             element={<CertificatePage />}
           />
 
-          <Route path="doubts" element={<DoubtChat />} />
-
           <Route
-            path="doubts/:id"
-            element={<DoubtThread />}
+            path="notifications"
+            element={<Notifications />}
           />
         </Route>
 
@@ -469,13 +461,8 @@ function App() {
           />
 
           <Route
-            path="/doubts"
-            element={<DoubtChat />}
-          />
-
-          <Route
-            path="/doubts/:id"
-            element={<DoubtThread />}
+            path="/notifications"
+            element={<Notifications />}
           />
         </Route>
       </Routes>

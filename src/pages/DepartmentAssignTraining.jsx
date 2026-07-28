@@ -3,6 +3,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { get, ref, set } from "firebase/database";
 import { useSearchParams } from "react-router-dom";
 import { auth, database } from "../firebase";
+import { createNotification } from "../services/doubtService";
 import "../styles/departmentassigntraining.css";
 
 function DepartmentAssignTraining() {
@@ -261,6 +262,19 @@ function DepartmentAssignTraining() {
           })
         )
       );
+
+      await Promise.all(
+        selectedUsers.map((userId) =>
+          createNotification(userId, {
+            type: "course_assigned",
+            courseId: selectedCourseId,
+            courseTitle: selectedCourse?.title || "",
+            title: "Course Assigned",
+            message: `You have been assigned the course '${selectedCourse?.title || "a course"}'.`,
+          })
+        )
+      );
+
       alert(`Course assigned to ${selectedUsers.length} user(s).`);
       setSelectedUsers([]);
       const newSnap = await get(ref(database, "userAssignments"));

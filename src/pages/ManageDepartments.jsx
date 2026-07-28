@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { ref, get, push, set, remove, update } from "firebase/database";
 import { database } from "../firebase";
 import "../styles/managedepartments.css";
@@ -16,8 +16,10 @@ const departmentTypes = [
 
 function ManageDepartments() {
   const [departments, setDepartments] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [members, setMembers] = useState([]);
   const [search, setSearch] = useState("");
+  const [expandedDept, setExpandedDept] = useState("");
 
   const [selectedDepartment, setSelectedDepartment] = useState("");
   const [selectedMember, setSelectedMember] = useState("");
@@ -32,21 +34,42 @@ function ManageDepartments() {
     const deptSnap = await get(ref(database, "departments"));
     const userSnap = await get(ref(database, "users"));
 
-    setDepartments(
-      deptSnap.exists()
-        ? Object.entries(deptSnap.val()).map(([id, item]) => ({ id, ...item }))
-        : []
-    );
+    const deptList = deptSnap.exists()
+      ? Object.entries(deptSnap.val()).map(([id, item]) => ({ id, ...item }))
+      : [];
 
+    const userList = userSnap.exists()
+      ? Object.entries(userSnap.val()).map(([id, item]) => ({ id, uid: item.uid || id, ...item }))
+      : [];
+
+    setDepartments(deptList);
+    setAllUsers(userList);
     setMembers(
-      userSnap.exists()
-        ? Object.entries(userSnap.val())
-            .map(([id, item]) => ({ id, ...item }))
-            .filter((user) => user.role === "user" || user.role === "departmentAdmin")
-            .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
-        : []
+      userList
+        .filter((user) => user.role === "user" || user.role === "departmentAdmin")
+        .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
     );
   };
+
+  const deptUsersMap = useMemo(() => {
+    const map = {};
+    departments.forEach((dept) => {
+      const deptId = dept.id;
+      const deptName = dept.departmentName || "";
+      const users = allUsers.filter((u) => {
+        const userDeptId = u.departmentId || "";
+        const userDept = u.department || "";
+        return userDeptId === deptId || userDept === deptName;
+      });
+      users.sort((a, b) => {
+        const aIsAdmin = a.role === "departmentAdmin" ? 0 : 1;
+        const bIsAdmin = b.role === "departmentAdmin" ? 0 : 1;
+        return aIsAdmin - bIsAdmin;
+      });
+      map[deptId] = users;
+    });
+    return map;
+  }, [departments, allUsers]);
 
   const resetAssignForm = () => {
     setSelectedDepartment("");
@@ -210,7 +233,7 @@ function ManageDepartments() {
           <table>
             <thead>
               <tr>
-                <th>#</th>
+                <th style={{ width: 32 }}></th>
                 <th>Department</th>
                 <th>Type</th>
                 <th>Admin</th>
@@ -219,37 +242,88 @@ function ManageDepartments() {
               </tr>
             </thead>
             <tbody>
-              {filteredDepts.map((dept, idx) => (
-                <tr key={dept.id}>
-                  <td className="md-td-idx">{idx + 1}</td>
-                  <td className="md-td-name">{dept.departmentName}</td>
-                  <td>
-                    <span className="md-type-badge">{dept.departmentType}</span>
-                  </td>
-                  <td>
-                    <div className="md-admin-cell">
-                      <div className="md-admin-avatar">
-                        {(dept.departmentAdminName || "A").charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <strong>{dept.departmentAdminName || "-"}</strong>
-                        <span>{dept.departmentAdminEmail || "-"}</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td>{dept.departmentAdminDesignation || "-"}</td>
-                  <td>
-                    <div className="md-actions">
-                      <button className="md-action-edit" onClick={() => openEditModal(dept)} title="Assign/Change Admin">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                      </button>
-                      <button className="md-action-delete" onClick={() => deleteDepartment(dept)} title="Delete">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {filteredDepts.map((dept, idx) => {
+                const deptUsers = deptUsersMap[dept.id] || [];
+                const isExpanded = expandedDept === dept.id;
+                return (
+                  <Fragment key={dept.id}>
+                    <tr className={isExpanded ? "md-row-open" : ""}>
+                      <td>
+                        <button
+                          className="md-expand-btn"
+                          onClick={() => setExpandedDept(isExpanded ? "" : dept.id)}
+                          title={isExpanded ? "Hide users" : "Show users"}
+                        >
+                          <svg
+                            width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                            style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+                          >
+                            <path d="M9 18l6-6-6-6"/>
+                          </svg>
+                        </button>
+                      </td>
+                      <td className="md-td-name">{dept.departmentName}</td>
+                      <td>
+                        <span className="md-type-badge">{dept.departmentType}</span>
+                      </td>
+                      <td>
+                        <div className="md-admin-cell">
+                          <div className="md-admin-avatar">
+                            {(dept.departmentAdminName || "A").charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <strong>{dept.departmentAdminName || "-"}</strong>
+                            <span>{dept.departmentAdminEmail || "-"}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td>{dept.departmentAdminDesignation || "-"}</td>
+                      <td>
+                        <div className="md-actions">
+                          <button className="md-action-edit" onClick={() => openEditModal(dept)} title="Assign/Change Admin">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                          </button>
+                          <button className="md-action-delete" onClick={() => deleteDepartment(dept)} title="Delete">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {isExpanded && (
+                      <tr className="md-users-row">
+                        <td colSpan="6" style={{ padding: 0 }}>
+                          <div className="md-users-wrap">
+                            <div className="md-users-head">
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                              <span>Users <em>({deptUsers.length})</em></span>
+                            </div>
+                            {deptUsers.length === 0 ? (
+                              <p className="md-users-empty">No users in this department.</p>
+                            ) : (
+                              <div className="md-users-list">
+                                {deptUsers.map((u, i) => (
+                                  <div className="md-user-row" key={u.id} style={{ animationDelay: `${i * 50}ms` }}>
+                                    <div className="md-user-row-avatar">
+                                      {(u.name || u.email || "U").charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="md-user-row-body">
+                                      <strong>{u.name || "Unknown"}</strong>
+                                      <span>{u.email || ""}{u.designation ? ` — ${u.designation}` : ""}</span>
+                                    </div>
+                                    <span className={`md-user-row-badge ${u.role === "departmentAdmin" ? "badge-admin" : "badge-user"}`}>
+                                      {u.role === "departmentAdmin" ? "Admin" : "User"}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
               {filteredDepts.length === 0 && (
                 <tr><td colSpan="6" className="md-empty">No departments found.</td></tr>
               )}

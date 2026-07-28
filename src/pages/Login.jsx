@@ -409,7 +409,7 @@ function Login() {
               </h1>
 
               <p className="hero-desc">
-                Your company training and
+                Zuvius training and
                 certification hub.
               </p>
 

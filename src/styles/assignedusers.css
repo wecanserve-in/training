@@ -344,3 +344,335 @@
   .au-course-row { padding: 10px 12px; }
   .au-course-avatar { width: 34px; height: 34px; font-size: 0.85rem; }
 }
+
+
+/* =========================================================
+   COURSE-WISE PROGRESS CARD GRID
+========================================================= */
+
+.au-course-section-head,
+.au-course-overview-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.au-course-section-head > div,
+.au-course-overview-head > div {
+  min-width: 0;
+}
+
+.au-course-count {
+  flex-shrink: 0;
+  padding: 6px 11px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+/* Supports both class names */
+.au-course-grid,
+.au-course-card-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 18px;
+  width: 100%;
+  margin-bottom: 22px;
+}
+
+.au-course-card {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 2px 7px rgba(15, 23, 42, 0.045);
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.au-course-card:hover {
+  transform: translateY(-4px);
+  border-color: #86efac;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.1);
+}
+
+.au-course-card:focus-visible {
+  outline: 3px solid rgba(34, 197, 94, 0.22);
+  outline-offset: 2px;
+}
+
+/* Thumbnail */
+.au-course-card-media {
+  position: relative;
+  width: 100%;
+  height: 92px;
+  overflow: hidden;
+  background: #f0fdf4;
+}
+
+.au-course-card-media img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.au-course-card-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.7rem;
+  font-weight: 800;
+}
+
+.au-course-rate-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-width: 42px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #15803d;
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-align: center;
+  box-shadow: 0 2px 7px rgba(15, 23, 42, 0.12);
+}
+
+/* Card body */
+.au-course-card-body {
+  padding: 10px;
+}
+
+.au-course-card-body h3 {
+  min-height: 34px;
+  margin: 0 0 8px;
+  overflow: hidden;
+  color: #1e293b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* Assigned users */
+.au-course-assigned-row,
+.au-course-assigned {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.au-assigned-icon,
+.au-course-assigned-icon {
+  width: 27px;
+  height: 27px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.au-course-assigned-row strong,
+.au-course-assigned strong {
+  display: block;
+  color: #1e293b;
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.au-course-assigned-row span,
+.au-course-assigned span {
+  display: block;
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 0.57rem;
+}
+
+/* Compact status row */
+.au-course-status-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.au-course-status-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 0.56rem;
+  font-weight: 700;
+}
+
+.au-status-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+
+.au-dot-completed {
+  background: #22c55e;
+}
+
+.au-dot-progress {
+  background: #f59e0b;
+}
+
+/* Progress */
+.au-course-card-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.au-course-card-progress-head span {
+  color: #64748b;
+  font-size: 0.58rem;
+  font-weight: 600;
+}
+
+.au-course-card-progress-head strong {
+  color: #15803d;
+  font-size: 0.64rem;
+  font-weight: 800;
+}
+
+.au-course-card-progress {
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.au-course-card-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #86efac, #22c55e);
+  transition: width 0.3s ease;
+}
+
+/* Footer */
+.au-course-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #eef2f7;
+}
+
+.au-course-card-footer > span:first-child {
+  color: #94a3b8;
+  font-size: 0.55rem;
+}
+
+.au-view-users-link,
+.au-view-users {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #15803d;
+  font-size: 0.58rem;
+  font-weight: 700;
+  transition: gap 0.2s ease;
+}
+
+.au-course-card:hover .au-view-users-link,
+.au-course-card:hover .au-view-users {
+  gap: 7px;
+}
+
+/* Laptop */
+@media (max-width: 1250px) {
+  .au-course-grid,
+  .au-course-card-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 15px;
+  }
+}
+
+/* Small laptop */
+@media (max-width: 1050px) {
+  .au-course-grid,
+  .au-course-card-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Tablet */
+@media (max-width: 800px) {
+  .au-course-grid,
+  .au-course-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .au-course-card-media {
+    height: 105px;
+  }
+}
+
+/* Mobile */
+@media (max-width: 560px) {
+  .au-course-section-head,
+  .au-course-overview-head {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .au-course-count {
+    padding: 5px 8px;
+    font-size: 0.62rem;
+  }
+
+  .au-course-grid,
+  .au-course-card-grid {
+    grid-template-columns: 1fr;
+    gap: 11px;
+  }
+
+  .au-course-card-media {
+    height: 125px;
+  }
+
+  .au-course-card-body h3 {
+    min-height: auto;
+  }
+}

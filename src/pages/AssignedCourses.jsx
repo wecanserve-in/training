@@ -21,9 +21,9 @@ function AssignedCourses() {
   const [completedCourses, setCompletedCourses] = useState({});
   const [results, setResults] = useState({});
 
+  const [courseProgressData, setCourseProgressData] = useState({});
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("");
   const [loading, setLoading] = useState(true);
 
   const getTime = (value) => {
@@ -53,7 +53,7 @@ function AssignedCourses() {
           assignmentsSnap,
           completedSnap,
           resultsSnap,
-          ,
+          courseProgressSnap,
           videoProgressSnap,
           coursesSnap,
           videosSnap,
@@ -73,7 +73,6 @@ function AssignedCourses() {
 
         const completedData = completedSnap.exists() ? completedSnap.val() : {};
         const resultsData = resultsSnap.exists() ? resultsSnap.val() : {};
-        // Merge video progress from new and legacy paths
         const newVideoProgress = videoProgressSnap.exists() ? videoProgressSnap.val() : {};
         const mergedProgressData = {};
         Object.values(newVideoProgress).forEach((courseVideos) => {
@@ -95,6 +94,9 @@ function AssignedCourses() {
         setCompletedCourses(completedData);
         setResults(resultsData);
         setProgressMap(mergedProgressData);
+
+        const userCourseProgress = courseProgressSnap.exists() ? courseProgressSnap.val() : {};
+        setCourseProgressData(userCourseProgress);
 
         if (!assignmentsSnap.exists() || !coursesSnap.exists()) {
           setCourses([]);
@@ -238,10 +240,11 @@ function AssignedCourses() {
     return "notStarted";
   };
 
-  const getStatusLabel = (status) => {
-    if (status === "completed") return "Completed";
-    if (status === "inProgress") return "In Progress";
-    return "Not Started";
+  const hasNewVideos = (courseId) => {
+    const lastAccessed = courseProgressData[courseId]?.lastAccessedAt;
+    if (!lastAccessed) return false;
+    const videos = courseVideosMap[courseId] || [];
+    return videos.some((v) => v.addedAt && new Date(v.addedAt) > new Date(lastAccessed));
   };
 
   const getCourseThumbnail = (course) => {
@@ -262,16 +265,6 @@ function AssignedCourses() {
     );
   };
 
-  const getCourseType = (course) => {
-    const videos = courseVideosMap[course.id] || [];
-    const firstType = videos.find((video) => video.metadata?.videoType)?.metadata?.videoType;
-    return firstType || course.courseType || course.type || "Training";
-  };
-
-  const typeOptions = useMemo(() => {
-    return [...new Set(courses.map((course) => getCourseType(course)).filter(Boolean))];
-  }, [courses, courseVideosMap]);
-
   const totalCourses = courses.length;
   const completedCount = courses.filter((c) => getCourseProgress(c.id) >= 100).length;
   const inProgressCount = courses.filter((c) => {
@@ -283,20 +276,12 @@ function AssignedCourses() {
   const filteredCourses = useMemo(() => {
     return courses.filter((course) => {
       const status = getCourseStatus(course.id);
-      const videos = courseVideosMap[course.id] || [];
-      const type = getCourseType(course);
 
       const searchableText = [
         course.title,
         course.courseTitle,
         course.description,
         course.overview,
-        course.department,
-        course.courseDepartment,
-        type,
-        ...videos.map((video) => video.title),
-        ...videos.map((video) => video.metadata?.organName),
-        ...videos.map((video) => video.metadata?.genericName),
       ]
         .filter(Boolean)
         .join(" ")
@@ -304,19 +289,10 @@ function AssignedCourses() {
 
       const matchSearch = searchableText.includes(search.toLowerCase().trim());
       const matchStatus = statusFilter === "all" || statusFilter === status;
-      const matchType = typeFilter ? type === typeFilter : true;
 
-      return matchSearch && matchStatus && matchType;
+      return matchSearch && matchStatus;
     });
-  }, [
-    courses,
-    search,
-    statusFilter,
-    typeFilter,
-    courseVideosMap,
-    progressMap,
-    completedCourses,
-  ]);
+  }, [courses, search, statusFilter, courseVideosMap, progressMap, completedCourses]);
 
   if (loading) {
     return <h2 className="assigned-loading">Loading courses...</h2>;
@@ -385,43 +361,30 @@ function AssignedCourses() {
           <option value="completed">Completed</option>
         </select>
 
-        <select
-          value={typeFilter}
-          onChange={(event) => setTypeFilter(event.target.value)}
-        >
-          <option value="">All Types</option>
-          {typeOptions.map((type) => (
-            <option key={type} value={type}>
-              {type}
-            </option>
-          ))}
-        </select>
-
         <button
           type="button"
           onClick={() => {
             setSearch("");
             setStatusFilter("all");
-            setTypeFilter("");
           }}
         >
           Clear
         </button>
       </div>
 
-      <div className="assigned-course-list">
+      <div className="assigned-courses-grid">
         {filteredCourses.length === 0 ? (
           <div className="assigned-empty-card">
             <h3>No courses found</h3>
             <p>Try changing your search or filters.</p>
           </div>
         ) : (
-          filteredCourses.map((course) => {
+          filteredCourses.map((course, i) => {
             const progress = getCourseProgress(course.id);
             const status = getCourseStatus(course.id);
             const thumbnail = getCourseThumbnail(course);
-            const videos = courseVideosMap[course.id] || [];
-            const type = getCourseType(course);
+            const colors = ["#f59e0b", "#3b82f6", "#10b981", "#8b5cf6", "#ec4899"];
+            const letter = getCourseTitle(course).charAt(0).toUpperCase();
 
             const isPassed =
               results?.[course.id]?.passed || completedCourses?.[course.id]?.passed;
@@ -438,46 +401,35 @@ function AssignedCourses() {
             return (
               <Link
                 to={`${basePath}/course/${course.id}`}
-                className="assigned-course-row"
+                className="assigned-course-card"
                 key={course.id}
               >
                 <div className="assigned-course-thumb">
                   {thumbnail ? (
                     <img src={thumbnail} alt={getCourseTitle(course)} />
                   ) : (
-                    <div>{getCourseTitle(course).charAt(0)}</div>
+                    <div className="assigned-course-placeholder" style={{ background: colors[i % colors.length] }}>
+                      {letter}
+                    </div>
                   )}
+                  <span className={`assigned-status-pill ${status}`}>
+                    {status === "completed" ? "Completed" : status === "inProgress" ? "In Progress" : "Not Started"}
+                  </span>
+                  {hasNewVideos(course.id) && <span className="new-video-badge">NEW</span>}
                 </div>
 
                 <div className="assigned-course-content">
-                  <div className="assigned-course-title-row">
-                    <h2>{getCourseTitle(course)}</h2>
-                    <span className={`assigned-status-pill ${status}`}>
-                      {getStatusLabel(status)}
-                    </span>
-                  </div>
-
-                  <p>{getCourseDescription(course)}</p>
-
-                  <div className="assigned-meta">
-                    <span>{course.department || course.courseDepartment || "Training"}</span>
-                    <span>{type}</span>
-                    <span>{videos.length || course.totalVideos || 0} Videos</span>
-                    <span>{course.totalQuestions || 0} Questions</span>
-                    <span>Pass {course.passingScore || 70}%</span>
-                  </div>
+                  <h3>{getCourseTitle(course)}</h3>
+                  <p className="assigned-course-desc">{getCourseDescription(course)}</p>
 
                   <div className="assigned-progress">
-                    <div>
+                    <div className="progress-bar">
                       <span style={{ width: `${progress}%` }}></span>
                     </div>
                     <strong>{progress}%</strong>
                   </div>
-                </div>
 
-                <div className="assigned-action-text">
-                  <span>{actionLabel}</span>
-                  <b>→</b>
+                  <span className="assigned-action-btn">{actionLabel}</span>
                 </div>
               </Link>
             );

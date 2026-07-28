@@ -1,0 +1,185 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth !== null",
+        ".write": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() === 'superAdmin')"
+      }
+    },
+
+    "departments": {
+      ".read": "auth !== null",
+      ".write": "auth !== null && root.child('users/' + auth.uid + '/role').val() === 'superAdmin'"
+    },
+
+    "courses": {
+      ".read": "auth !== null",
+      ".write": "auth !== null && ['superAdmin', 'admin', 'departmentAdmin'].includes(root.child('users/' + auth.uid + '/role').val())"
+    },
+
+    "videos": {
+      ".read": "auth !== null",
+      ".write": "auth !== null && ['superAdmin', 'admin', 'departmentAdmin'].includes(root.child('users/' + auth.uid + '/role').val())"
+    },
+
+    "videoLibrary": {
+      ".read": "auth !== null",
+      ".write": "auth !== null && ['superAdmin', 'admin', 'departmentAdmin'].includes(root.child('users/' + auth.uid + '/role').val())"
+    },
+
+    "courseVideos": {
+      ".read": "auth !== null",
+      ".write": "auth !== null && ['superAdmin', 'admin', 'departmentAdmin'].includes(root.child('users/' + auth.uid + '/role').val())"
+    },
+
+    "videoQuizzes": {
+      ".read": "auth !== null",
+      ".write": "auth !== null && ['superAdmin', 'admin', 'departmentAdmin'].includes(root.child('users/' + auth.uid + '/role').val())"
+    },
+
+    "questions": {
+      ".read": "auth !== null",
+      ".write": "auth !== null && ['superAdmin', 'admin', 'departmentAdmin'].includes(root.child('users/' + auth.uid + '/role').val())"
+    },
+
+    "userAssignments": {
+      "$uid": {
+        ".read": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')",
+        ".write": "auth !== null && root.child('users/' + auth.uid + '/role').val() !== 'user'"
+      }
+    },
+
+    "videoProgress": {
+      "$uid": {
+        ".read": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')",
+        "$courseId": {
+          "$videoId": {
+            ".write": "auth !== null && auth.uid === $uid"
+          }
+        }
+      }
+    },
+
+    "courseProgress": {
+      "$uid": {
+        ".read": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')",
+        "$courseId": {
+          ".write": "auth !== null && auth.uid === $uid"
+        }
+      }
+    },
+
+    "quizAttempts": {
+      "$uid": {
+        ".read": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')",
+        "$courseId": {
+          "$quizId": {
+            ".write": "auth !== null && auth.uid === $uid"
+          }
+        }
+      }
+    },
+
+    "completedCourses": {
+      "$uid": {
+        ".read": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')",
+        "$courseId": {
+          ".write": "auth !== null && auth.uid === $uid"
+        }
+      }
+    },
+
+    "results": {
+      "$uid": {
+        ".read": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')",
+        ".write": "auth !== null && auth.uid === $uid"
+      }
+    },
+
+    "notifications": {
+      "$uid": {
+        ".read": "auth !== null && auth.uid === $uid",
+        "$notificationId": {
+          ".write": "auth !== null && (auth.uid === $uid || auth.uid !== $uid)",
+          ".validate": "newData.hasChildren(['type', 'title', 'message', 'createdAt'])",
+          "notificationId": {
+            ".validate": "newData.val() === $notificationId"
+          },
+          "type": {
+            ".validate": "newData.isString()"
+          },
+          "courseId": {
+            ".validate": "newData.isString()"
+          },
+          "channelId": {
+            ".validate": "newData.isString()"
+          },
+          "videoId": {
+            ".validate": "newData.isString()"
+          },
+          "title": {
+            ".validate": "newData.isString()"
+          },
+          "message": {
+            ".validate": "newData.isString()"
+          },
+          "read": {
+            ".validate": "newData.isBoolean()"
+          },
+          "createdAt": {
+            ".validate": "newData.isString()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
+
+    "courseDiscussions": {
+      "$courseId": {
+        ".read": "auth !== null",
+        "channels": {
+          "$channelId": {
+            ".read": "auth !== null",
+            ".write": "auth !== null",
+            "messages": {
+              "$messageId": {
+                ".read": "auth !== null",
+                ".write": "auth !== null && data.parent().parent().parent().parent().child('courseId').val() === $courseId",
+                ".validate": "newData.hasChildren(['messageId', 'senderId', 'senderName', 'message', 'createdAt'])",
+                "messageId": {
+                  ".validate": "newData.val() === $messageId"
+                },
+                "senderId": {
+                  ".validate": "newData.val() === auth.uid"
+                },
+                "message": {
+                  ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 5000"
+                },
+                "createdAt": {
+                  ".validate": "newData.isString()"
+                },
+                "$other": {
+                  ".validate": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "courseContentUpdates": {
+      ".read": "auth !== null",
+      ".write": "auth !== null && ['superAdmin', 'admin', 'departmentAdmin'].includes(root.child('users/' + auth.uid + '/role').val())"
+    },
+
+    "learningActivity": {
+      "$uid": {
+        ".read": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')",
+        ".write": "auth !== null && auth.uid === $uid"
+      }
+    }
+  }
+}

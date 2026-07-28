@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ref, get, update, runTransaction } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, database } from "../firebase";
+import CourseDiscussionDrawer from "../components/CourseDiscussionDrawer";
 import {
   videoProgressForCoursePath,
   videoProgressForVideoPath,
@@ -52,6 +53,7 @@ function VideoPage() {
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [showCourseCompleteModal, setShowCourseCompleteModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showDiscussion, setShowDiscussion] = useState(false);
 
   const [showQuizPopup, setShowQuizPopup] = useState(false);
   const [quizQuestions, setQuizQuestions] = useState([]);
@@ -1393,6 +1395,26 @@ function VideoPage() {
           </div>
         </aside>
       </div>
+
+      <button
+        className="vp-discuss-fab"
+        onClick={() => setShowDiscussion(true)}
+        title="Open Discussion"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+        <span>Discussion</span>
+      </button>
+
+      <CourseDiscussionDrawer
+        open={showDiscussion}
+        onClose={() => setShowDiscussion(false)}
+        courseId={courseId}
+        courseTitle={course?.title || course?.courseTitle || "Course"}
+        videos={lessons}
+        initialVideoId={video?.id || videoId}
+      />
     </div>
   );
 }

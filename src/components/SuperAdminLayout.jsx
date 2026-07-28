@@ -1,14 +1,21 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase";
 import { loadUserProfile } from "../lib/userAccess";
-import { watchNotifications } from "../services/doubtService";
+import {
+  watchNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+} from "../services/doubtService";
 import FloatingDoubtButton from "./FloatingDoubtButton";
 import "../styles/superadminlayout.css";
 
+import { FaBell, FaComments, FaReply, FaBookOpen, FaVideo, FaClock, FaTimesCircle, FaCheckCircle, FaAward } from "react-icons/fa";
+
 function SuperAdminLayout() {
   const navigate = useNavigate();
+  const notifDropdownRef = useRef(null);
 
   const [openTraining, setOpenTraining] = useState(false);
   const [openReports, setOpenReports] = useState(false);
@@ -17,6 +24,8 @@ function SuperAdminLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [userData, setUserData] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [notifications, setNotifications] = useState([]);
+  const [notifOpen, setNotifOpen] = useState(false);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -40,7 +49,6 @@ function SuperAdminLayout() {
         .substring(0, 2)
         .toUpperCase();
     }
-
     return "SA";
   };
 
@@ -51,32 +59,97 @@ function SuperAdminLayout() {
         navigate("/");
         return;
       }
-
       try {
         setUserData(await loadUserProfile(user));
       } catch (error) {
         console.error("Failed to load super admin profile:", error);
       }
     });
-
     return () => unsubscribe();
   }, [navigate]);
 
   useEffect(() => {
     if (!userData?.id) return;
     const unsub = watchNotifications(userData.id, (notifs) => {
+      setNotifications(notifs);
       setUnreadCount(notifs.filter((n) => !n.read).length);
     });
     return () => unsub();
   }, [userData?.id]);
 
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (notifDropdownRef.current && !notifDropdownRef.current.contains(e.target)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const toggleNotifDropdown = () => {
+    setNotifOpen((prev) => !prev);
+  };
+
+  const handleNotifClick = async (notif) => {
+    if (!userData?.id) return;
+    if (!notif.read) {
+      await markNotificationRead(userData.id, notif.notificationId);
+    }
+    setNotifOpen(false);
+    if (notif.type === "course_completed") {
+      navigate("/super-admin/assigned-courses");
+    } else if (notif.courseId) {
+      navigate(`/super-admin/course/${notif.courseId}`);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    if (!userData?.id) return;
+    await markAllNotificationsRead(userData.id);
+  };
+
+  const getNotificationIcon = (type) => {
+    if (type === "doubt_reply") return <FaReply />;
+    if (type === "doubt") return <FaComments />;
+    if (type === "course_discussion") return <FaComments />;
+    if (type === "course_assigned") return <FaBookOpen />;
+    if (type === "new_video" || type === "course_updated") return <FaVideo />;
+    if (type === "quiz_updated") return <FaClock />;
+    if (type === "course_removed") return <FaTimesCircle />;
+    if (type === "course_completed") return <FaCheckCircle />;
+    if (type === "certificate_ready") return <FaAward />;
+    return <FaBell />;
+  };
+
+  const formatTime = (dateStr) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  };
+
+  const recentNotifications = notifications.slice(0, 8);
+
   return (
     <div className={`super-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       <div className="mobile-topbar">
         <img src="/Logo.webp" alt="Logo" />
-        <button type="button" onClick={() => setMobileOpen(true)}>
-          ☰
-        </button>
+        <div className="mobile-topbar-actions">
+          <button className="notif-bell-mobile" onClick={toggleNotifDropdown} type="button">
+            <FaBell />
+            {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
+          </button>
+          <button type="button" onClick={() => setMobileOpen(true)}>☰</button>
+        </div>
       </div>
 
       {mobileOpen && (
@@ -84,15 +157,12 @@ function SuperAdminLayout() {
       )}
 
       <aside className={`super-sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
-        <button type="button" className="sidebar-close" onClick={closeMobileMenu}>
-          ×
-        </button>
+        <button type="button" className="sidebar-close" onClick={closeMobileMenu}>×</button>
 
         <div className="sidebar-top">
           <div className="sidebar-logo-box">
             <img src="/Logo.webp" alt="Logo" />
           </div>
-
           <button
             type="button"
             className="sidebar-collapse-btn"
@@ -105,7 +175,6 @@ function SuperAdminLayout() {
 
         <div className="sidebar-profile">
           <div className="profile-circle">{getInitials()}</div>
-
           <div className="profile-text">
             <h3>{userData?.name || "Super Admin"}</h3>
             <p>{userData?.email || auth.currentUser?.email}</p>
@@ -138,20 +207,11 @@ function SuperAdminLayout() {
               <span>Training</span>
               <span className="dropdown-arrow">{openTraining ? "▾" : "›"}</span>
             </button>
-
             {openTraining && (
               <div className="dropdown-submenu">
-                <NavLink to="/super-admin/courses" onClick={closeMobileMenu}>
-                  Course Library
-                </NavLink>
-
-                <NavLink to="/super-admin/video-library" onClick={closeMobileMenu}>
-                  Video Library
-                </NavLink>
-
-                <NavLink to="/super-admin/assignments" onClick={closeMobileMenu}>
-                  Assign Course
-                </NavLink>
+                <NavLink to="/super-admin/courses" onClick={closeMobileMenu}>Course Library</NavLink>
+                <NavLink to="/super-admin/video-library" onClick={closeMobileMenu}>Video Library</NavLink>
+                <NavLink to="/super-admin/assignments" onClick={closeMobileMenu}>Assign Course</NavLink>
               </div>
             )}
           </div>
@@ -165,27 +225,12 @@ function SuperAdminLayout() {
               <span>Reports</span>
               <span className="dropdown-arrow">{openReports ? "▾" : "›"}</span>
             </button>
-
             {openReports && (
               <div className="dropdown-submenu">
-                <NavLink to="/super-admin/analytics" onClick={closeMobileMenu}>
-                  Progress Report
-                </NavLink>
-
-                <NavLink
-                  to="/super-admin/assigned-users"
-                  onClick={closeMobileMenu}
-                >
-                  Assigned Users
-                </NavLink>
-
-                <NavLink to="/super-admin/results" onClick={closeMobileMenu}>
-                  Test Records
-                </NavLink>
-
-                <NavLink to="/super-admin/all-certificates" onClick={closeMobileMenu}>
-                  Certifications
-                </NavLink>
+                <NavLink to="/super-admin/analytics" onClick={closeMobileMenu}>Progress Report</NavLink>
+                <NavLink to="/super-admin/assigned-users" onClick={closeMobileMenu}>Assigned Users</NavLink>
+                <NavLink to="/super-admin/results" onClick={closeMobileMenu}>Test Records</NavLink>
+                <NavLink to="/super-admin/all-certificates" onClick={closeMobileMenu}>Certifications</NavLink>
               </div>
             )}
           </div>
@@ -194,46 +239,27 @@ function SuperAdminLayout() {
             News & Resources
           </NavLink>
 
-          <NavLink to="/super-admin/doubts" onClick={closeMobileMenu} className="sidebar-top-link">
-            <span>Chats</span>
+          <NavLink to="/super-admin/notifications" onClick={closeMobileMenu} className="sidebar-top-link">
+            <span>Notifications</span>
             {unreadCount > 0 && <span className="doubt-nav-badge">{unreadCount}</span>}
           </NavLink>
 
           <div className="sidebar-dropdown">
             <button
               type="button"
-              className={`dropdown-toggle ${
-                openMyLearning ? "active-dropdown" : ""
-              }`}
+              className={`dropdown-toggle ${openMyLearning ? "active-dropdown" : ""}`}
               onClick={() => setOpenMyLearning((prev) => !prev)}
             >
               <span>My Courses</span>
-              <span className="dropdown-arrow">
-                {openMyLearning ? "▾" : "›"}
-              </span>
+              <span className="dropdown-arrow">{openMyLearning ? "▾" : "›"}</span>
             </button>
-
             {openMyLearning && (
               <div className="dropdown-submenu">
-                <NavLink to="/super-admin/assigned-courses" onClick={closeMobileMenu}>
-                  Assigned Courses
-                </NavLink>
-
-                <NavLink to="/super-admin/my-learnings" onClick={closeMobileMenu}>
-                  My Progress
-                </NavLink>
-
-                <NavLink to="/super-admin/my-results" onClick={closeMobileMenu}>
-                  My Test Results
-                </NavLink>
-
-                <NavLink to="/super-admin/certificates" onClick={closeMobileMenu}>
-                  My Certificates
-                </NavLink>
-
-                <NavLink to="/super-admin/profile" onClick={closeMobileMenu}>
-                  My Profile
-                </NavLink>
+                <NavLink to="/super-admin/assigned-courses" onClick={closeMobileMenu}>Assigned Courses</NavLink>
+                <NavLink to="/super-admin/my-learnings" onClick={closeMobileMenu}>My Progress</NavLink>
+                <NavLink to="/super-admin/my-results" onClick={closeMobileMenu}>My Test Results</NavLink>
+                <NavLink to="/super-admin/certificates" onClick={closeMobileMenu}>My Certificates</NavLink>
+                <NavLink to="/super-admin/profile" onClick={closeMobileMenu}>My Profile</NavLink>
               </div>
             )}
           </div>
@@ -244,7 +270,61 @@ function SuperAdminLayout() {
         </button>
       </aside>
 
-      <main className="super-page">
+      <main className="super-page" ref={notifDropdownRef}>
+        <div className="page-topbar">
+          <div className="page-topbar-spacer"></div>
+          <button className="notif-bell" onClick={toggleNotifDropdown} type="button">
+            <FaBell />
+            {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
+          </button>
+
+          {notifOpen && (
+            <div className="notif-dropdown">
+              <div className="notif-dropdown-header">
+                <h3>Notifications</h3>
+                {unreadCount > 0 && (
+                  <button onClick={handleMarkAllRead}>Mark all read</button>
+                )}
+              </div>
+              <div className="notif-dropdown-list">
+                {recentNotifications.length === 0 ? (
+                  <div className="notif-dropdown-empty">
+                    <FaBell />
+                    <p>No notifications yet</p>
+                  </div>
+                ) : (
+                  recentNotifications.map((notif) => (
+                    <div
+                      className={`notif-dropdown-item ${!notif.read ? "unread" : ""}`}
+                      key={notif.notificationId}
+                      onClick={() => handleNotifClick(notif)}
+                    >
+                      <div className={`notif-dropdown-icon ${notif.type}`}>
+                        {getNotificationIcon(notif.type)}
+                      </div>
+                      <div className="notif-dropdown-content">
+                        <h4>{notif.title}</h4>
+                        <p>{notif.message}</p>
+                        <span>{formatTime(notif.createdAt)}</span>
+                      </div>
+                      {!notif.read && <div className="notif-dropdown-dot"></div>}
+                    </div>
+                  ))
+                )}
+              </div>
+              <div
+                className="notif-dropdown-footer"
+                onClick={() => {
+                  navigate("/super-admin/notifications");
+                  setNotifOpen(false);
+                }}
+              >
+                View all notifications
+              </div>
+            </div>
+          )}
+        </div>
+
         <Outlet />
       </main>
 

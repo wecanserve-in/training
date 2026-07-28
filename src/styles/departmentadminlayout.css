@@ -367,3 +367,350 @@
   padding: 0 5px;
   margin-left: 6px;
 }
+
+/* ─── Topbar ─── */
+.page-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 12px 24px;
+  background: transparent;
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.page-topbar-spacer {
+  flex: 1;
+}
+
+/* ─── Notification Bell ─── */
+.notif-bell,
+.notif-bell-mobile {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 12px;
+  background: #fff;
+  color: #64748b;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  border: 1px solid #e8f5ee;
+  transition: 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  pointer-events: auto;
+}
+
+.notif-bell:hover,
+.notif-bell-mobile:hover {
+  background: #f0fdf4;
+  color: #059669;
+  border-color: #bbf7d0;
+  transform: scale(1.05);
+}
+
+.notif-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  border: 2px solid #fff;
+  animation: notifBadgePop 0.3s ease;
+}
+
+@keyframes notifBadgePop {
+  0% { transform: scale(0); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+/* ─── Notification Dropdown ─── */
+.notif-dropdown {
+  position: fixed;
+  top: 60px;
+  right: 40px;
+  width: 380px;
+  max-height: 500px;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e8f5ee;
+  overflow: hidden;
+  z-index: 9999;
+  pointer-events: auto;
+  animation: notifSlideIn 0.25s ease;
+}
+
+@keyframes notifSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.notif-dropdown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.notif-dropdown-header h3 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.notif-dropdown-header button {
+  border: none;
+  background: #f0fdf4;
+  color: #059669;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 5px 12px;
+  border-radius: 8px;
+  transition: 0.2s;
+}
+
+.notif-dropdown-header button:hover {
+  background: #dcfce7;
+}
+
+.notif-dropdown-list {
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.notif-dropdown-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.notif-dropdown-list::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 100px;
+}
+
+.notif-dropdown-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.notif-dropdown-empty svg {
+  font-size: 2rem;
+  color: #e2e8f0;
+  margin-bottom: 8px;
+}
+
+.notif-dropdown-empty p {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.notif-dropdown-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: 0.2s;
+  position: relative;
+  border-bottom: 1px solid #f8fafc;
+}
+
+.notif-dropdown-item:hover {
+  background: #f8fdf9;
+  padding-left: 20px;
+}
+
+.notif-dropdown-item.unread {
+  background: #f0fdf4;
+}
+
+.notif-dropdown-item.unread:hover {
+  background: #dcfce7;
+}
+
+.notif-dropdown-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  font-size: 0.8rem;
+}
+
+.notif-dropdown-icon.doubt {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.notif-dropdown-icon.doubt_reply {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.notif-dropdown-icon.course_assigned {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.notif-dropdown-icon.new_video,
+.notif-dropdown-icon.course_updated {
+  background: #ede9fe;
+  color: #7c3aed;
+}
+
+.notif-dropdown-icon.course_removed {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.notif-dropdown-icon.course_completed {
+  background: #d1fae5;
+  color: #059669;
+}
+
+.notif-dropdown-icon.quiz_updated {
+  background: #e0e7ff;
+  color: #4f46e5;
+}
+
+.notif-dropdown-icon.certificate_ready {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.notif-dropdown-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-dropdown-content h4 {
+  margin: 0 0 2px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.notif-dropdown-content p {
+  margin: 0 0 3px;
+  font-size: 0.72rem;
+  color: #64748b;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notif-dropdown-content span {
+  font-size: 0.65rem;
+  color: #94a3b8;
+}
+
+.notif-dropdown-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #059669;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.notif-dropdown-footer {
+  display: block;
+  text-align: center;
+  padding: 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #059669;
+  text-decoration: none;
+  border-top: 1px solid #f1f5f9;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.notif-dropdown-footer:hover {
+  background: #f0fdf4;
+  letter-spacing: 0.3px;
+}
+
+/* ─── Mobile Topbar Actions ─── */
+.mobile-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mobile-topbar-actions button {
+  border: none;
+  background: #f0faf5;
+  color: #059669;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  font-size: 20px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.notif-bell-mobile {
+  position: relative;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .page-topbar {
+    display: none;
+  }
+
+  .notif-dropdown {
+    position: fixed;
+    top: 56px;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: calc(100vh - 56px);
+    border-radius: 0 0 14px 14px;
+    animation: notifSlideDown 0.25s ease;
+  }
+
+  @keyframes notifSlideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
