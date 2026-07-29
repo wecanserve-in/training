@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { onAuthStateChanged } from "firebase/auth";
 import { ref, get } from "firebase/database";
-import { database } from "../firebase";
+import { auth, database } from "../firebase";
 import "../styles/superanalytics.css";
 import {
-  getRole,
   isAnalyticsTrainingUser,
   getUserKeys,
   mergeUserNode,
@@ -36,21 +36,16 @@ const AVATAR_COLORS = [
   { bg: "#f5f3ff", color: "#5b21b6" },
 ];
 
-const BAR_COLORS = [
-  "#f59e0b", "#2563eb", "#16a34a", "#7c3aed", "#db2777",
-  "#0284c7", "#ea580c", "#059669", "#be185d", "#6d28d9",
-];
-
 function getAvatarColor(i) { return AVATAR_COLORS[i % AVATAR_COLORS.length]; }
-function getBarColor(i) { return BAR_COLORS[i % BAR_COLORS.length]; }
 
 function getVal(user, keys) {
   for (const k of keys) { if (user?.[k]) return String(user[k]).trim(); }
   return "";
 }
 
-function AdminAnalytics() {
-  const [users, setUsers] = useState([]);
+function DepartmentAnalytics() {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [allUsers, setAllUsers] = useState([]);
   const [courses, setCourses] = useState([]);
   const [completedCourses, setCompletedCourses] = useState({});
   const [results, setResults] = useState({});
@@ -66,23 +61,33 @@ function AdminAnalytics() {
   const [drillCity, setDrillCity] = useState("");
   const [animKey, setAnimKey] = useState(0);
 
-  const [searchParams] = useSearchParams();
-
   const [search, setSearch] = useState("");
   const [designationFilter, setDesignationFilter] = useState("");
+  const [searchParams] = useSearchParams();
+
+  const normalize = (value) => String(value || "").trim().toLowerCase();
+  const sameText = (a, b) => { const f = normalize(a); const s = normalize(b); return Boolean(f && s && f === s); };
+
+  const getDepartmentName = (item) => item?.department || item?.departmentName || item?.departmentType || item?.dept || item?.deptName || "";
 
   useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) { setLoading(false); return; }
+      try {
+        const snap = await get(ref(database, `users/${user.uid}`));
+        if (snap.exists()) {
+          setCurrentUser({ id: user.uid, ...snap.val() });
+        }
+      } catch (e) { console.error("Failed to load user:", e); }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser) return;
     const fetchData = async () => {
       try {
-        const [
-          usersSnap,
-          coursesSnap,
-          completedSnap,
-          resultsSnap,
-          assignmentsSnap,
-          courseProgressSnap,
-          videoProgressSnap,
-        ] = await Promise.all([
+        const [usersSnap, coursesSnap, completedSnap, resultsSnap, assignmentsSnap, courseProgressSnap, videoProgressSnap] = await Promise.all([
           get(ref(database, "users")),
           get(ref(database, "courses")),
           get(ref(database, "completedCourses")),
@@ -91,42 +96,54 @@ function AdminAnalytics() {
           get(ref(database, "courseProgress")),
           get(ref(database, "videoProgress")),
         ]);
-
-        if (usersSnap.exists()) {
-          const usersData = usersSnap.val();
-          setUsers(Object.entries(usersData).map(([id, u]) => ({ id, uid: u.uid || id, ...u })));
-        }
-        if (coursesSnap.exists()) {
-          const coursesData = coursesSnap.val();
-          setCourses(Object.entries(coursesData).map(([id, c]) => ({ id, ...c })));
-        }
+        if (usersSnap.exists()) setAllUsers(Object.entries(usersSnap.val()).map(([id, u]) => ({ id, uid: u.uid || id, ...u })));
+        if (coursesSnap.exists()) setCourses(Object.entries(coursesSnap.val()).map(([id, c]) => ({ id, ...c })));
         if (completedSnap.exists()) setCompletedCourses(completedSnap.val());
         if (resultsSnap.exists()) setResults(resultsSnap.val());
         if (assignmentsSnap.exists()) setAssignments(assignmentsSnap.val());
         if (courseProgressSnap.exists()) setCourseProgress(courseProgressSnap.val());
         if (videoProgressSnap.exists()) setVideoProgress(videoProgressSnap.val());
-      } catch (e) { console.error("Analytics fetch error:", e); } finally { setLoading(false); }
+      } catch (e) { console.error("Analytics fetch error:", e); }
+      setLoading(false);
     };
     fetchData();
-  }, []);
+  }, [currentUser]);
+
+  const departmentName = currentUser?.department || currentUser?.departmentName || currentUser?.departmentType || "";
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !currentUser) return;
     const zoneParam = searchParams.get("zone");
-    if (zoneParam) {
-      drillIntoZone(zoneParam);
-    }
-  }, [loading]);
+    if (zoneParam) drillIntoZone(zoneParam);
+  }, [loading, currentUser]);
 
   const employeeUsers = useMemo(() => {
-    return getUniqueAnalyticsTrainingUsers(users);
-  }, [users]);
+    return getUniqueAnalyticsTrainingUsers(allUsers.filter((user) => {
+      const role = String(user?.role || "").trim().toLowerCase();
+      if (role === "admin" || role === "superadmin" || role === "departmentadmin" || role === "deptadmin") return false;
+      if (!departmentName) return true;
+      return sameText(getDepartmentName(user), departmentName);
+    }));
+  }, [allUsers, departmentName]);
+
+  const deptCourses = useMemo(() => {
+    const userDeptId = String(currentUser?.departmentId || "").trim();
+    const userDept = String(departmentName || "").trim().toLowerCase();
+    if (!userDeptId && !userDept) return [];
+    return courses.filter((course) => {
+      const status = String(course?.status || "").trim().toLowerCase();
+      if (["inactive", "archived", "deleted", "draft"].includes(status)) return false;
+      const courseDeptId = String(course.departmentId || "").trim();
+      const courseDept = String(getDepartmentName(course) || "").trim().toLowerCase();
+      if (courseDeptId && userDeptId && courseDeptId === userDeptId) return true;
+      if (courseDept && userDept && courseDept === userDept) return true;
+      return false;
+    });
+  }, [courses, currentUser, departmentName]);
 
   const getCompletedCount = (userOrId) => {
     const assignedEntries = getAssignedCourseEntries(userOrId);
-    return assignedEntries.filter(([courseId]) =>
-      isCourseCompletedForUser(userOrId, courseId, completedCourses, courseProgress, videoProgress)
-    ).length;
+    return assignedEntries.filter(([courseId]) => isCourseCompletedForUser(userOrId, courseId, completedCourses, courseProgress, videoProgress)).length;
   };
 
   const getCertificateCount = (userOrId) => {
@@ -135,115 +152,38 @@ function AdminAnalytics() {
   };
 
   const getAssignedCourseEntries = (userOrId) => {
-    const userAssignments = mergeUserNode(assignments, userOrId);
-
-    return Object.entries(userAssignments).filter(([, assignment]) =>
-      isAssignmentActive(assignment)
-    );
+    const userEntries = Object.entries(mergeUserNode(assignments, userOrId));
+    const deptCourseIds = new Set(deptCourses.map((c) => c.id));
+    return userEntries.filter(([courseId, a]) => deptCourseIds.has(courseId) && isAssignmentActive(a));
   };
 
-  const getAssignedCount = (userOrId) => {
-    return getAssignedCourseEntries(userOrId).length;
-  };
+  const getAssignedCount = (userOrId) => getAssignedCourseEntries(userOrId).length;
 
   const getCourseProgressPercent = (userOrId, courseId) => {
-    const directCourseProgress =
-      mergeUserNode(courseProgress, userOrId)?.[courseId] || {};
-
-    const directCandidates = [
-      directCourseProgress.percentage,
-      directCourseProgress.progress,
-      directCourseProgress.progressPercent,
-      directCourseProgress.completionPercent,
-      directCourseProgress.completedPercent,
-      directCourseProgress.watchedPercent,
-    ];
-
-    const directValue = directCandidates
-      .map(Number)
-      .find((value) => Number.isFinite(value) && value >= 0);
-
-    if (directValue !== undefined) {
-      return Math.max(0, Math.min(100, Math.round(directValue)));
-    }
-
-    const courseVideos =
-      mergeUserNode(videoProgress, userOrId)?.[courseId] || {};
-
-    const progressValues = Object.values(courseVideos)
-      .map((video) => {
-        if (video?.completed) return 100;
-
-        const value = Number(
-          video?.watchedPercent ??
-            video?.progressPercent ??
-            video?.progress ??
-            0
-        );
-
-        return Number.isFinite(value)
-          ? Math.max(0, Math.min(100, value))
-          : 0;
-      });
-
-    if (progressValues.length === 0) return 0;
-
-    return Math.round(
-      progressValues.reduce((sum, value) => sum + value, 0) /
-        progressValues.length
-    );
+    const cp = mergeUserNode(courseProgress, userOrId)?.[courseId] || {};
+    const direct = [cp.percentage, cp.progress, cp.progressPercent, cp.completionPercent, cp.completedPercent, cp.watchedPercent].map(Number).find((v) => Number.isFinite(v) && v >= 0);
+    if (direct !== undefined) return Math.max(0, Math.min(100, Math.round(direct)));
+    const vp = mergeUserNode(videoProgress, userOrId)?.[courseId] || {};
+    const vals = Object.values(vp).map((v) => { if (v?.completed) return 100; const n = Number(v?.watchedPercent ?? v?.progressPercent ?? v?.progress ?? 0); return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0; });
+    return vals.length === 0 ? 0 : Math.round(vals.reduce((s, v) => s + v, 0) / vals.length);
   };
 
-  const getCourseCompletionRecord = (userOrId, courseId) => {
-    return mergeUserNode(completedCourses, userOrId)?.[courseId];
+  const getCourseCompletionRecord = (userOrId, courseId) => mergeUserNode(completedCourses, userOrId)?.[courseId];
+  const getCourseResultRecord = (userOrId, courseId) => { const r = mergeUserNode(results, userOrId); return r?.[courseId] || Object.values(r).find((x) => String(x?.courseId || "") === String(courseId)); };
+  const getCourseStatus = (userOrId, courseId) => { if (isCompletedRecord(getCourseCompletionRecord(userOrId, courseId))) return "completed"; const cp = mergeUserNode(courseProgress, userOrId)?.[courseId]; if (cp?.courseTestPassed || cp?.passed) return "completed"; return getCourseProgressPercent(userOrId, courseId) > 0 ? "inProgress" : "notStarted"; };
+  const getUserCompletion = (userOrId) => { const a = getAssignedCount(userOrId); const c = getCompletedCount(userOrId); return a > 0 ? Math.min(100, Math.round((c / a) * 100)) : 0; };
+
+  const getGroupStats = (groupUsers) => {
+    const total = groupUsers.length;
+    const completed = groupUsers.reduce((s, u) => s + getCompletedCount(u), 0);
+    const certs = groupUsers.reduce((s, u) => s + getCertificateCount(u), 0);
+    const assigned = groupUsers.reduce((s, u) => s + getAssignedCount(u), 0);
+    const rate = assigned > 0 ? Math.round((completed / assigned) * 100) : 0;
+    return { total, completed, certs, assigned, rate };
   };
 
-  const getCourseResultRecord = (userOrId, courseId) => {
-    const userResults = mergeUserNode(results, userOrId);
-
-    return (
-      userResults?.[courseId] ||
-      Object.values(userResults).find(
-        (result) => String(result?.courseId || "") === String(courseId)
-      )
-    );
-  };
-
-  const getCourseStatus = (userOrId, courseId) => {
-    const completedRecord = getCourseCompletionRecord(userOrId, courseId);
-
-    if (isCompletedRecord(completedRecord)) {
-      return "completed";
-    }
-
-    const cp = mergeUserNode(courseProgress, userOrId)?.[courseId];
-    if (cp?.courseTestPassed || cp?.passed) {
-      return "completed";
-    }
-
-    const progressPercent = getCourseProgressPercent(userOrId, courseId);
-
-    return progressPercent > 0 ? "inProgress" : "notStarted";
-  };
-
-  const getUserCompletion = (userOrId) => {
-    const assigned = getAssignedCount(userOrId);
-    const completed = getCompletedCount(userOrId);
-
-    return assigned > 0
-      ? Math.min(100, Math.round((completed / assigned) * 100))
-      : 0;
-  };
-
-  const normalizeState = (v) => {
-    const s = String(v || "").trim();
-    return s || "Unassigned";
-  };
-
-  const normalizeCity = (v) => {
-    const s = String(v || "").trim();
-    return s || "Unassigned";
-  };
+  const normalizeState = (v) => String(v || "").trim() || "Unassigned";
+  const normalizeCity = (v) => String(v || "").trim() || "Unassigned";
 
   const zones = useMemo(() => {
     return calculateZoneStats({
@@ -258,26 +198,18 @@ function AdminAnalytics() {
   const states = useMemo(() => {
     const filtered = drillZone ? employeeUsers.filter((u) => normalizeZone(getVal(u, ["zone", "Zone", "zoneName"])) === drillZone) : employeeUsers;
     const map = {};
-    filtered.forEach((u) => {
-      const s = normalizeState(getVal(u, ["state", "State", "stateName"]));
-      if (!map[s]) map[s] = [];
-      map[s].push(u);
-    });
+    filtered.forEach((u) => { const s = normalizeState(getVal(u, ["state", "State", "stateName"])); if (!map[s]) map[s] = []; map[s].push(u); });
     return Object.entries(map).map(([name, list]) => ({ name, users: list, total: list.length, ...calculateGroupStats({ users: list, assignments, completedCourses, courseProgress, videoProgress }) })).sort((a, b) => b.rate - a.rate);
-  }, [employeeUsers, drillZone, assignments, completedCourses, courseProgress, videoProgress]);
+  }, [employeeUsers, drillZone, deptCourses, courses, completedCourses, results, assignments, courseProgress, videoProgress]);
 
   const cities = useMemo(() => {
     let filtered = employeeUsers;
     if (drillZone) filtered = filtered.filter((u) => normalizeZone(getVal(u, ["zone", "Zone", "zoneName"])) === drillZone);
     if (drillState) filtered = filtered.filter((u) => normalizeState(getVal(u, ["state", "State", "stateName"])) === drillState);
     const map = {};
-    filtered.forEach((u) => {
-      const c = normalizeCity(getVal(u, ["cityArea", "city", "City", "Area", "area"]));
-      if (!map[c]) map[c] = [];
-      map[c].push(u);
-    });
+    filtered.forEach((u) => { const c = normalizeCity(getVal(u, ["cityArea", "city", "City", "Area", "area"])); if (!map[c]) map[c] = []; map[c].push(u); });
     return Object.entries(map).map(([name, list]) => ({ name, users: list, total: list.length, ...calculateGroupStats({ users: list, assignments, completedCourses, courseProgress, videoProgress }) })).sort((a, b) => b.rate - a.rate);
-  }, [employeeUsers, drillZone, drillState, assignments, completedCourses, courseProgress, videoProgress]);
+  }, [employeeUsers, drillZone, drillState, deptCourses, courses, completedCourses, results, assignments, courseProgress, videoProgress]);
 
   const contextUsers = useMemo(() => {
     let filtered = employeeUsers;
@@ -298,30 +230,9 @@ function AdminAnalytics() {
 
   const bumpAnim = () => setAnimKey((k) => k + 1);
 
-  const drillIntoZone = (zone) => {
-    bumpAnim();
-    setDrillZone(zone);
-    setDrillState("");
-    setDrillCity("");
-    setDrillLevel(zone ? "zone" : "overview");
-    setSearch("");
-    setDesignationFilter("");
-  };
-  const drillIntoState = (state) => {
-    bumpAnim();
-    setDrillState(state);
-    setDrillCity("");
-    setDrillLevel(state ? "state" : "zone");
-    setSearch("");
-    setDesignationFilter("");
-  };
-  const drillIntoCity = (city) => {
-    bumpAnim();
-    setDrillCity(city);
-    setDrillLevel(city ? "city" : "state");
-    setSearch("");
-    setDesignationFilter("");
-  };
+  const drillIntoZone = (zone) => { bumpAnim(); setDrillZone(zone); setDrillState(""); setDrillCity(""); setDrillLevel(zone ? "zone" : "overview"); setSearch(""); setDesignationFilter(""); };
+  const drillIntoState = (state) => { bumpAnim(); setDrillState(state); setDrillCity(""); setDrillLevel(state ? "state" : "zone"); setSearch(""); setDesignationFilter(""); };
+  const drillIntoCity = (city) => { bumpAnim(); setDrillCity(city); setDrillLevel(city ? "city" : "state"); setSearch(""); setDesignationFilter(""); };
 
   const overallStats = useMemo(() => ({
     total: employeeUsers.length,
@@ -337,133 +248,38 @@ function AdminAnalytics() {
 
   const selectedUserCourseRows = useMemo(() => {
     if (!selectedUser) return [];
-
-    const assignedEntries = getAssignedCourseEntries(selectedUser);
-
-    return assignedEntries
-      .map(([courseId, assignment]) => {
-        const course = courses.find(
-          (item) => String(item.id) === String(courseId)
-        );
-
-        const completionRecord = getCourseCompletionRecord(
-          selectedUser,
-          courseId
-        );
-
-        const resultRecord = getCourseResultRecord(
-          selectedUser,
-          courseId
-        );
-
-        const status = getCourseStatus(selectedUser, courseId);
-        const progressPercent =
-          status === "completed"
-            ? 100
-            : getCourseProgressPercent(selectedUser, courseId);
-
-        return {
-          courseId,
-          title:
-            course?.title ||
-            course?.courseTitle ||
-            course?.courseName ||
-            course?.name ||
-            assignment?.courseTitle ||
-            "Untitled Course",
-          department:
-            course?.departmentName ||
-            course?.department ||
-            assignment?.departmentName ||
-            assignment?.department ||
-            "Not specified",
-          assignedAt:
-            assignment?.assignedAt ||
-            assignment?.createdAt ||
-            assignment?.dateAssigned ||
-            "",
-          status,
-          progressPercent,
-          certificate:
-            resultRecord?.certificateUrl ||
-            resultRecord?.certificateId ||
-            completionRecord?.certificateUrl ||
-            completionRecord?.certificateId ||
-            "",
-          score:
-            resultRecord?.percentage ??
-            resultRecord?.scorePercentage ??
-            resultRecord?.marksPercentage ??
-            "",
-        };
-      })
-      .sort((a, b) => {
-        const aTime = new Date(a.assignedAt || 0).getTime();
-        const bTime = new Date(b.assignedAt || 0).getTime();
-        return bTime - aTime;
-      });
-  }, [
-    selectedUser,
-    courses,
-    assignments,
-    completedCourses,
-    results,
-    courseProgress,
-    videoProgress,
-  ]);
+    return getAssignedCourseEntries(selectedUser).map(([courseId, assignment]) => {
+      const course = deptCourses.find((c) => String(c.id) === String(courseId)) || courses.find((c) => String(c.id) === String(courseId));
+      const completionRecord = getCourseCompletionRecord(selectedUser, courseId);
+      const resultRecord = getCourseResultRecord(selectedUser, courseId);
+      const status = getCourseStatus(selectedUser, courseId);
+      const progressPercent = status === "completed" ? 100 : getCourseProgressPercent(selectedUser, courseId);
+      return {
+        courseId,
+        title: course?.title || course?.courseTitle || assignment?.courseTitle || "Untitled Course",
+        department: course?.departmentName || course?.department || assignment?.departmentName || "Not specified",
+        assignedAt: assignment?.assignedAt || assignment?.createdAt || "",
+        status, progressPercent,
+        certificate: resultRecord?.certificateUrl || resultRecord?.certificateId || completionRecord?.certificateUrl || "",
+        score: resultRecord?.percentage ?? resultRecord?.scorePercentage ?? "",
+      };
+    }).sort((a, b) => new Date(b.assignedAt || 0).getTime() - new Date(a.assignedAt || 0).getTime());
+  }, [selectedUser, deptCourses, courses, assignments, completedCourses, results, courseProgress, videoProgress]);
 
   const selectedUserStats = useMemo(() => {
-    if (!selectedUser) {
-      return {
-        assigned: 0,
-        completed: 0,
-        inProgress: 0,
-        notStarted: 0,
-        certificates: 0,
-        completion: 0,
-      };
-    }
-
+    if (!selectedUser) return { assigned: 0, completed: 0, inProgress: 0, notStarted: 0, certificates: 0, completion: 0 };
     const assigned = selectedUserCourseRows.length;
-    const completed = selectedUserCourseRows.filter(
-      (course) => course.status === "completed"
-    ).length;
-    const inProgress = selectedUserCourseRows.filter(
-      (course) => course.status === "inProgress"
-    ).length;
-    const notStarted = selectedUserCourseRows.filter(
-      (course) => course.status === "notStarted"
-    ).length;
-
-    return {
-      assigned,
-      completed,
-      inProgress,
-      notStarted,
-      certificates: getCertificateCount(selectedUser),
-      completion:
-        assigned > 0
-          ? Math.round((completed / assigned) * 100)
-          : 0,
-    };
+    const completed = selectedUserCourseRows.filter((c) => c.status === "completed").length;
+    const inProgress = selectedUserCourseRows.filter((c) => c.status === "inProgress").length;
+    const notStarted = selectedUserCourseRows.filter((c) => c.status === "notStarted").length;
+    return { assigned, completed, inProgress, notStarted, certificates: getCertificateCount(selectedUser), completion: assigned > 0 ? Math.round((completed / assigned) * 100) : 0 };
   }, [selectedUser, selectedUserCourseRows, results]);
 
-  const formatDate = (value) => {
-    if (!value) return "\u2014";
-
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "\u2014";
-
-    return date.toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
+  const formatDate = (value) => { if (!value) return "—"; const d = new Date(value); return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }); };
 
   const downloadReport = () => {
     const rows = filteredUsers.map((u) => ({
-      Name: u.name || "", Email: u.email || "", Role: getRole(u), Designation: u.designation || "",
+      Name: u.name || "", Email: u.email || "", Designation: u.designation || "",
       Zone: getVal(u, ["zone", "Zone", "zoneName"]), State: getVal(u, ["state", "State", "stateName"]), City: getVal(u, ["cityArea", "city", "City", "Area", "area"]),
       "Assigned": getAssignedCount(u), "Completed": getCompletedCount(u),
       "Certificates": getCertificateCount(u), "Completion %": `${getUserCompletion(u)}%`,
@@ -473,7 +289,7 @@ function AdminAnalytics() {
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = url; link.download = `analytics-report-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.href = url; link.download = `dept-report-${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
   };
 
@@ -483,7 +299,6 @@ function AdminAnalytics() {
 
   return (
     <div className="sa-page">
-
       {/* Hero */}
       <section className="sa-hero">
         <div className="sa-hero-left">
@@ -491,8 +306,8 @@ function AdminAnalytics() {
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
           </div>
           <div>
-            <h1>Training Analytics</h1>
-            <p>Drill down: Zone &rarr; State &rarr; City &rarr; Users</p>
+            <h1>{departmentName || "Department"} Analytics</h1>
+            <p>Zone → State → City drill-down for {departmentName || "your department"} users</p>
           </div>
         </div>
         <div className="sa-hero-right">
@@ -511,7 +326,7 @@ function AdminAnalytics() {
             Zone
           </label>
           <select value={drillZone} onChange={(e) => drillIntoZone(e.target.value)}>
-            <option value="">&mdash; Select Zone &mdash;</option>
+            <option value="">— Select Zone —</option>
             {zones.map((z) => <option key={z.name} value={z.name}>{z.name}</option>)}
           </select>
         </div>
@@ -521,7 +336,7 @@ function AdminAnalytics() {
             State
           </label>
           <select value={drillState} onChange={(e) => drillIntoState(e.target.value)} disabled={!drillZone}>
-            <option value="">&mdash; Select State &mdash;</option>
+            <option value="">— Select State —</option>
             {states.map((s) => <option key={s.name} value={s.name}>{s.name}</option>)}
           </select>
         </div>
@@ -531,7 +346,7 @@ function AdminAnalytics() {
             City
           </label>
           <select value={drillCity} onChange={(e) => drillIntoCity(e.target.value)} disabled={!drillState}>
-            <option value="">&mdash; Select City &mdash;</option>
+            <option value="">— Select City —</option>
             {cities.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
           </select>
         </div>
@@ -545,13 +360,9 @@ function AdminAnalytics() {
             if (!z) return null;
             return (
               <div className="sa-detail-card" onClick={() => { setDrillLevel("zone"); setDrillState(""); setDrillCity(""); }}>
-                <button className="sa-dcard-remove" onClick={(e) => { e.stopPropagation(); setDrillZone(""); setDrillState(""); setDrillCity(""); setSearch(""); setDesignationFilter(""); bumpAnim(); }}>&times;</button>
+                <button className="sa-dcard-remove" onClick={(e) => { e.stopPropagation(); setDrillZone(""); setDrillState(""); setDrillCity(""); setSearch(""); setDesignationFilter(""); bumpAnim(); }}>×</button>
                 <div className="sa-dcard-avatar" style={{ background: getAvatarColor(0).bg, color: getAvatarColor(0).color }}>{z.name.charAt(0).toUpperCase()}</div>
-                <div className="sa-dcard-body">
-                  <strong>{z.name}</strong>
-                  <span className="sa-dcard-tag">Zone</span>
-                  <span className="sa-dcard-meta">{z.total} users &bull; {z.rate}% completion</span>
-                </div>
+                <div className="sa-dcard-body"><strong>{z.name}</strong><span className="sa-dcard-tag">Zone</span><span className="sa-dcard-meta">{z.total} users • {z.rate}% completion</span></div>
               </div>
             );
           })()}
@@ -561,13 +372,9 @@ function AdminAnalytics() {
             if (!s) return null;
             return (
               <div className="sa-detail-card" onClick={() => { setDrillLevel("state"); setDrillCity(""); }}>
-                <button className="sa-dcard-remove" onClick={(e) => { e.stopPropagation(); setDrillState(""); setDrillCity(""); setSearch(""); setDesignationFilter(""); bumpAnim(); }}>&times;</button>
+                <button className="sa-dcard-remove" onClick={(e) => { e.stopPropagation(); setDrillState(""); setDrillCity(""); setSearch(""); setDesignationFilter(""); bumpAnim(); }}>×</button>
                 <div className="sa-dcard-avatar" style={{ background: getAvatarColor(1).bg, color: getAvatarColor(1).color }}>{s.name.charAt(0).toUpperCase()}</div>
-                <div className="sa-dcard-body">
-                  <strong>{s.name}</strong>
-                  <span className="sa-dcard-tag">State</span>
-                  <span className="sa-dcard-meta">{s.total} users &bull; {s.rate}% completion</span>
-                </div>
+                <div className="sa-dcard-body"><strong>{s.name}</strong><span className="sa-dcard-tag">State</span><span className="sa-dcard-meta">{s.total} users • {s.rate}% completion</span></div>
               </div>
             );
           })()}
@@ -577,13 +384,9 @@ function AdminAnalytics() {
             if (!c) return null;
             return (
               <div className="sa-detail-card" onClick={() => setDrillLevel("city")}>
-                <button className="sa-dcard-remove" onClick={(e) => { e.stopPropagation(); setDrillCity(""); setSearch(""); setDesignationFilter(""); bumpAnim(); }}>&times;</button>
+                <button className="sa-dcard-remove" onClick={(e) => { e.stopPropagation(); setDrillCity(""); setSearch(""); setDesignationFilter(""); bumpAnim(); }}>×</button>
                 <div className="sa-dcard-avatar" style={{ background: getAvatarColor(2).bg, color: getAvatarColor(2).color }}>{c.name.charAt(0).toUpperCase()}</div>
-                <div className="sa-dcard-body">
-                  <strong>{c.name}</strong>
-                  <span className="sa-dcard-tag">City</span>
-                  <span className="sa-dcard-meta">{c.total} users &bull; {c.rate}% completion</span>
-                </div>
+                <div className="sa-dcard-body"><strong>{c.name}</strong><span className="sa-dcard-tag">City</span><span className="sa-dcard-meta">{c.total} users • {c.rate}% completion</span></div>
               </div>
             );
           })()}
@@ -613,13 +416,7 @@ function AdminAnalytics() {
           </div>
 
           {/* User Table */}
-          <div
-            className="sa-users-final-section sa-fade-in"
-            data-scope={`Users in selected ${
-              drillCity ? "city" : drillState ? "state" : "zone"
-            }`}
-            style={{ animationDelay: "100ms" }}
-          >
+          <div className="sa-users-final-section sa-fade-in" data-scope={`Users in selected ${drillCity ? "city" : drillState ? "state" : "zone"}`} style={{ animationDelay: "100ms" }}>
             <div className="sa-filters-card">
               <div className="sa-filters-row">
                 <div className="sa-search-box">
@@ -640,22 +437,8 @@ function AdminAnalytics() {
             <div className="sa-card">
               <div className="sa-table-head">
                 <div>
-                  <h2>
-                    {drillCity
-                      ? "City User Report"
-                      : drillState
-                      ? "State User Report"
-                      : "Zone User Report"}{" "}
-                    &mdash; {currentLabel}
-                  </h2>
-                  <p>
-                    {filteredUsers.length} real users &bull;{" "}
-                    {filteredUsers.reduce(
-                      (sum, user) => sum + getCompletedCount(user),
-                      0
-                    )}{" "}
-                    completed
-                  </p>
+                  <h2>{drillCity ? "City User Report" : drillState ? "State User Report" : "Zone User Report"} — {currentLabel}</h2>
+                  <p>{filteredUsers.length} real users • {filteredUsers.reduce((s, user) => s + getCompletedCount(user), 0)} completed</p>
                 </div>
                 <span className="sa-click-hint">Click a row to view details</span>
               </div>
@@ -663,17 +446,7 @@ function AdminAnalytics() {
                 <table>
                   <thead>
                     <tr>
-                      <th>#</th>
-                      <th>Name</th>
-                      <th>Email</th>
-                      <th>Designation</th>
-                      <th>Zone</th>
-                      <th>State</th>
-                      <th>City</th>
-                      <th>Assigned</th>
-                      <th>Completed</th>
-                      <th>Certs</th>
-                      <th>Completion</th>
+                      <th>#</th><th>Name</th><th>Email</th><th>Designation</th><th>Zone</th><th>State</th><th>City</th><th>Assigned</th><th>Completed</th><th>Certs</th><th>Completion</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -684,30 +457,9 @@ function AdminAnalytics() {
                       const comp = getCompletedCount(u);
                       const pct = getUserCompletion(u);
                       return (
-                        <tr
-                          key={u.id}
-                          className="sa-table-row-enter sa-user-clickable-row"
-                          style={{ animationDelay: `${idx * 30}ms` }}
-                          onClick={() => setSelectedUser(u)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              setSelectedUser(u);
-                            }
-                          }}
-                          role="button"
-                          tabIndex={0}
-                          aria-label={`View complete progress for ${
-                            u.name || "this user"
-                          }`}
-                          title="Click anywhere in this row to view complete user progress"
-                        >
+                        <tr key={u.id} className="sa-table-row-enter sa-user-clickable-row" style={{ animationDelay: `${idx * 30}ms` }} onClick={() => setSelectedUser(u)} role="button" tabIndex={0} aria-label={`View progress for ${u.name || "user"}`} title="Click to view user progress">
                           <td className="sa-td-idx">{idx + 1}</td>
-                          <td className="sa-td-name">
-                            <strong className="sa-user-row-name">
-                              {u.name || "-"}
-                            </strong>
-                          </td>
+                          <td className="sa-td-name"><strong className="sa-user-row-name">{u.name || "-"}</strong></td>
                           <td className="sa-td-email">{u.email || "-"}</td>
                           <td>{u.designation || "-"}</td>
                           <td>{getVal(u, ["zone", "Zone", "zoneName"]) || "-"}</td>
@@ -716,12 +468,7 @@ function AdminAnalytics() {
                           <td>{assigned}</td>
                           <td><strong>{comp}</strong></td>
                           <td>{getCertificateCount(u)}</td>
-                          <td>
-                            <div className="sa-pct-cell">
-                              <div className="sa-pct-bar"><span style={{ width: `${pct}%` }} /></div>
-                              <strong>{pct}%</strong>
-                            </div>
-                          </td>
+                          <td><div className="sa-pct-cell"><div className="sa-pct-bar"><span style={{ width: `${pct}%` }} /></div><strong>{pct}%</strong></div></td>
                         </tr>
                       );
                     })}
@@ -730,187 +477,65 @@ function AdminAnalytics() {
               </div>
             </div>
           </div>
-      </div>
+        </div>
       )}
 
+      {/* User Detail Drawer */}
       {selectedUser && (
-        <div
-          className="sa-user-detail-backdrop"
-          onClick={() => setSelectedUser(null)}
-        >
-          <aside
-            className="sa-user-detail-drawer"
-            onClick={(event) => event.stopPropagation()}
-          >
+        <div className="sa-user-detail-backdrop" onClick={() => setSelectedUser(null)}>
+          <aside className="sa-user-detail-drawer" onClick={(e) => e.stopPropagation()}>
             <div className="sa-user-detail-header">
               <div className="sa-user-detail-profile">
                 <div className="sa-user-detail-avatar">
-                  {(selectedUser.name || selectedUser.email || "U")
-                    .split(" ")
-                    .map((word) => word[0])
-                    .join("")
-                    .slice(0, 2)
-                    .toUpperCase()}
+                  {(selectedUser.name || selectedUser.email || "U").split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()}
                 </div>
-
                 <div>
                   <h2>{selectedUser.name || "Unnamed User"}</h2>
                   <p>{selectedUser.email || "Email not available"}</p>
                 </div>
               </div>
-
-              <button
-                type="button"
-                className="sa-user-detail-close"
-                onClick={() => setSelectedUser(null)}
-                aria-label="Close user progress"
-              >
-                &times;
-              </button>
+              <button type="button" className="sa-user-detail-close" onClick={() => setSelectedUser(null)} aria-label="Close user progress">×</button>
             </div>
-
             <div className="sa-user-detail-body">
               <div className="sa-user-location-grid">
-                <div>
-                  <span>Designation</span>
-                  <strong>{selectedUser.designation || "Not specified"}</strong>
-                </div>
-
-                <div>
-                  <span>Zone</span>
-                  <strong>
-                    {getVal(selectedUser, ["zone", "Zone", "zoneName"]) ||
-                      "Not assigned"}
-                  </strong>
-                </div>
-
-                <div>
-                  <span>State</span>
-                  <strong>
-                    {getVal(selectedUser, ["state", "State", "stateName"]) ||
-                      "Not assigned"}
-                  </strong>
-                </div>
-
-                <div>
-                  <span>City</span>
-                  <strong>
-                    {getVal(selectedUser, [
-                      "cityArea",
-                      "city",
-                      "City",
-                      "Area",
-                      "area",
-                    ]) || "Not assigned"}
-                  </strong>
-                </div>
+                <div><span>Designation</span><strong>{selectedUser.designation || "Not specified"}</strong></div>
+                <div><span>Zone</span><strong>{getVal(selectedUser, ["zone", "Zone", "zoneName"]) || "Not assigned"}</strong></div>
+                <div><span>State</span><strong>{getVal(selectedUser, ["state", "State", "stateName"]) || "Not assigned"}</strong></div>
+                <div><span>City</span><strong>{getVal(selectedUser, ["cityArea", "city", "City", "Area", "area"]) || "Not assigned"}</strong></div>
               </div>
-
               <div className="sa-user-progress-summary">
-                <div className="sa-user-summary-card assigned">
-                  <strong>{selectedUserStats.assigned}</strong>
-                  <span>Assigned</span>
-                </div>
-
-                <div className="sa-user-summary-card completed">
-                  <strong>{selectedUserStats.completed}</strong>
-                  <span>Completed</span>
-                </div>
-
-                <div className="sa-user-summary-card progress">
-                  <strong>{selectedUserStats.inProgress}</strong>
-                  <span>In Progress</span>
-                </div>
-
-                <div className="sa-user-summary-card pending">
-                  <strong>{selectedUserStats.notStarted}</strong>
-                  <span>Not Started</span>
-                </div>
-
-                <div className="sa-user-summary-card certificate">
-                  <strong>{selectedUserStats.certificates}</strong>
-                  <span>Certificates</span>
-                </div>
-
-                <div className="sa-user-summary-card rate">
-                  <strong>{selectedUserStats.completion}%</strong>
-                  <span>Completion</span>
-                </div>
+                <div className="sa-user-summary-card assigned"><strong>{selectedUserStats.assigned}</strong><span>Assigned</span></div>
+                <div className="sa-user-summary-card completed"><strong>{selectedUserStats.completed}</strong><span>Completed</span></div>
+                <div className="sa-user-summary-card progress"><strong>{selectedUserStats.inProgress}</strong><span>In Progress</span></div>
+                <div className="sa-user-summary-card pending"><strong>{selectedUserStats.notStarted}</strong><span>Not Started</span></div>
+                <div className="sa-user-summary-card certificate"><strong>{selectedUserStats.certificates}</strong><span>Certificates</span></div>
+                <div className="sa-user-summary-card rate"><strong>{selectedUserStats.completion}%</strong><span>Completion</span></div>
               </div>
-
               <div className="sa-user-course-section">
                 <div className="sa-user-course-head">
-                  <div>
-                    <h3>Assigned Course Progress</h3>
-                    <p>
-                      Course-wise progress for {selectedUser.name || "this user"}
-                    </p>
-                  </div>
-
+                  <div><h3>Assigned Course Progress</h3><p>Course-wise progress for {selectedUser.name || "this user"}</p></div>
                   <span>{selectedUserCourseRows.length} courses</span>
                 </div>
-
                 <div className="sa-user-course-list">
                   {selectedUserCourseRows.length === 0 ? (
-                    <div className="sa-user-no-courses">
-                      No courses are currently assigned to this user.
-                    </div>
+                    <div className="sa-user-no-courses">No courses are currently assigned to this user.</div>
                   ) : (
                     selectedUserCourseRows.map((course, index) => (
-                      <div
-                        className="sa-user-course-card"
-                        key={course.courseId}
-                      >
-                        <div className="sa-user-course-number">
-                          {index + 1}
-                        </div>
-
+                      <div className="sa-user-course-card" key={course.courseId}>
+                        <div className="sa-user-course-number">{index + 1}</div>
                         <div className="sa-user-course-content">
                           <div className="sa-user-course-title-row">
-                            <div>
-                              <h4>{course.title}</h4>
-                              <p>
-                                {course.department}
-                                {course.assignedAt
-                                  ? ` \u2022 Assigned ${formatDate(
-                                      course.assignedAt
-                                    )}`
-                                  : ""}
-                              </p>
-                            </div>
-
-                            <span
-                              className={`sa-course-status ${course.status}`}
-                            >
-                              {course.status === "completed"
-                                ? "Completed"
-                                : course.status === "inProgress"
-                                ? "In Progress"
-                                : "Not Started"}
-                            </span>
+                            <div><h4>{course.title}</h4><p>{course.department}{course.assignedAt ? ` • Assigned ${formatDate(course.assignedAt)}` : ""}</p></div>
+                            <span className={`sa-course-status ${course.status}`}>{course.status === "completed" ? "Completed" : course.status === "inProgress" ? "In Progress" : "Not Started"}</span>
                           </div>
-
                           <div className="sa-user-course-progress-row">
-                            <div className="sa-user-course-progress-track">
-                              <span
-                                style={{
-                                  width: `${course.progressPercent}%`,
-                                }}
-                              />
-                            </div>
-
+                            <div className="sa-user-course-progress-track"><span style={{ width: `${course.progressPercent}%` }} /></div>
                             <strong>{course.progressPercent}%</strong>
                           </div>
-
                           {(course.score !== "" || course.certificate) && (
                             <div className="sa-user-course-extra">
-                              {course.score !== "" && (
-                                <span>Test score: {course.score}%</span>
-                              )}
-
-                              {course.certificate && (
-                                <span>Certificate issued</span>
-                              )}
+                              {course.score !== "" && <span>Test score: {course.score}%</span>}
+                              {course.certificate && <span>Certificate issued</span>}
                             </div>
                           )}
                         </div>
@@ -923,9 +548,8 @@ function AdminAnalytics() {
           </aside>
         </div>
       )}
-
     </div>
   );
 }
 
-export default AdminAnalytics;
+export default DepartmentAnalytics;

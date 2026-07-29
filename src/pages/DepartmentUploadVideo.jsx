@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FaVideo, FaImage } from "react-icons/fa";
+import { FaVideo, FaImage, FaFileExcel } from "react-icons/fa";
 import { onAuthStateChanged } from "firebase/auth";
 import { get, push, ref, set } from "firebase/database";
 import * as XLSX from "xlsx";
@@ -31,7 +31,6 @@ function DepartmentUploadVideo() {
   const [thumbnailFile, setThumbnailFile] = useState(null);
   const [uploadStatus, setUploadStatus] = useState("");
 
-  const [metadata, setMetadata] = useState({});
   const [tags, setTags] = useState([]);
 
   const [quizQuestions, setQuizQuestions] = useState([]);
@@ -52,110 +51,14 @@ function DepartmentUploadVideo() {
 
   const [modalMessage, setModalMessage] = useState("Preparing upload...");
 
-  const defaultConfig = {
-    label: "Training Filters",
-    fields: [
-      {
-        key: "trainingType",
-        label: "Training Type",
-        required: true,
-        options: ["SOP", "Product Training", "Process Training", "Policy", "Software", "Other"],
-      },
-    ],
-    tagOptions: ["SOP", "Product", "Process", "Policy", "Internal Training"],
-  };
+  const [videoDragOver, setVideoDragOver] = useState(false);
+  const [thumbnailDragOver, setThumbnailDragOver] = useState(false);
+  const [excelDragOver, setExcelDragOver] = useState(false);
+  const [tagInput, setTagInput] = useState("");
+  const videoInputRef = useRef(null);
+  const thumbnailInputRef = useRef(null);
+  const excelInputRef = useRef(null);
 
-  const departmentFieldConfig = {
-    "Production & Manufacturing": {
-      label: "PMT Filters",
-      fields: [
-        {
-          key: "organName",
-          label: "Organ Name",
-          required: true,
-          options: [
-            "Breast", "Lung", "Colon", "Rectum", "Liver", "Kidney",
-            "Prostate", "Cervix", "Ovary", "Brain", "Blood", "Bone",
-            "Skin", "Head & Neck", "Stomach", "Pancreas", "General Oncology", "Other",
-          ],
-        },
-        {
-          key: "videoType",
-          label: "Video Type",
-          required: true,
-          options: ["Anatomy", "Therapy", "Product", "Other"],
-        },
-        {
-          key: "typeSpecific",
-          label: "Specify",
-          required: true,
-          options: [
-            "Cancer Overview", "Disease Understanding", "Organ Structure",
-            "Chemotherapy", "Targeted Therapy", "Immunotherapy", "Hormonal Therapy",
-            "Supportive Care", "Product Introduction", "Dosage", "Storage",
-            "Handling", "FAQs", "Other",
-          ],
-        },
-        {
-          key: "genericName",
-          label: "Product Generic Name",
-          required: false,
-          options: [
-            "Abiraterone", "Paclitaxel", "Docetaxel", "Carboplatin", "Cisplatin",
-            "Capecitabine", "Gemcitabine", "Oxaliplatin", "Irinotecan", "Etoposide",
-            "Doxorubicin", "Cyclophosphamide", "Methotrexate", "Imatinib",
-            "Temozolomide", "Other",
-          ],
-        },
-        {
-          key: "productForm",
-          label: "Product Form",
-          required: false,
-          options: ["Tablets", "Capsules", "Injections", "Lyophilized Injections", "Injectables", "Other"],
-        },
-      ],
-      tagOptions: ["Anatomy", "Therapy", "Product", "Doctor Education", "Sales Support", "Internal Training", "GMP"],
-    },
-    "Sales & Marketing": {
-      label: "Sales Training Filters",
-      fields: [
-        {
-          key: "trainingType",
-          label: "Training Type",
-          required: true,
-          options: ["Product Training", "Doctor Pitch", "Objection Handling", "Market Training", "Other"],
-        },
-      ],
-      tagOptions: ["Sales", "Marketing", "Product", "Doctor Pitch", "Objection Handling"],
-    },
-    "Quality Assurance & Quality Control": {
-      label: "QA/QC Filters",
-      fields: [
-        {
-          key: "trainingType",
-          label: "Training Type",
-          required: true,
-          options: ["QA", "QC", "Documentation", "Audit", "SOP", "Other"],
-        },
-      ],
-      tagOptions: ["QA", "QC", "SOP", "Audit", "Compliance"],
-    },
-    "Research & Development": {
-      label: "R&D Filters",
-      fields: [
-        {
-          key: "trainingType",
-          label: "Training Type",
-          required: true,
-          options: ["Research", "Formulation", "Clinical", "Product Science", "Other"],
-        },
-      ],
-      tagOptions: ["Research", "Formulation", "Clinical", "Innovation"],
-    },
-    "Admin & Operations": defaultConfig,
-  };
-
-  const activeConfig = departmentFieldConfig[departmentType] || defaultConfig;
   const isDeptAdmin = String(currentUser?.role || "").toLowerCase().replace(/[\s_-]/g, "") === "departmentadmin";
   const normalizedRole = String(currentUser?.role || "")
   .toLowerCase()
@@ -224,11 +127,6 @@ function DepartmentUploadVideo() {
 
     fetchDepartments();
   }, [currentUser]);
-
-  useEffect(() => {
-    setMetadata({});
-    setTags([]);
-  }, [departmentType]);
 
   const handleDepartmentChange = (deptId) => {
     setSelectedDepartmentId(deptId);
@@ -360,14 +258,6 @@ function DepartmentUploadVideo() {
     };
   };
 
-  const updateMetadata = (key, value) => {
-    setMetadata((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const toggleTag = (tag) => {
-    setTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]);
-  };
-
   const resetQuestionForm = () => {
     setQuestion("");
     setOptionA("");
@@ -459,18 +349,11 @@ function DepartmentUploadVideo() {
     reader.readAsArrayBuffer(selectedFile);
   };
 
-  const validateMetadata = () => {
-    const missingField = activeConfig.fields.find((field) => field.required && !metadata[field.key]);
-    if (missingField) { alert(`Please select ${missingField.label}.`); return false; }
-    return true;
-  };
-
   const saveVideo = async (e) => {
     e.preventDefault();
 
     if (!department) { alert("Please select a department."); return; }
     if (!title || !description || !videoFile) { alert("Please fill title, description and video file."); return; }
-    if (!validateMetadata()) return;
 
     if (quizQuestions.length === 0) {
       const confirmSave = window.confirm("No quiz questions added. Do you still want to save this video?");
@@ -497,7 +380,6 @@ function DepartmentUploadVideo() {
         department,
         departmentType,
         departmentId: selectedDepartmentId,
-        metadata,
         tags,
         totalQuizQuestions: quizQuestions.length,
         hasQuiz: quizQuestions.length > 0,
@@ -561,7 +443,6 @@ function DepartmentUploadVideo() {
       setDescription("");
       setVideoFile(null);
       setThumbnailFile(null);
-      setMetadata({});
       setTags([]);
       setQuizQuestions([]);
       setExcelFile(null);
@@ -593,7 +474,46 @@ function DepartmentUploadVideo() {
     }
   };
 
-  const selectedTags = useMemo(() => tags.join(", "), [tags]);
+  const handleDragOver = (e, setDragOver) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = (e, setDragOver) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+  };
+
+  const handleDrop = (e, setDragOver, setFile, acceptType) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (file.type.startsWith(acceptType + "/")) {
+        setFile(file);
+      }
+    }
+  };
+
+  const handleTagInputKeyDown = (e) => {
+    if (e.key === "Enter" && tagInput.trim()) {
+      e.preventDefault();
+      const newTag = tagInput.trim();
+      if (!tags.includes(newTag)) {
+        setTags([...tags, newTag]);
+      }
+      setTagInput("");
+    }
+  };
+
+  const removeTag = (tagToRemove) => {
+    setTags(tags.filter((t) => t !== tagToRemove));
+  };
 
   return (
     <div className="video-library-page">
@@ -678,51 +598,51 @@ function DepartmentUploadVideo() {
             rows="3"
           />
 
-          <div className="form-step-title">
-            <span>2</span>
-            <div>
-              <h2>{activeConfig.label}</h2>
-              <p>Select filters for finding this video later.</p>
-            </div>
-          </div>
-
-          <div className="video-form-grid">
-            {activeConfig.fields.map((field) => (
-              <select
-                key={field.key}
-                value={metadata[field.key] || ""}
-                onChange={(e) => updateMetadata(field.key, e.target.value)}
-                required={field.required}
-              >
-                <option value="">
-                  {field.required ? `Select ${field.label} *` : `Select ${field.label}`}
-                </option>
-                {field.options.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
-            ))}
-          </div>
-
           <div className="tag-picker">
             <label>Tags</label>
-            <div>
-              {activeConfig.tagOptions.map((tag) => (
+            <div className="tag-input-container">
+              <input
+                type="text"
+                placeholder="Type a tag and press Enter..."
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={handleTagInputKeyDown}
+                className="tag-input"
+              />
+            </div>
+            {tags.length > 0 && (
+              <div className="selected-tags">
+                {tags.map((tag) => (
+                  <span key={tag} className="tag-chip">
+                    {tag}
+                    <button type="button" onClick={() => removeTag(tag)}>
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div className="suggested-tags">
+              <span className="suggested-label">Suggested:</span>
+              {["SOP", "Product", "Process", "Policy", "Internal Training", "Compliance", "Onboarding", "Safety", "Quality"].map((tag) => (
                 <button
                   key={tag}
                   type="button"
-                  className={tags.includes(tag) ? "selected" : ""}
-                  onClick={() => toggleTag(tag)}
+                  className={`suggested-tag-btn ${tags.includes(tag) ? "active" : ""}`}
+                  onClick={() => {
+                    if (!tags.includes(tag)) {
+                      setTags([...tags, tag]);
+                    }
+                  }}
                 >
-                  {tag}
+                  + {tag}
                 </button>
               ))}
             </div>
-            {selectedTags && <p>Selected: {selectedTags}</p>}
           </div>
 
           <div className="form-step-title">
-            <span>3</span>
+            <span>2</span>
             <div>
               <h2>Upload Files</h2>
               <p>Thumbnail is optional. If skipped, it will be generated from the video.</p>
@@ -731,41 +651,51 @@ function DepartmentUploadVideo() {
 
           <div className="upload-flow">
             <div className="upload-flow-item">
-              <div className="upload-step-no">1</div>
               <div className="upload-flow-content">
                 <h3>Upload Training Video *</h3>
                 <p>Select the main training video file.</p>
                 <label className="vertical-upload-box">
                   <input
+                    ref={videoInputRef}
                     type="file"
                     accept="video/*"
                     onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
                   />
-                  <div className={`upload-placeholder ${videoFile ? "has-file" : ""}`}>
+                  <div
+                    className={`upload-placeholder ${videoFile ? "has-file" : ""} ${videoDragOver ? "dragover" : ""}`}
+                    onDragOver={(e) => handleDragOver(e, setVideoDragOver)}
+                    onDragLeave={(e) => handleDragLeave(e, setVideoDragOver)}
+                    onDrop={(e) => handleDrop(e, setVideoDragOver, setVideoFile, "video")}
+                    onClick={() => videoInputRef.current?.click()}
+                  >
                     <FaVideo />
-                    <span>{videoFile ? videoFile.name : "Click to upload video"}</span>
+                    <span>{videoFile ? videoFile.name : "Drag & drop or click to upload"}</span>
                     <small>MP4, MOV supported</small>
                   </div>
                 </label>
               </div>
             </div>
 
-            <div className="upload-divider"></div>
-
             <div className="upload-flow-item">
-              <div className="upload-step-no">2</div>
               <div className="upload-flow-content">
-                <h3>Upload Thumbnail</h3>
-                <p>Optional. System can auto-generate one.</p>
+                <h3>Upload Thumbnail (Optional)</h3>
+                <p> System can auto-generate one.</p>
                 <label className="vertical-upload-box">
                   <input
+                    ref={thumbnailInputRef}
                     type="file"
                     accept="image/*"
                     onChange={(e) => setThumbnailFile(e.target.files?.[0] || null)}
                   />
-                  <div className={`upload-placeholder ${thumbnailFile ? "has-file" : ""}`}>
+                  <div
+                    className={`upload-placeholder ${thumbnailFile ? "has-file" : ""} ${thumbnailDragOver ? "dragover" : ""}`}
+                    onDragOver={(e) => handleDragOver(e, setThumbnailDragOver)}
+                    onDragLeave={(e) => handleDragLeave(e, setThumbnailDragOver)}
+                    onDrop={(e) => handleDrop(e, setThumbnailDragOver, setThumbnailFile, "image")}
+                    onClick={() => thumbnailInputRef.current?.click()}
+                  >
                     <FaImage />
-                    <span>{thumbnailFile ? thumbnailFile.name : "Click to upload thumbnail"}</span>
+                    <span>{thumbnailFile ? thumbnailFile.name : "Drag & drop or click to upload"}</span>
                     <small>PNG, JPG supported</small>
                   </div>
                 </label>
@@ -778,46 +708,57 @@ function DepartmentUploadVideo() {
 
         <div className="video-library-card quiz-side-card">
           <div className="form-step-title">
-            <span>4</span>
+            <span>3</span>
             <div>
               <h2>Learning Quiz</h2>
-              <p>Add manually or upload Excel questions.</p>
+              <p>Upload Excel or add questions manually.</p>
             </div>
           </div>
 
-          <div className="quiz-flow-container">
-            <div className="quiz-step-card">
-              <div className="step-badge">1</div>
-              <div className="step-info">
-                <h4>Download Sample</h4>
-                <p>Download the sample Excel format.</p>
-                <button type="button" className="outline-action-btn" onClick={downloadQuizTemplate}>
-                  Download Sample
-                </button>
-              </div>
-            </div>
-            <div className="quiz-step-card">
-              <div className="step-badge">2</div>
-              <div className="step-info">
-                <h4>Upload Filled Excel</h4>
-                <label className="excel-upload-box">
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls,.csv"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
+          <div className="excel-upload-flow">
+            <label className="vertical-upload-box">
+              <input
+                ref={excelInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setExcelFile(file);
+                  uploadQuizExcel(file);
+                }}
+              />
+              <div
+                className={`upload-placeholder ${excelFile ? "has-file" : ""} ${excelDragOver ? "dragover" : ""}`}
+                onDragOver={(e) => handleDragOver(e, setExcelDragOver)}
+                onDragLeave={(e) => handleDragLeave(e, setExcelDragOver)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setExcelDragOver(false);
+                  const files = e.dataTransfer.files;
+                  if (files && files.length > 0) {
+                    const file = files[0];
+                    if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls") || file.name.endsWith(".csv")) {
                       setExcelFile(file);
                       uploadQuizExcel(file);
-                    }}
-                  />
-                  <span>{excelFile ? excelFile.name : "Click here to choose Excel file"}</span>
-                </label>
+                    }
+                  }
+                }}
+                onClick={() => excelInputRef.current?.click()}
+              >
+                <FaFileExcel />
+                <span>{excelFile ? excelFile.name : "Drag & drop or click to upload Excel"}</span>
+                <small>.xlsx, .xls, .csv supported</small>
               </div>
-            </div>
+            </label>
           </div>
 
-          <textarea
+          <button type="button" className="outline-action-btn" onClick={downloadQuizTemplate}>
+            Download Sample Template
+          </button>
+
+          <textarea 
             placeholder="Question"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}

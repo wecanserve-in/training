@@ -8,7 +8,7 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
 } from "../services/doubtService";
-import FloatingDoubtButton from "./FloatingDoubtButton";
+
 import "../styles/departmentadminlayout.css";
 
 import { FaBell, FaComments, FaReply, FaBookOpen, FaVideo, FaClock, FaTimesCircle, FaCheckCircle, FaAward } from "react-icons/fa";
@@ -210,6 +210,7 @@ function DepartmentAdminLayout() {
             </button>
             {openReports && (
               <div className="dept-dropdown-submenu">
+                <NavLink to="/department-admin/analytics" onClick={closeSidebar}>Progress Report</NavLink>
                 <NavLink to="/department-admin/test-logs" onClick={closeSidebar}>Test Logs</NavLink>
                 <NavLink to="/department-admin/assigned-users" onClick={closeSidebar}>Assigned Users</NavLink>
                 <NavLink to="/department-admin/all-certificates" onClick={closeSidebar}>Certifications</NavLink>
@@ -309,8 +310,6 @@ function DepartmentAdminLayout() {
 
         <Outlet />
       </main>
-
-      <FloatingDoubtButton />
     </div>
   );
 }

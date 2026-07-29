@@ -8,7 +8,7 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
 } from "../services/doubtService";
-import FloatingDoubtButton from "./FloatingDoubtButton";
+
 import { FaBell, FaComments, FaReply, FaBookOpen, FaVideo, FaClock, FaTimesCircle, FaCheckCircle, FaAward } from "react-icons/fa";
 import "../styles/userLayout.css";
 
@@ -232,11 +232,6 @@ function UserLayout() {
             News & Resources
           </NavLink>
 
-          <NavLink to="/doubts" onClick={closeMobileSidebar}>
-            Chats
-            {unreadCount > 0 && <span className="doubt-nav-badge">{unreadCount}</span>}
-          </NavLink>
-
           <NavLink to="/my-learnings" onClick={closeMobileSidebar}>
             My Learnings
           </NavLink>
@@ -319,8 +314,6 @@ function UserLayout() {
 
         <Outlet />
       </main>
-
-      <FloatingDoubtButton />
     </div>
   );
 }

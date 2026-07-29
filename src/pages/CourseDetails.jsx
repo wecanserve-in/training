@@ -931,86 +931,78 @@ function CourseDetails() {
           )}
         </div>
 
-        {allVideosCompleted && (
+        {finalResult?.passed ? (
           <div
-            className={`course-final-test-card ${
-              finalResult?.passed
-                ? "course-final-test-passed"
-                : ""
-            }`}
+            className="course-final-test-card course-final-test-passed"
           >
-            {finalResult?.passed ? (
-              <>
-                <div className="course-complete-icon">
-                  ✓
+            <div className="course-complete-icon">
+              ✓
+            </div>
+
+            <div className="course-final-content">
+              <span className="course-complete-label">
+                Course Completed
+              </span>
+
+              <h2>
+                Course Successfully Completed
+              </h2>
+
+              <p>
+                Congratulations! You have
+                successfully passed the final
+                course test. This test cannot be
+                attempted again.
+              </p>
+
+              <div className="course-final-score-row">
+                <div className="course-final-score-box">
+                  <strong>
+                    {finalResult.percentage}%
+                  </strong>
+                  <span>Final Score</span>
                 </div>
+              </div>
 
-                <div className="course-final-content">
-                  <span className="course-complete-label">
-                    Course Completed
-                  </span>
+              <button
+                type="button"
+                className="course-view-marks-btn"
+                onClick={() =>
+                  navigate(
+                    getQuizPath("result")
+                  )
+                }
+              >
+                View Marks
+              </button>
+            </div>
+          </div>
+        ) : allVideosCompleted && (
+          <div className="course-final-test-card">
+            <div className="course-final-content">
+              <span className="course-complete-label">
+                Final Assessment
+              </span>
 
-                  <h2>
-                    Course Successfully Completed
-                  </h2>
+              <h2>
+                Course Videos Completed
+              </h2>
 
-                  <p>
-                    Congratulations! You have
-                    successfully passed the final
-                    course test. This test cannot be
-                    attempted again.
-                  </p>
+              <p>
+                You have completed all course
+                videos. You can now take the
+                final course test.
+              </p>
 
-                  <div className="course-final-score-row">
-                    <div className="course-final-score-box">
-                      <strong>
-                        {finalResult.percentage}%
-                      </strong>
-                      <span>Final Score</span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="course-view-marks-btn"
-                    onClick={() =>
-                      navigate(
-                        getQuizPath("result")
-                      )
-                    }
-                  >
-                    View Marks
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="course-final-content">
-                  <span className="course-complete-label">
-                    Final Assessment
-                  </span>
-
-                  <h2>
-                    Course Videos Completed
-                  </h2>
-
-                  <p>
-                    You have completed all course
-                    videos. You can now take the
-                    final course test.
-                  </p>
-
-                  <Link to={getQuizPath()}>
-                    <button
-                      type="button"
-                      className="course-start-test-btn"
-                    >
-                      Start Final Test
-                    </button>
-                  </Link>
-                </div>
-              </>
-            )}
+              <Link to={getQuizPath()}>
+                <button
+                  type="button"
+                  className="course-start-test-btn"
+                >
+                  Start Final Test
+                </button>
+              </Link>
+            </div>
           </div>
         )}
       </section>

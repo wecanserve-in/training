@@ -590,3 +590,205 @@
   .co-hero-thumb { width: 100%; height: 180px; }
   .co-meta-badges { justify-content: center; }
 }
+
+
+/* =========================================================
+   COURSE TEST QUIZ TOGGLE
+   ========================================================= */
+
+.co-quiz-toggle-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--co-border);
+}
+
+.co-quiz-toggle-btn {
+  width: 100%;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 10px 14px;
+  border: 1px solid var(--co-primary);
+  border-radius: 10px;
+  background: #f0fdf4;
+  color: var(--co-primary);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.co-quiz-toggle-btn:hover {
+  background: var(--co-primary);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 7px 18px rgba(5, 150, 105, 0.16);
+}
+
+.co-quiz-toggle-btn.open {
+  background: var(--co-primary);
+  color: #ffffff;
+}
+
+.co-quiz-toggle-icon {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.co-quiz-toggle-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  line-height: 1;
+  transition: transform 0.3s ease;
+}
+
+.co-quiz-toggle-btn.open .co-quiz-toggle-arrow {
+  transform: rotate(180deg);
+}
+
+/* The quiz remains mounted so closing also animates smoothly. */
+.co-course-quiz-slide {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition:
+    max-height 0.55s ease,
+    opacity 0.28s ease,
+    transform 0.35s ease,
+    visibility 0s linear 0.55s;
+}
+
+.co-course-quiz-slide.open {
+  max-height: 10000px;
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  transition:
+    max-height 0.8s ease,
+    opacity 0.35s ease 0.08s,
+    transform 0.4s ease 0.04s,
+    visibility 0s linear 0s;
+}
+
+.co-course-quiz-card {
+  margin-top: 0;
+}
+
+.co-course-quiz-card .co-section-header > div {
+  min-width: 0;
+}
+
+.co-quiz-subtitle {
+  margin: 5px 0 0;
+  color: var(--co-muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+/* Keep readable duration text on one line where possible. */
+.co-video-duration {
+  white-space: nowrap;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .co-page {
+    padding: 12px 14px 24px;
+  }
+
+  .co-top-bar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .co-actions {
+    width: 100%;
+  }
+
+  .co-actions button {
+    flex: 1;
+  }
+
+  .co-video-item {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .co-video-details {
+    min-width: calc(100% - 132px);
+  }
+
+  .co-video-duration {
+    margin-left: 40px;
+  }
+
+  .co-section-header {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .co-course-quiz-card {
+    padding: 15px;
+  }
+}
+
+
+/* =========================================================
+   VIDEO-ONLY MODAL + QUIZ AUTO-SCROLL
+   ========================================================= */
+
+.co-video-only-modal {
+  max-width: 920px;
+  overflow: hidden;
+  background: #000000;
+}
+
+.co-video-only-modal .co-modal-video-wrapper {
+  margin: 0;
+  border-radius: var(--co-radius-lg);
+  overflow: hidden;
+}
+
+.co-video-only-modal .co-modal-player {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000000;
+}
+
+/* Adds breathing space when scrollIntoView moves to the quiz section. */
+.co-course-quiz-slide {
+  scroll-margin-top: 90px;
+}
+
+@media (max-width: 600px) {
+  .co-modal-backdrop {
+    padding: 12px;
+  }
+
+  .co-video-only-modal {
+    border-radius: 10px;
+  }
+
+  .co-video-only-modal .co-modal-video-wrapper {
+    border-radius: 10px;
+  }
+
+  .co-course-quiz-slide {
+    scroll-margin-top: 76px;
+  }
+}

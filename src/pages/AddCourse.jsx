@@ -41,6 +41,7 @@ function AddCourse() {
   const [correctAnswer, setCorrectAnswer] = useState("");
   const [questions, setQuestions] = useState([]);
   const [excelFile, setExcelFile] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
@@ -343,6 +344,30 @@ function AddCourse() {
     reader.readAsArrayBuffer(selectedFile);
   };
 
+  const handleFileDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    const ext = file.name.split(".").pop().toLowerCase();
+    if (["xlsx", "xls", "csv"].includes(ext)) {
+      setExcelFile(file);
+      handleExcelUpload(file);
+    } else {
+      alert("Please upload an Excel (.xlsx, .xls) or CSV file.");
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+  };
+
   const goNext = () => {
     if (step === 1 && (!department || !title.trim() || !overview.trim())) {
       alert("Please fill course title, department and overview.");
@@ -529,13 +554,23 @@ function AddCourse() {
 
             <div className="admin-input-group">
               <label className="admin-field-label">Course Overview *</label>
-              <textarea
-                placeholder="Write a short overview of what this course covers..."
-                value={overview}
-                onChange={(e) => setOverview(e.target.value)}
-                className="admin-form-textarea"
-                rows="4"
-              />
+              <div className="course-overview-box">
+                <div className="course-overview-hint">
+                  <span className="overview-hint-title">Formatting Tips</span>
+                  <span>Use separate lines for each point</span>
+                  <span>Keep sentences short and clear</span>
+                </div>
+                <textarea
+                  placeholder={"Write a short overview of what this course covers...\n\nExample:\n• This course covers breast cancer fundamentals\n• Key symptoms and diagnosis methods\n• Treatment options and patient care\n• Interactive quiz at the end"}
+                  value={overview}
+                  onChange={(e) => setOverview(e.target.value)}
+                  className="admin-form-textarea course-overview-textarea"
+                  rows="6"
+                />
+                <div className="course-overview-charcount">
+                  {overview.length} characters
+                </div>
+              </div>
             </div>
 
             <div className="course-thumb-upload-box">
@@ -681,28 +716,49 @@ function AddCourse() {
               </div>
             </div>
 
-            <div className="simple-quiz-upload">
-              <div className="simple-quiz-upload-top">
-                <h3>Bulk Upload</h3>
-                <div className="simple-quiz-actions">
-                  <button type="button" onClick={downloadTemplate}>
-                    Download Sample
-                  </button>
-                  <label>
-                    Upload Excel
-                    <input
-                      type="file"
-                      accept=".xlsx,.xls,.csv"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        setExcelFile(file);
-                        handleExcelUpload(file);
-                      }}
-                    />
-                  </label>
-                </div>
+            <div
+              className={`quiz-drop-zone ${dragOver ? "quiz-drop-active" : ""} ${excelFile ? "quiz-drop-done" : ""}`}
+              onDrop={handleFileDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+            >
+              <input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                id="quiz-file-input"
+                className="quiz-drop-input"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setExcelFile(file);
+                  handleExcelUpload(file);
+                }}
+              />
+              <div className="quiz-drop-icon">
+                {excelFile ? (
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                ) : (
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                )}
               </div>
+              {excelFile ? (
+                <div className="quiz-drop-text">
+                  <strong>{excelFile.name}</strong>
+                  <span>File uploaded. Questions imported above.</span>
+                </div>
+              ) : (
+                <div className="quiz-drop-text">
+                  <strong>Drag & drop your quiz file here</strong>
+                  <span>Supports .xlsx, .xls, .csv — or <label htmlFor="quiz-file-input" className="quiz-drop-browse">browse</label></span>
+                </div>
+              )}
+            </div>
+
+            <div className="quiz-download-row">
+              <button type="button" onClick={downloadTemplate} className="quiz-template-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download Sample Template
+              </button>
             </div>
 
             <div className="manual-divider">

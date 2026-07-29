@@ -4,6 +4,10 @@ import { onAuthStateChanged } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { auth, database } from "../firebase";
 import useBasePath from "../hooks/useBasePath";
+import {
+  hasCertificate,
+  mergeUserRecords,
+} from "../utils/trainingAnalytics";
 import "../styles/certificates.css";
 
 import {
@@ -25,38 +29,74 @@ function Certificates() {
       }
 
       try {
-        const completedSnap = await get(
-          ref(database, `completedCourses/${user.uid}`)
-        );
+        const [completedSnap, courseProgressSnap] = await Promise.all([
+          get(ref(database, `completedCourses/${user.uid}`)),
+          get(ref(database, `courseProgress/${user.uid}`)),
+        ]);
 
-        if (!completedSnap.exists()) {
-          setCertificates([]);
-          setLoading(false);
-          return;
-        }
+        const completedData = completedSnap.exists()
+          ? completedSnap.val()
+          : {};
+        const courseProgressData = courseProgressSnap.exists()
+          ? courseProgressSnap.val()
+          : {};
 
-        const completedData = completedSnap.val();
+        const certificateEntries = [];
+
+        Object.entries(completedData).forEach(([courseId, item]) => {
+          if (hasCertificate(item)) {
+            certificateEntries.push({ courseId, source: "completedCourses", item });
+          }
+        });
+
+        Object.entries(courseProgressData).forEach(([courseId, item]) => {
+          if (
+            (item?.courseTestPassed || item?.passed) &&
+            !certificateEntries.some((e) => e.courseId === courseId)
+          ) {
+            certificateEntries.push({ courseId, source: "courseProgress", item });
+          }
+        });
 
         const passedCertificates = await Promise.all(
-          Object.entries(completedData)
-            .filter(([_, item]) => item?.passed && item?.attemptId)
-            .map(async ([courseId, item]) => {
-              const [attemptSnap, courseSnap, userSnap] = await Promise.all([
-                get(ref(database, `attempts/${user.uid}/${item.attemptId}`)),
-                get(ref(database, `courses/${courseId}`)),
-                get(ref(database, `users/${user.uid}`)),
-              ]);
+          certificateEntries.map(async ({ courseId, source, item }) => {
+            const attemptId = item.attemptId || item.legacyAttemptId || item.finalQuizAttemptId || "";
 
-              return {
-                courseId,
-                ...item,
-                attempt: attemptSnap.exists() ? attemptSnap.val() : {},
-                course: courseSnap.exists()
-                  ? { id: courseId, ...courseSnap.val() }
-                  : {},
-                userData: userSnap.exists() ? userSnap.val() : {},
-              };
-            })
+            const attemptsToCheck = [];
+            if (attemptId) {
+              attemptsToCheck.push(
+                get(ref(database, `attempts/${user.uid}/${attemptId}`))
+              );
+            }
+            attemptsToCheck.push(
+              get(ref(database, `courses/${courseId}`)),
+              get(ref(database, `users/${user.uid}`))
+            );
+
+            const results = await Promise.all(attemptsToCheck);
+
+            const attemptSnap = attemptId ? results[0] : null;
+            const courseSnap = attemptId ? results[1] : results[0];
+            const userSnap = attemptId ? results[2] : results[1];
+
+            const attemptData = attemptSnap?.exists() ? attemptSnap.val() : {};
+
+            const finalScore = item.score ?? item.percentage ?? attemptData.score ?? attemptData.percentage ?? 0;
+
+            return {
+              courseId,
+              passed: true,
+              score: finalScore,
+              percentage: finalScore,
+              completedAt: item.completedAt || attemptData.submittedAt || attemptData.completedAt || "",
+              attemptId: attemptId || `CERT-${courseId.slice(-6).toUpperCase()}`,
+              attempt: attemptData,
+              course: courseSnap.exists()
+                ? { id: courseId, ...courseSnap.val() }
+                : { id: courseId },
+              userData: userSnap.exists() ? userSnap.val() : {},
+            };
+          })
         );
 
         passedCertificates.sort(
@@ -135,7 +175,7 @@ function Certificates() {
             <span>Avg Score</span>
             <strong>{
               certificates.length > 0
-                ? Math.round(certificates.reduce((sum, c) => sum + (c.attempt?.score || 0), 0) / certificates.length)
+                ? Math.round(certificates.reduce((sum, c) => sum + (c.score || c.attempt?.score || 0), 0) / certificates.length)
                 : 0
             }%</strong>
           </div>

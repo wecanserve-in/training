@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { get, ref } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
@@ -18,6 +18,8 @@ function CourseOverview() {
   const [loading, setLoading] = useState(true);
   
   const [selectedVideo, setSelectedVideo] = useState(null);
+  const [showCourseQuiz, setShowCourseQuiz] = useState(false);
+  const courseQuizRef = useRef(null);
 
   useEffect(() => {
     const fetchCourseData = async () => {
@@ -125,6 +127,20 @@ function CourseOverview() {
     return () => unsubscribe();
   }, [id, navigate]);
 
+  const handleCourseQuizToggle = () => {
+    const willOpen = !showCourseQuiz;
+    setShowCourseQuiz(willOpen);
+
+    if (willOpen) {
+      window.setTimeout(() => {
+        courseQuizRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 260);
+    }
+  };
+
   if (loading) return <div className="co-page"><div className="co-loading">Loading Course Overview...</div></div>;
 
   if (!course) {
@@ -138,25 +154,95 @@ function CourseOverview() {
     );
   }
 
-  const thumbnail = course.thumbnailUrl || course.courseThumbnail || videos.find(v => v.thumbnailUrl)?.thumbnailUrl || "";
-  const totalQuestions = questions.length;
+  const thumbnail =
+    course.thumbnailUrl ||
+    course.courseThumbnail ||
+    videos.find((video) => video.thumbnailUrl)?.thumbnailUrl ||
+    "";
+
+  // Only final/course-test questions belong in the course test section.
+  // Video-specific questions continue to appear inside each video preview.
+  const courseTestQuestions = questions.filter((question) => !question.videoId);
+  const totalQuestions = courseTestQuestions.length;
 
   const editLink = `${basePath}/courses/edit/${course.id}`;
   const assignLink = `${basePath}/assignments?courseId=${course.id}`;
 
-// ✅ Fixed: Added video.durationSeconds to match your database
+  // Converts seconds into readable text:
+  // 90 -> "1 min 30 sec", 60 -> "1 min", 45 -> "45 sec"
+  const formatDuration = (rawDuration, fallback = "0 sec") => {
+    if (
+      rawDuration === undefined ||
+      rawDuration === null ||
+      rawDuration === ""
+    ) {
+      return fallback;
+    }
+
+    // Supports values already stored as "01:30" or "1:30".
+    if (
+      typeof rawDuration === "string" &&
+      rawDuration.includes(":")
+    ) {
+      const parts = rawDuration.split(":").map(Number);
+
+      if (parts.some((part) => Number.isNaN(part))) {
+        return fallback;
+      }
+
+      let totalSeconds = 0;
+
+      if (parts.length === 3) {
+        totalSeconds =
+          parts[0] * 3600 +
+          parts[1] * 60 +
+          parts[2];
+      } else {
+        totalSeconds = parts[0] * 60 + parts[1];
+      }
+
+      return formatDuration(totalSeconds, fallback);
+    }
+
+    const totalSeconds = Math.max(
+      0,
+      Math.floor(Number(rawDuration))
+    );
+
+    if (!Number.isFinite(totalSeconds)) {
+      return fallback;
+    }
+
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    const parts = [];
+
+    if (hours > 0) {
+      parts.push(`${hours} hr`);
+    }
+
+    if (minutes > 0) {
+      parts.push(`${minutes} min`);
+    }
+
+    if (seconds > 0 || parts.length === 0) {
+      parts.push(`${seconds} sec`);
+    }
+
+    return parts.join(" ");
+  };
+
   const formatTime = (video) => {
-    const timeInfo = video.durationSeconds || video.duration || video.videoDuration || video.metadata?.duration || 0;
-    
-    if (!timeInfo) return "0:00";
-    if (typeof timeInfo === "string" && timeInfo.includes(":")) return timeInfo;
-    
-    const seconds = Number(timeInfo);
-    if (isNaN(seconds)) return "0:00";
-    
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
+    const timeInfo =
+      video.durationSeconds ??
+      video.duration ??
+      video.videoDuration ??
+      video.metadata?.duration ??
+      0;
+
+    return formatDuration(timeInfo);
   };
 
   const renderOptions = (q) => {
@@ -182,54 +268,46 @@ function CourseOverview() {
     );
   };
 
-  // ✅ Get Questions specific to the Selected Video for the Modal
-  const videoSpecificQuestions = selectedVideo 
-    ? questions.filter(q => q.videoId === selectedVideo.id) 
-    : [];
-
   return (
     <div className="co-page">
       
-      {/* VIDEO PREVIEW MODAL */}
+      {/* VIDEO-ONLY PREVIEW MODAL */}
       {selectedVideo && (
-        <div className="co-modal-backdrop" onClick={() => setSelectedVideo(null)}>
-          <div className="co-modal-content" onClick={(e) => e.stopPropagation()}>
-            <button className="co-modal-close" onClick={() => setSelectedVideo(null)}>✕</button>
-            
+        <div
+          className="co-modal-backdrop"
+          onClick={() => setSelectedVideo(null)}
+        >
+          <div
+            className="co-modal-content co-video-only-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="co-modal-close"
+              onClick={() => setSelectedVideo(null)}
+              aria-label="Close video"
+            >
+              ✕
+            </button>
+
             <div className="co-modal-video-wrapper">
-              <video controls controlsList="nodownload" autoPlay className="co-modal-player">
-                <source src={selectedVideo.videoUrl || selectedVideo.url || selectedVideo.fileUrl} type="video/mp4" />
+              <video
+                controls
+                controlsList="nodownload"
+                autoPlay
+                className="co-modal-player"
+              >
+                <source
+                  src={
+                    selectedVideo.videoUrl ||
+                    selectedVideo.url ||
+                    selectedVideo.fileUrl
+                  }
+                  type="video/mp4"
+                />
+                Your browser does not support video playback.
               </video>
             </div>
-
-            <div className="co-modal-details">
-              {selectedVideo.thumbnailUrl && (
-                <div className="co-modal-thumb">
-                  <img src={selectedVideo.thumbnailUrl} alt={selectedVideo.title || "Video thumbnail"} />
-                </div>
-              )}
-              <h2>{selectedVideo.title || selectedVideo.videoTitle}</h2>
-              <p>{selectedVideo.description || "No description provided for this video."}</p>
-              <div className="co-modal-meta">
-                <span>⏱ Duration: {formatTime(selectedVideo)}</span>
-                <span>📝 {videoSpecificQuestions.length} Questions</span>
-              </div>
-            </div>
-
-            {/* Video Specific Questions inside Modal */}
-            {videoSpecificQuestions.length > 0 && (
-              <div className="co-modal-questions">
-                <h3>Video Revision Quiz</h3>
-                <div className="co-questions-list">
-                  {videoSpecificQuestions.map((q, index) => (
-                    <div key={q.id} className="co-question-item">
-                      <h4><span>Q{index + 1}.</span> {q.questionText || q.question}</h4>
-                      {renderOptions(q)}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -316,33 +394,6 @@ function CourseOverview() {
               </div>
             </div>
 
-            {/* OVERALL COURSE QUESTIONS LIST */}
-            {questions.length > 0 && (
-              <div className="co-section-card">
-                <div className="co-section-header">
-                  <h2>All Course & Video Questions</h2>
-                  <span>{questions.length} Questions Total</span>
-                </div>
-                <div className="co-questions-list">
-                  {questions.map((q, index) => {
-                    const videoName = videos.find(v => v.id === q.videoId)?.title || videos.find(v => v.id === q.videoId)?.videoTitle;
-                    
-                    return (
-                      <div key={q.id} className="co-question-item">
-                        {/* If it's a video question, show a badge */}
-                        {q.videoId && videoName && (
-                          <div style={{ marginBottom: "8px", fontSize: "12px", color: "#64748b", fontWeight: "600" }}>
-                            Video Quiz: {videoName}
-                          </div>
-                        )}
-                        <h4><span>Q{index + 1}.</span> {q.questionText || q.question}</h4>
-                        {renderOptions(q)}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* RIGHT SIDEBAR */}
@@ -362,7 +413,12 @@ function CourseOverview() {
                     </div>
                     <div className="co-info-item">
                       <span>Time Limit</span>
-                      <strong>{course.testDuration || "Unlimited"} sec</strong>
+                      <strong>
+                        {formatDuration(
+                          course.testDuration,
+                          "Unlimited"
+                        )}
+                      </strong>
                     </div>
                     <div className="co-info-item">
                       <span>Passing Score</span>
@@ -371,10 +427,72 @@ function CourseOverview() {
                   </>
                 )}
               </div>
+
+              {totalQuestions > 0 && (
+                <div className="co-quiz-toggle-wrap">
+                  <button
+                    type="button"
+                    className={`co-quiz-toggle-btn ${
+                      showCourseQuiz ? "open" : ""
+                    }`}
+                    onClick={handleCourseQuizToggle}
+                    aria-expanded={showCourseQuiz}
+                    aria-controls="course-test-quiz-list"
+                  >
+                    <span className="co-quiz-toggle-icon">📝</span>
+                    <span>
+                      {showCourseQuiz
+                        ? "Hide Course Test Quiz"
+                        : "View Course Test Quiz"}
+                    </span>
+                    <span className="co-quiz-toggle-arrow">⌄</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
+        {/* COURSE TEST QUIZ - HIDDEN UNTIL BUTTON IS CLICKED */}
+        {totalQuestions > 0 && (
+          <div
+            ref={courseQuizRef}
+            id="course-test-quiz-list"
+            className={`co-course-quiz-slide ${
+              showCourseQuiz ? "open" : ""
+            }`}
+          >
+            <div className="co-section-card co-course-quiz-card">
+              <div className="co-section-header">
+                <div>
+                  <h2>Course Test Quiz</h2>
+                  <p className="co-quiz-subtitle">
+                    Final test questions for this course
+                  </p>
+                </div>
+
+                <span>{totalQuestions} Questions</span>
+              </div>
+
+              <div className="co-questions-list">
+                {courseTestQuestions.map((question, index) => (
+                  <div
+                    key={question.id}
+                    className="co-question-item"
+                  >
+                    <h4>
+                      <span>Q{index + 1}.</span>{" "}
+                      {question.questionText ||
+                        question.question}
+                    </h4>
+
+                    {renderOptions(question)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

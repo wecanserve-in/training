@@ -1,84 +1,265 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { onAuthStateChanged } from "firebase/auth";
 import { ref, get } from "firebase/database";
-import { database } from "../firebase";
-import useBasePath from "../hooks/useBasePath";
+import { auth, database } from "../firebase";
 import "../styles/resultpage.css";
 
 function ResultPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const basePath = useBasePath();
 
   const [result, setResult] = useState(null);
   const [course, setCourse] = useState(null);
+  const [viewerRole, setViewerRole] = useState("user");
   const [loading, setLoading] = useState(true);
 
+  /*
+   * Make sure these paths match the paths used in your App.jsx.
+   *
+   * Example:
+   * superAdmin       -> /superadmin
+   * admin            -> /admin
+   * departmentAdmin  -> /department-admin
+   * user             -> normal user routes
+   */
+  const getRoleBasePath = (role) => {
+    switch (role) {
+      case "superAdmin":
+        return "/superadmin";
+
+      case "admin":
+        return "/admin";
+
+      case "departmentAdmin":
+      case "deptAdmin":
+        return "/department-admin";
+
+      default:
+        return "";
+    }
+  };
+
+  const basePath = getRoleBasePath(viewerRole);
+
+  const getDashboardPath = () => {
+    if (!basePath) {
+      return "/dashboard";
+    }
+
+    return `${basePath}/dashboard`;
+  };
+
+  const getCoursePath = (courseId) => {
+    if (!courseId) {
+      return getDashboardPath();
+    }
+
+    if (!basePath) {
+      return `/course/${courseId}`;
+    }
+
+    return `${basePath}/course/${courseId}`;
+  };
+
+  const getCertificatePath = (attemptId) => {
+    if (!basePath) {
+      return `/certificate/${attemptId}`;
+    }
+
+    return `${basePath}/certificate/${attemptId}`;
+  };
+
   useEffect(() => {
-    fetchResult();
+    const unsubscribe = onAuthStateChanged(auth, async (loggedInUser) => {
+      if (!loggedInUser) {
+        setLoading(false);
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      try {
+        /*
+         * Get the role of the person currently viewing the page.
+         * Do not use attemptUserId here because an admin may be viewing
+         * another user's result.
+         */
+        const viewerSnap = await get(
+          ref(database, `users/${loggedInUser.uid}`)
+        );
+
+        if (viewerSnap.exists()) {
+          const viewerData = viewerSnap.val();
+
+          setViewerRole(
+            viewerData.role ||
+              viewerData.userRole ||
+              viewerData.type ||
+              "user"
+          );
+        } else {
+          setViewerRole("user");
+        }
+
+        await fetchResult();
+      } catch (error) {
+        console.error("Result page loading error:", error);
+        alert("Failed to load result");
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
   }, [id]);
 
   const fetchResult = async () => {
     try {
+      if (!id) {
+        setResult(null);
+        return;
+      }
+
+      /*
+       * Existing IDs appear to use:
+       * userId_attemptId
+       */
       const attemptUserId = id.split("_")[0];
-      const resultSnap = await get(ref(database, `attempts/${attemptUserId}/${id}`));
+
+      const resultSnap = await get(
+        ref(database, `attempts/${attemptUserId}/${id}`)
+      );
 
       if (!resultSnap.exists()) {
         setResult(null);
-        setLoading(false);
         return;
       }
 
       const resultData = resultSnap.val();
-      setResult(resultData);
+
+      setResult({
+        id,
+        ...resultData,
+      });
 
       if (resultData.courseId) {
-        const courseSnap = await get(ref(database, `courses/${resultData.courseId}`));
+        const courseSnap = await get(
+          ref(database, `courses/${resultData.courseId}`)
+        );
 
         if (courseSnap.exists()) {
           setCourse({
             id: resultData.courseId,
             ...courseSnap.val(),
           });
+        } else {
+          setCourse(null);
         }
       }
     } catch (error) {
-      console.error(error);
+      console.error("Result fetch error:", error);
       alert("Failed to load result");
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return <h2 className="result-status-msg">Loading Result...</h2>;
+  if (loading) {
+    return (
+      <h2 className="result-status-msg">
+        Loading Result...
+      </h2>
+    );
+  }
 
-  if (!result) return <h1 className="result-status-msg error">Result not found</h1>;
+  if (!result) {
+    return (
+      <div className="result-status-msg error">
+        <h1>Result not found</h1>
 
-  const total = Number(result.total || 0);
-  const correct = Number(result.correct || 0);
-  const wrong = Math.max(total - correct, 0);
-  const score = Number(result.score || 0);
+        <button
+          type="button"
+          className="secondary-btn"
+          onClick={() => navigate(getDashboardPath())}
+        >
+          Go to Dashboard
+        </button>
+      </div>
+    );
+  }
+
+  const total = Number(
+    result.total ??
+      result.totalQuestions ??
+      0
+  );
+
+  const correct = Number(
+    result.correct ??
+      result.correctAnswers ??
+      0
+  );
+
+  const wrong = Math.max(
+    Number(
+      result.wrong ??
+        result.wrongAnswers ??
+        total - correct
+    ),
+    0
+  );
+
+  const rawScore = Number(result.score ?? 0);
+
+  /*
+   * Supports both:
+   * score: 80
+   * score: 8 with total: 10
+   */
+  const score =
+    total > 0 && rawScore <= total
+      ? Math.round((rawScore / total) * 100)
+      : Math.max(0, Math.min(100, Math.round(rawScore)));
 
   const courseTitle =
-    result.courseTitle || course?.title || course?.courseTitle || "Course";
+    result.courseTitle ||
+    course?.title ||
+    course?.courseTitle ||
+    "Course";
 
-  const quizLabel = result.quizType || "Final Course Test";
+  const quizLabel =
+    result.quizTitle ||
+    result.testTitle ||
+    result.quizType ||
+    "Final Course Test";
+
+  const passed =
+    typeof result.passed === "boolean"
+      ? result.passed
+      : score >= Number(result.passPercentage || 0);
 
   return (
     <div className="result-page-container">
-      <div className={`result-shell ${result.passed ? "passed" : "failed"}`}>
+      <div
+        className={`result-shell ${
+          passed ? "passed" : "failed"
+        }`}
+      >
         <button
           type="button"
           className="result-back-btn"
-          onClick={() => navigate(`${basePath}/course/${result.courseId}`)}
+          onClick={() =>
+            navigate(getCoursePath(result.courseId))
+          }
         >
           ← Back to Course
         </button>
 
-        <div className="result-status-icon">{result.passed ? "✓" : "✕"}</div>
+        <div className="result-status-icon">
+          {passed ? "✓" : "✕"}
+        </div>
 
         <h1 className="result-status-text">
-          {result.passed ? "Quiz Passed" : "Quiz Failed"}
+          {passed ? "Quiz Passed" : "Quiz Failed"}
         </h1>
 
         <div className="result-score-circle">
@@ -86,8 +267,13 @@ function ResultPage() {
           <span>Score</span>
         </div>
 
-        <h2 className="result-course-name">{courseTitle}</h2>
-        <p className="result-course-type">{quizLabel}</p>
+        <h2 className="result-course-name">
+          {courseTitle}
+        </h2>
+
+        <p className="result-course-type">
+          {quizLabel}
+        </p>
 
         <div className="result-stats-grid">
           <div>
@@ -107,35 +293,48 @@ function ResultPage() {
         </div>
 
         <div className="result-progress">
-          <span style={{ width: `${score}%` }}></span>
+          <span
+            style={{
+              width: `${score}%`,
+            }}
+          />
         </div>
 
         <p className="result-message">
-          {result.passed
+          {passed
             ? "Great job! Your result has been saved successfully."
             : "Review the course and try again when you are ready."}
         </p>
 
         <div className="result-actions">
-          {result.passed ? (
+          {passed ? (
             <button
+              type="button"
               className="primary-btn"
-              onClick={() => navigate(`${basePath}/certificate/${id}`)}
+              onClick={() =>
+                navigate(getCertificatePath(id))
+              }
             >
               Download Certificate
             </button>
           ) : (
             <button
+              type="button"
               className="primary-btn fail"
-              onClick={() => navigate(`${basePath}/course/${result.courseId}`)}
+              onClick={() =>
+                navigate(getCoursePath(result.courseId))
+              }
             >
               Review Course
             </button>
           )}
 
           <button
+            type="button"
             className="secondary-btn"
-            onClick={() => navigate("/dashboard")}
+            onClick={() =>
+              navigate(getDashboardPath())
+            }
           >
             Go to Dashboard
           </button>

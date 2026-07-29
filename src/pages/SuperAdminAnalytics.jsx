@@ -2,6 +2,25 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ref, get } from "firebase/database";
 import { database } from "../firebase";
+import {
+  getRole,
+  isAnalyticsTrainingUser,
+  getUserKeys,
+  mergeUserNode,
+  mergeUserRecords,
+  isAssignmentActive,
+  isCompletedRecord,
+  isCourseCompletedForUser,
+  hasCertificate,
+  getCertificateKey,
+  getUserCertificateCount,
+  getGroupCertificateCount,
+  getUserZone,
+  normalizeZone,
+  calculateGroupStats,
+  calculateZoneStats,
+  getUniqueAnalyticsTrainingUsers,
+} from "../utils/trainingAnalytics";
 import "../styles/superanalytics.css";
 
 const AVATAR_COLORS = [
@@ -24,20 +43,6 @@ const BAR_COLORS = [
 
 function getAvatarColor(i) { return AVATAR_COLORS[i % AVATAR_COLORS.length]; }
 function getBarColor(i) { return BAR_COLORS[i % BAR_COLORS.length]; }
-function getRole(user) {
-  return String(user?.role || "").trim().toLowerCase();
-}
-
-function isTrainingUser(user) {
-  const role = getRole(user);
-
-  return (
-    role === "" ||
-    role === "user" ||
-    role === "learner" ||
-    role === "employee"
-  );
-}
 
 function getVal(user, keys) {
   for (const k of keys) { if (user?.[k]) return String(user[k]).trim(); }
@@ -113,89 +118,20 @@ function SuperAdminAnalytics() {
     }
   }, [loading]);
 
-  const employeeUsers = useMemo(() => {
-    const uniqueUsers = new Map();
-
-    users.forEach((user) => {
-      if (!isTrainingUser(user)) return;
-
-      const key = String(
-        user.uid ||
-        user.id ||
-        user.email ||
-        ""
-      ).trim();
-
-      if (!key) return;
-
-      uniqueUsers.set(key, {
-        ...(uniqueUsers.get(key) || {}),
-        ...user,
-      });
-    });
-
-    return Array.from(uniqueUsers.values());
-  }, [users]);
-
-  const getUserKeys = (userOrId) => {
-    if (!userOrId) return [];
-
-    if (typeof userOrId === "string") {
-      return [userOrId];
-    }
-
-    return [...new Set([userOrId.id, userOrId.uid].filter(Boolean))];
-  };
-
-  const mergeUserNode = (root, userOrId) => {
-    return getUserKeys(userOrId).reduce(
-      (merged, key) => ({
-        ...merged,
-        ...(root?.[key] || {}),
-      }),
-      {}
-    );
-  };
-
-  const isAssignmentActive = (assignment) => {
-    return (
-      assignment === true ||
-      assignment?.assigned === true ||
-      assignment?.active === true ||
-      String(assignment?.status || "").toLowerCase() === "assigned" ||
-      String(assignment?.status || "").toLowerCase() === "active"
-    );
-  };
-
-  const isCompletedRecord = (record) => {
-    return (
-      record === true ||
-      record?.completed === true ||
-      record?.passed === true ||
-      record?.isCompleted === true ||
-      record?.isPassed === true ||
-      String(record?.status || "").toLowerCase() === "completed" ||
-      String(record?.status || "").toLowerCase() === "passed"
-    );
-  };
+const employeeUsers = useMemo(() => {
+  return getUniqueAnalyticsTrainingUsers(users);
+}, [users]);
 
   const getCompletedCount = (userOrId) => {
-    const userCompleted = mergeUserNode(completedCourses, userOrId);
-
-    return Object.values(userCompleted).filter(isCompletedRecord).length;
+    const assignedEntries = getAssignedCourseEntries(userOrId);
+    return assignedEntries.filter(([courseId]) => isCourseCompletedForUser(userOrId, courseId, completedCourses, courseProgress, videoProgress)).length;
   };
 
   const getCertificateCount = (userOrId) => {
-    const userResults = mergeUserNode(results, userOrId);
-
-    return Object.values(userResults).filter(
-      (record) =>
-        record?.certificateUrl ||
-        record?.certificateId ||
-        record?.certificateIssued ||
-        record?.passed ||
-        record?.isPassed ||
-        String(record?.status || "").toLowerCase() === "passed"
+    const records = mergeUserNode(completedCourses, userOrId);
+    const userId = typeof userOrId === "string" ? userOrId : (userOrId?.id || userOrId?.uid || "unknown");
+    return Object.entries(records).filter(([, completion]) =>
+      hasCertificate(completion)
     ).length;
   };
 
@@ -281,6 +217,11 @@ function SuperAdminAnalytics() {
       return "completed";
     }
 
+    const cp = mergeUserNode(courseProgress, userOrId)?.[courseId];
+    if (cp?.courseTestPassed || cp?.passed) {
+      return "completed";
+    }
+
     const progressPercent = getCourseProgressPercent(userOrId, courseId);
 
     return progressPercent > 0 ? "inProgress" : "notStarted";
@@ -295,24 +236,7 @@ function SuperAdminAnalytics() {
       : 0;
   };
 
-  const getGroupStats = (groupUsers) => {
-    const total = groupUsers.length;
-    const completed = groupUsers.reduce((s, u) => s + getCompletedCount(u), 0);
-    const certs = groupUsers.reduce((s, u) => s + getCertificateCount(u), 0);
-    const assigned = groupUsers.reduce((s, u) => s + getAssignedCount(u), 0);
-    const rate = assigned > 0 ? Math.round((completed / assigned) * 100) : 0;
-    return { total, completed, certs, assigned, rate };
-  };
-
   // Aggregations
-  const normalizeZone = (v) => {
-    const s = String(v || "").trim().toLowerCase();
-    if (s.includes("east")) return "East";
-    if (s.includes("west")) return "West";
-    if (s.includes("north")) return "North";
-    if (s.includes("south")) return "South";
-    return v || "Unassigned";
-  };
 
   const normalizeState = (v) => {
     const s = String(v || "").trim();
@@ -324,16 +248,15 @@ function SuperAdminAnalytics() {
     return s || "Unassigned";
   };
 
-  const zones = useMemo(() => {
-    const map = {};
-    employeeUsers.forEach((u) => {
-      const raw = getVal(u, ["zone", "Zone", "zoneName"]);
-      const z = normalizeZone(raw);
-      if (!map[z]) map[z] = [];
-      map[z].push(u);
-    });
-    return Object.entries(map).map(([name, list]) => ({ name, users: list, ...getGroupStats(list) })).sort((a, b) => b.rate - a.rate);
-  }, [employeeUsers, courses, completedCourses, results, assignments]);
+const zones = useMemo(() => {
+  return calculateZoneStats({
+    users: employeeUsers,
+    assignments,
+    completedCourses,
+    courseProgress,
+    videoProgress,
+  });
+}, [employeeUsers, assignments, completedCourses, courseProgress, videoProgress]);
 
   const states = useMemo(() => {
     const filtered = drillZone ? employeeUsers.filter((u) => normalizeZone(getVal(u, ["zone", "Zone", "zoneName"])) === drillZone) : employeeUsers;
@@ -343,8 +266,20 @@ function SuperAdminAnalytics() {
       if (!map[s]) map[s] = [];
       map[s].push(u);
     });
-    return Object.entries(map).map(([name, list]) => ({ name, users: list, ...getGroupStats(list) })).sort((a, b) => b.rate - a.rate);
-  }, [employeeUsers, drillZone, courses, completedCourses, results, assignments]);
+    return Object.entries(map).map(([name, list]) => ({
+      name,
+      users: list,
+      total: list.length,
+      certs: list.reduce((s, u) => s + getCertificateCount(u), 0),
+      ...calculateGroupStats({
+        users: list,
+        assignments,
+        completedCourses,
+        courseProgress,
+        videoProgress,
+      }),
+    })).sort((a, b) => b.rate - a.rate);
+  }, [employeeUsers, drillZone, assignments, completedCourses, courseProgress, videoProgress]);
 
   const cities = useMemo(() => {
     let filtered = employeeUsers;
@@ -356,8 +291,20 @@ function SuperAdminAnalytics() {
       if (!map[c]) map[c] = [];
       map[c].push(u);
     });
-    return Object.entries(map).map(([name, list]) => ({ name, users: list, ...getGroupStats(list) })).sort((a, b) => b.rate - a.rate);
-  }, [employeeUsers, drillZone, drillState, courses, completedCourses, results, assignments]);
+    return Object.entries(map).map(([name, list]) => ({
+      name,
+      users: list,
+      total: list.length,
+      certs: list.reduce((s, u) => s + getCertificateCount(u), 0),
+      ...calculateGroupStats({
+        users: list,
+        assignments,
+        completedCourses,
+        courseProgress,
+        videoProgress,
+      }),
+    })).sort((a, b) => b.rate - a.rate);
+  }, [employeeUsers, drillZone, drillState, assignments, completedCourses, courseProgress, videoProgress]);
 
   const contextUsers = useMemo(() => {
     let filtered = employeeUsers;
@@ -403,7 +350,17 @@ function SuperAdminAnalytics() {
     setDesignationFilter("");
   };
 
-  const overallStats = useMemo(() => getGroupStats(employeeUsers), [employeeUsers, courses, completedCourses, results, assignments]);
+const overallStats = useMemo(() => ({
+  total: employeeUsers.length,
+  ...calculateGroupStats({
+    users: employeeUsers,
+    assignments,
+    completedCourses,
+    courseProgress,
+    videoProgress,
+  }),
+  certs: getGroupCertificateCount(employeeUsers, completedCourses),
+}), [employeeUsers, assignments, completedCourses, courseProgress, videoProgress]);
 
   const selectedUserCourseRows = useMemo(() => {
     if (!selectedUser) return [];
@@ -516,7 +473,7 @@ function SuperAdminAnalytics() {
           ? Math.round((completed / assigned) * 100)
           : 0,
     };
-  }, [selectedUser, selectedUserCourseRows, results]);
+  }, [selectedUser, selectedUserCourseRows, completedCourses]);
 
   const formatDate = (value) => {
     if (!value) return "—";
@@ -670,7 +627,7 @@ function SuperAdminAnalytics() {
             </div>
             <div className="sa-kpi sa-kpi-completed sa-slide-up" style={{ animationDelay: "80ms" }}>
               <div className="sa-kpi-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg></div>
-              <div><span>Completed</span><strong>{filteredUsers.reduce((s, u) => s + getCompletedCount(u), 0)}</strong></div>
+              <div><span>Completed Assigned Courses</span><strong>{filteredUsers.reduce((s, u) => s + getCompletedCount(u), 0)}</strong></div>
             </div>
             <div className="sa-kpi sa-kpi-certs sa-slide-up" style={{ animationDelay: "160ms" }}>
               <div className="sa-kpi-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 15l-2 5l9-13h-5l2-5-9 13h5z"/></svg></div>

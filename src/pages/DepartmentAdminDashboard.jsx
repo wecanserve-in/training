@@ -4,8 +4,29 @@ import { onAuthStateChanged } from "firebase/auth";
 import { get, onValue, ref, remove } from "firebase/database";
 import { auth, database } from "../firebase";
 import { createNotification } from "../services/doubtService";
+import {
+  isAnalyticsTrainingUser,
+  isAdminRole,
+  isSuperAdminRole,
+  isDepartmentAdminRole,
+  getUserKeys,
+  mergeUserRecords,
+  isAssignmentActive,
+  isCompletedRecord,
+  isCourseCompletedForUser,
+  hasCertificate,
+  getCertificateKey,
+  getUserCertificateCount,
+  getUserZone,
+  getUserZoneField,
+  normalizeZone,
+  calculateGroupStats,
+  calculateZoneStats,
+  getUniqueAnalyticsTrainingUsers,
+} from "../utils/trainingAnalytics";
 import "../styles/superadmin.css";
 import "../styles/assignedusers.css";
+import "../styles/departmentadmin.css";
 
 function DepartmentAdminDashboard() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -31,22 +52,6 @@ function DepartmentAdminDashboard() {
   const normalize = (value) => String(value || "").trim().toLowerCase();
 
   const getRole = (user) => normalize(user?.role);
-
-  const isAdminRole = (role) => {
-    const cleanRole = normalize(role);
-    return cleanRole === "admin" || cleanRole === "superadmin";
-  };
-
-  const isDepartmentAdminRole = (role) => {
-    const cleanRole = normalize(role);
-    return (
-      cleanRole === "departmentadmin" ||
-      cleanRole === "department admin" ||
-      cleanRole === "department_admin" ||
-      cleanRole === "deptadmin" ||
-      cleanRole === "dept admin"
-    );
-  };
 
   const sameText = (a, b) => {
     const first = normalize(a);
@@ -99,18 +104,6 @@ function DepartmentAdminDashboard() {
     const status = String(course?.status || "").trim().toLowerCase();
     return !["inactive", "archived", "deleted", "draft"].includes(status);
   };
-
-  const isAssignmentActive = (assignment) =>
-    assignment === true ||
-    assignment?.assigned === true ||
-    assignment?.status === "assigned" ||
-    assignment?.status === "active";
-
-  const isCourseCompleted = (record) =>
-    record === true ||
-    record?.completed === true ||
-    record?.passed === true ||
-    String(record?.status || "").toLowerCase() === "completed";
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
@@ -210,13 +203,19 @@ function DepartmentAdminDashboard() {
     "";
 
   const deptUsers = useMemo(() => {
+    const userDeptId = String(currentUser?.departmentId || "").trim();
+    const userDept = String(departmentName || "").trim().toLowerCase();
     return allUsers.filter((user) => {
       const role = getRole(user);
       if (isAdminRole(role) || isDepartmentAdminRole(role)) return false;
-      if (!departmentName) return true;
-      return sameText(getDepartmentName(user), departmentName);
+      if (!userDeptId && !userDept) return true;
+      const userDeptIdField = String(user.departmentId || "").trim();
+      const userDeptName = String(getDepartmentName(user) || "").trim().toLowerCase();
+      if (userDeptId && userDeptIdField && userDeptIdField === userDeptId) return true;
+      if (userDept && userDeptName && userDeptName === userDept) return true;
+      return false;
     });
-  }, [allUsers, departmentName]);
+  }, [allUsers, currentUser, departmentName]);
 
   const deptCourses = useMemo(() => {
     const userDeptId = String(currentUser?.departmentId || "").trim();
@@ -265,7 +264,7 @@ function DepartmentAdminDashboard() {
     ) return "completed";
 
     const cp = courseProgress?.[userId]?.[courseId];
-    if (cp?.completed || cp?.progressPercentage >= 100) return "completed";
+    if (cp?.completed || cp?.courseTestPassed || cp?.passed || cp?.progressPercentage >= 100) return "completed";
 
     const vp = videoProgress?.[userId]?.[courseId];
     if (vp && typeof vp === "object") {
@@ -313,18 +312,10 @@ function DepartmentAdminDashboard() {
   const completionRate = totalAssigned > 0 ? Math.round((totalCompleted / totalAssigned) * 100) : 0;
 
   const totalCertificates = useMemo(() => {
-    let count = 0;
-    deptUsers.forEach((user) => {
-      const byId = completedCourses[user.id] || {};
-      const byUid = completedCourses[user.uid] || {};
-      const merged = { ...byId, ...byUid };
-      Object.entries(merged).forEach(([courseId, record]) => {
-        if (courseId && record?.passed === true && Boolean(record?.attemptId)) {
-          count++;
-        }
-      });
-    });
-    return count;
+    const learners = getUniqueAnalyticsTrainingUsers(deptUsers);
+    return learners.reduce((sum, user) => {
+      return sum + getUserCertificateCount(user, completedCourses);
+    }, 0);
   }, [deptUsers, completedCourses]);
 
   const countCompletedVideos = (data) => {
@@ -349,9 +340,7 @@ function DepartmentAdminDashboard() {
     let scoreCount = 0;
 
     deptUsers.forEach((user) => {
-      const byId = completedCourses[user.id] || {};
-      const byUid = completedCourses[user.uid] || {};
-      const merged = { ...byId, ...byUid };
+      const merged = mergeUserRecords(completedCourses, user);
 
       Object.values(merged).forEach((courseRecord) => {
         if (!courseRecord || typeof courseRecord !== "object") return;
@@ -473,6 +462,70 @@ function DepartmentAdminDashboard() {
 
   const getStatusLabel = (s) => s === "completed" ? "Completed" : s === "inProgress" ? "In Progress" : "Not Started";
 
+  const zoneStats = useMemo(() => {
+    return calculateZoneStats({
+      users: getUniqueAnalyticsTrainingUsers(deptUsers),
+      assignments,
+      completedCourses,
+      courseProgress,
+      videoProgress,
+    });
+  }, [deptUsers, assignments, completedCourses, courseProgress, videoProgress]);
+
+  const topPerformers = useMemo(() => {
+    return deptUsers
+      .map((user) => {
+        let assigned = 0, completed = 0;
+        deptCourses.forEach((course) => {
+          const status = getCourseStatusForUser(user.id || user.uid, course.id);
+          if (status === "notAssigned") return;
+          assigned++;
+          if (status === "completed") completed++;
+        });
+        const rate = assigned > 0 ? Math.round((completed / assigned) * 100) : 0;
+        return {
+          id: user.id || user.uid,
+          name: user.name || user.fullName || user.displayName || user.email || "Unknown",
+          email: user.email || "",
+          zone: getUserZoneField(user) || "-",
+          assigned,
+          completed,
+          rate,
+        };
+      })
+      .filter((u) => u.assigned > 0 && u.rate > 0)
+      .sort((a, b) => b.rate - a.rate || b.completed - a.completed)
+      .slice(0, 5);
+  }, [deptUsers, deptCourses, assignments, completedCourses, progress, videoProgress, courseProgress]);
+
+  const userProgressRows = useMemo(() => {
+    return deptUsers
+      .map((user) => {
+        let assigned = 0, completed = 0, inProgress = 0, notStarted = 0;
+        deptCourses.forEach((course) => {
+          const status = getCourseStatusForUser(user.id || user.uid, course.id);
+          if (status === "notAssigned") return;
+          assigned++;
+          if (status === "completed") completed++;
+          if (status === "inProgress") inProgress++;
+          if (status === "notStarted") notStarted++;
+        });
+        const rate = assigned > 0 ? Math.round((completed / assigned) * 100) : 0;
+        return {
+          id: user.id || user.uid,
+          name: user.name || user.fullName || "Unnamed User",
+          email: user.email || "-",
+          zone: getUserZoneField(user) || "-",
+          designation: user.designation || "-",
+          assigned, completed, inProgress, notStarted,
+          pending: inProgress + notStarted,
+          rate,
+        };
+      })
+      .filter((user) => user.assigned > 0)
+      .sort((a, b) => b.rate - a.rate || b.completed - a.completed);
+  }, [deptUsers, deptCourses, assignments, completedCourses, progress, videoProgress, courseProgress]);
+
   const recentActivities = useMemo(() => {
     const activities = [];
 
@@ -480,13 +533,10 @@ function DepartmentAdminDashboard() {
       const userId = user.uid || user.id;
       const userName = user.name || user.fullName || user.displayName || user.email || "Unknown User";
 
-      const completedByUser = {
-        ...(completedCourses[user.id] || {}),
-        ...(completedCourses[user.uid] || {}),
-      };
+      const completedByUser = mergeUserRecords(completedCourses, user);
 
       Object.entries(completedByUser).forEach(([courseId, record]) => {
-        if (!isCourseCompleted(record)) return;
+        if (!isCompletedRecord(record)) return;
 
         const course = deptCourses.find((item) => String(item.id) === String(courseId));
 
@@ -510,9 +560,7 @@ function DepartmentAdminDashboard() {
     let scoredAttempts = 0;
 
     deptUsers.forEach((user) => {
-      const byId = completedCourses[user.id] || {};
-      const byUid = completedCourses[user.uid] || {};
-      const merged = { ...byId, ...byUid };
+      const merged = mergeUserRecords(completedCourses, user);
 
       Object.values(merged).forEach((record) => {
         if (!record || typeof record !== "object") return;
@@ -672,205 +720,176 @@ function DepartmentAdminDashboard() {
         </Link>
       </section>
 
-      <section className="dash-content-row">
-        <div className="dash-card courses-card">
-          <div className="card-head">
+      <section className="dashboard-overview-row">
+        <div className="dash-card user-progress-card">
+          <div className="card-head compact-card-head">
             <div>
-              <h2>Department Courses</h2>
-              <p>{courseStats.length} courses &bull; {totalAssigned} assignments &bull; {totalCompleted} completed</p>
+              <h2>User Progress</h2>
+              <p>Individual training completion for department members</p>
             </div>
-            <Link to="/department-admin/courses" className="view-all-link">View All</Link>
           </div>
 
-          <div className="course-list">
-            {courseStats.length === 0 ? (
-              <p className="empty-text">No courses available yet.</p>
+          <div className="department-progress-list dept-admin-user-list">
+            {userProgressRows.length === 0 ? (
+              <p className="empty-text">No user progress data available.</p>
             ) : (
-              courseStats.slice(0, 4).map((course) => {
-                const thumb = getCourseThumbnail(course);
-                return (
-                  <div className="course-row" key={course.id}>
-                    {thumb ? (
-                      <img className="course-thumb" src={thumb} alt={course.title} />
-                    ) : (
-                      <div className="course-avatar" style={{ background: "#059669" }}>
-                        {(course.title?.charAt(0) || "C").toUpperCase()}
-                      </div>
-                    )}
-                    <div className="course-info">
-                      <h3>{course.title}</h3>
-                      <span>
-                        {course.assigned} Assigned &bull; {course.completed} Completed
-                      </span>
+              userProgressRows.map((user) => (
+                <div className="department-progress-row" key={user.id}>
+                  <div className="department-progress-top">
+                    <div>
+                      <h3>{user.name}</h3>
+                      <span>{user.zone || "-"} &bull; {user.assigned} assigned &bull; {user.completed} done</span>
                     </div>
-                    <div className="course-progress-wrap">
-                      <div className="course-progress-bar">
-                        <span style={{ width: `${course.rate}%` }}></span>
-                      </div>
-                      <strong>{course.rate}%</strong>
-                    </div>
+                    <strong>{user.rate}%</strong>
                   </div>
-                );
-              })
+                  <div className="department-progress-track">
+                    <span style={{ width: `${user.rate}%` }}></span>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </div>
 
-        <div className="dash-card quick-card-side">
-          <div className="quick-side-header">
-            <h2>Department Summary</h2>
-            <p>Quick overview of your department</p>
-          </div>
-
-          <div className="quick-mini-cards">
-            <Link to="/department-admin/members" className="quick-mini" style={{ textDecoration: "none" }}>
-              <strong>{deptUsers.length}</strong>
-              <span>Users</span>
-            </Link>
-            <Link to="/department-admin/courses" className="quick-mini" style={{ textDecoration: "none" }}>
-              <strong>{deptCourses.length}</strong>
-              <span>Courses</span>
-            </Link>
-            <div className="quick-mini">
-              <strong>{totalAssigned}</strong>
-              <span>Assigned</span>
-            </div>
-            <div className="quick-mini">
-              <strong>{totalCompleted}</strong>
-              <span>Completed</span>
-            </div>
-            <div className="quick-mini">
-              <strong>{totalInProgress}</strong>
-              <span>In Progress</span>
-            </div>
-            <div className="quick-mini">
-              <strong>{totalNotStarted}</strong>
-              <span>Not Started</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="dash-four-cards">
-        <Link to="/department-admin/analytics" className="light-summary-card" style={{ textDecoration: "none" }}>
-          <div className="light-card-icon" style={{ background: "#ede9fe", color: "#7c3aed" }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
-          </div>
-          <div className="light-card-text">
-            <strong>{totalAssigned}</strong>
-            <span>Total Assigned</span>
-          </div>
-        </Link>
-
-        <Link to="/department-admin/analytics" className="light-summary-card" style={{ textDecoration: "none" }}>
-          <div className="light-card-icon" style={{ background: "#dcfce7", color: "#16a34a" }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          </div>
-          <div className="light-card-text">
-            <strong>{totalCompleted}</strong>
-            <span>Completed</span>
-          </div>
-        </Link>
-
-        <Link to="/department-admin/analytics" className="light-summary-card" style={{ textDecoration: "none" }}>
-          <div className="light-card-icon" style={{ background: "#fef3c7", color: "#d97706" }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-          </div>
-          <div className="light-card-text">
-            <strong>{totalInProgress}</strong>
-            <span>In Progress</span>
-          </div>
-        </Link>
-
-        <Link to="/department-admin/analytics" className="light-summary-card" style={{ textDecoration: "none" }}>
-          <div className="light-card-icon" style={{ background: "#fee2e2", color: "#dc2626" }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
-          </div>
-          <div className="light-card-text">
-            <strong>{totalCertificates}</strong>
-            <span>Certificates</span>
-          </div>
-        </Link>
-      </section>
-
-      <section className="dash-bottom-row">
-        <div className="dash-card pass-card">
-          <div className="card-title-row">
-            <h2>Completion Rate</h2>
-          </div>
-          <div className="pass-donut-wrap">
-            <svg className="pass-donut" viewBox="0 0 120 120">
-              <circle cx="60" cy="60" r="50" fill="none" stroke="#e8f5ee" strokeWidth="12" />
-              <circle
-                cx="60" cy="60" r="50" fill="none"
-                stroke="#22c55e"
-                strokeWidth="12"
-                strokeDasharray={`${completionRate * 3.14} ${314 - completionRate * 3.14}`}
-                strokeDashoffset="78.5"
-                strokeLinecap="round"
-              />
-            </svg>
-            <div className="pass-donut-center">
-              <strong>{completionRate}%</strong>
-            </div>
-          </div>
-          <p>{totalCompleted} of {totalAssigned} completed</p>
-        </div>
-
-        <div className="dash-card alerts-card">
-          <div className="card-title-row">
-            <h2>Recent Activity</h2>
-          </div>
-          {recentActivities.length === 0 ? (
-            <p className="empty-text">No recent activity yet.</p>
-          ) : (
-            recentActivities.map((activity) => (
-              <div className="alert-row success" key={activity.id}>
-                <span>{activity.userName}</span>
-                <strong style={{ fontSize: "0.75rem", fontWeight: 500, color: "#16a34a" }}>Completed</strong>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="dash-card department-card">
-          <div className="card-title-row">
-            <h2>Test Performance</h2>
-          </div>
-          <div className="dept-row">
+        <div className="dash-card zone-summary-card">
+          <div className="card-head compact-card-head">
             <div>
-              <span>Average Score</span>
-              <strong>{testPerformance.average}%</strong>
+              <h2>Zone-wise Progress</h2>
+              <p>Overall course completion by zone</p>
             </div>
-            <div className="dept-track">
+          </div>
+
+          <div className="zone-summary-grid">
+            {zoneStats.map((item) => (
+              <Link
+                key={item.zone}
+                to={`/department-admin/analytics?zone=${encodeURIComponent(item.zone)}`}
+                className={`zone-summary-item zone-${item.zone.toLowerCase()}`}
+                style={{ textDecoration: "none", color: "inherit" }}
+              >
+                <div className="zone-summary-heading">
+                  <div className="zone-summary-icon">
+                    {item.zone.charAt(0)}
+                  </div>
+                  <div>
+                    <h3>{item.zone} Zone</h3>
+                    <span>
+                      {item.userCount} users &bull; {item.completed} of {item.assigned} completed
+                    </span>
+                  </div>
+                </div>
+                <strong>{item.percentage}%</strong>
+                <div className="zone-summary-track">
+                  <span style={{ width: `${item.percentage}%` }}></span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="dashboard-insights-row">
+        <div className="dash-card compact-insight-card completion-donut-card">
+          <div className="insight-card-head">
+            <div>
+              <h2>Completion Overview</h2>
+              <p>Overall assigned course completion</p>
+            </div>
+          </div>
+
+          <div className="compact-donut-content">
+            <div
+              className="compact-css-donut"
+              style={{ "--completion": `${completionRate * 3.6}deg` }}
+            >
+              <div className="compact-donut-center">
+                <strong>{completionRate}%</strong>
+                <span>Completed</span>
+              </div>
+            </div>
+
+            <div className="donut-summary-list">
+              <div>
+                <span className="summary-dot completed-dot"></span>
+                <p>Completed</p>
+                <strong>{totalCompleted}</strong>
+              </div>
+              <div>
+                <span className="summary-dot progress-dot"></span>
+                <p>In Progress</p>
+                <strong>{totalInProgress}</strong>
+              </div>
+              <div>
+                <span className="summary-dot pending-dot"></span>
+                <p>Not Started</p>
+                <strong>{totalNotStarted}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="dash-card compact-insight-card recent-activity-card">
+          <div className="insight-card-head">
+            <div>
+              <h2>Recent Activity</h2>
+              <p>Latest course completions</p>
+            </div>
+            <Link to="/department-admin/analytics">View All</Link>
+          </div>
+
+          <div className="recent-activity-list">
+            {recentActivities.length === 0 ? (
+              <p className="empty-text">No recent activity available.</p>
+            ) : (
+              recentActivities.map((activity) => (
+                <div className="recent-activity-item" key={activity.id}>
+                  <div className="activity-avatar">
+                    {activity.userName.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="activity-copy">
+                    <h3>{activity.userName}</h3>
+                    <span>Completed {activity.courseTitle}</span>
+                  </div>
+                  <span className="activity-status">Done</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="dash-card compact-insight-card test-performance-card">
+          <div className="insight-card-head">
+            <div>
+              <h2>Test Performance</h2>
+              <p>Final test results summary</p>
+            </div>
+            <Link to="/department-admin/analytics">Results</Link>
+          </div>
+
+          <div className="test-main-score">
+            <span>Average Score</span>
+            <strong>{testPerformance.average}%</strong>
+            <div className="test-score-track">
               <span style={{ width: `${testPerformance.average}%` }}></span>
             </div>
           </div>
-          <div className="dept-row">
+
+          <div className="test-mini-grid">
+            <div>
+              <span>Total Tests</span>
+              <strong>{testPerformance.totalAttempts}</strong>
+            </div>
+            <div>
+              <span>Passed</span>
+              <strong>{testPerformance.passedAttempts}</strong>
+            </div>
+            <div>
+              <span>Failed</span>
+              <strong>{testPerformance.failedAttempts}</strong>
+            </div>
             <div>
               <span>Pass Rate</span>
               <strong>{testPerformance.passRate}%</strong>
-            </div>
-            <div className="dept-track">
-              <span style={{ width: `${testPerformance.passRate}%` }}></span>
-            </div>
-          </div>
-          <div className="dept-row">
-            <div>
-              <span>Tests Taken</span>
-              <strong>{testPerformance.totalAttempts}</strong>
-            </div>
-          </div>
-          <div className="dept-row">
-            <div>
-              <span>Passed</span>
-              <strong style={{ color: "#16a34a" }}>{testPerformance.passedAttempts}</strong>
-            </div>
-          </div>
-          <div className="dept-row">
-            <div>
-              <span>Failed</span>
-              <strong style={{ color: "#dc2626" }}>{testPerformance.failedAttempts}</strong>
             </div>
           </div>
         </div>

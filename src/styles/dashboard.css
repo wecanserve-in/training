@@ -185,6 +185,7 @@
 
 .stat-courses .stat-card-icon { background: #dbeafe; color: #2563eb; }
 .stat-progress .stat-card-icon { background: #fef3c7; color: #d97706; }
+.stat-watched .stat-card-icon { background: #d1fae5; color: #059669; }
 .stat-completed .stat-card-icon { background: #d1fae5; color: #059669; }
 .stat-tests .stat-card-icon { background: #ede9fe; color: #7c3aed; }
 .stat-score .stat-card-icon { background: #fce7f3; color: #db2777; }
@@ -258,34 +259,35 @@
   padding: 16px 0;
 }
 
-/* ─── Continue Learning Courses Section ─── */
-.continue-section {
+/* ─── New Videos Added ─── */
+.new-videos-section {
   padding: 0 24px 16px;
   position: relative;
   z-index: 1;
 }
 
-.continue-courses-grid {
+.new-videos-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 12px;
 }
 
-.continue-course-card {
+.new-video-card {
   background: #fff;
   border: 1px solid #e8f5ee;
   border-radius: 10px;
   overflow: hidden;
   text-decoration: none;
-  transition: 0.22s ease;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
 }
 
-.continue-course-card:hover {
+.new-video-card:hover {
   transform: translateY(-2px);
+  border-color: #bbf7d0;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.continue-course-thumb {
+.new-video-thumbnail {
   width: 100%;
   aspect-ratio: 16 / 9;
   overflow: hidden;
@@ -293,99 +295,111 @@
   position: relative;
 }
 
-.continue-course-thumb img {
+.new-video-thumbnail img {
   width: 100%;
   height: 100%;
+  display: block;
   object-fit: cover;
+  transition: transform 0.25s ease;
 }
 
-.continue-course-placeholder {
+.new-video-card:hover .new-video-thumbnail img {
+  transform: scale(1.025);
+}
+
+.new-video-placeholder {
   width: 100%;
   height: 100%;
   display: grid;
   place-items: center;
+  color: #fff;
   font-size: 1.4rem;
   font-weight: 700;
-  color: #fff;
 }
 
-.continue-course-overlay {
+.new-video-label {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.continue-course-card:hover .continue-course-overlay {
-  opacity: 1;
-}
-
-.continue-badge {
-  background: #059669;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  padding: 3px 8px;
   color: #fff;
-  font-size: 0.7rem;
-  font-weight: 600;
-  padding: 4px 12px;
-  border-radius: 20px;
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.7px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  background: #ef4444;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.35);
 }
 
-.continue-course-info {
-  padding: 10px;
+.new-video-content {
+  padding: 8px 10px 10px;
 }
 
-.continue-course-info h3 {
+.new-video-content h3 {
+  margin: 0 0 4px;
+  overflow: hidden;
+  color: #1e293b;
   font-size: 0.78rem;
   font-weight: 600;
-  color: #1e293b;
-  margin: 0 0 3px;
+  line-height: 1.35;
   white-space: nowrap;
-  overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.continue-course-info span {
-  font-size: 0.65rem;
-  color: #94a3b8;
+.new-video-course-name {
   display: block;
-  margin-bottom: 6px;
-}
-
-.continue-course-progress {
-  display: grid;
-  grid-template-columns: 1fr 32px;
-  align-items: center;
-  gap: 6px;
-}
-
-.continue-course-progress .progress-bar {
-  width: 100%;
-  height: 5px;
-  background: #e2e8f0;
-  border-radius: 100px;
+  margin: 0 0 3px;
   overflow: hidden;
+  color: #059669;
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.continue-course-progress .progress-bar span {
+.new-video-department {
   display: block;
-  height: 100%;
-  background: linear-gradient(90deg, #86efac, #22c55e);
-  border-radius: 100px;
+  overflow: hidden;
+  color: #94a3b8;
+  font-size: 0.64rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-.continue-course-progress strong {
-  text-align: right;
+.new-videos-empty {
+  grid-column: 1 / -1;
+  min-height: 100px;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #64748b;
+  background: #fff;
+  border: 1px dashed #bbf7d0;
+  border-radius: 10px;
+}
+
+.new-videos-empty > svg {
+  flex-shrink: 0;
+  color: #10b981;
+  font-size: 1.5rem;
+}
+
+.new-videos-empty h3 {
+  margin: 0 0 2px;
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.new-videos-empty p {
+  margin: 0;
+  color: #94a3b8;
   font-size: 0.7rem;
-  font-weight: 700;
-  color: #16a34a;
 }
 
 /* ─── Newly Assigned Courses ─── */
@@ -677,13 +691,13 @@
 
 /* ─── Responsive ─── */
 @media (max-width: 1200px) {
-  .continue-courses-grid { grid-template-columns: repeat(4, 1fr); }
+  .new-videos-grid { grid-template-columns: repeat(4, 1fr); }
   .newly-courses-grid { grid-template-columns: repeat(4, 1fr); }
   .completed-courses-grid { grid-template-columns: repeat(4, 1fr); }
 }
 
 @media (max-width: 1000px) {
-  .continue-courses-grid { grid-template-columns: repeat(3, 1fr); }
+  .new-videos-grid { grid-template-columns: repeat(3, 1fr); }
   .newly-courses-grid { grid-template-columns: repeat(3, 1fr); }
   .completed-courses-grid { grid-template-columns: repeat(3, 1fr); }
 }
@@ -703,8 +717,8 @@
   .stat-card { padding: 10px; gap: 8px; }
   .stat-card-icon { width: 34px; height: 34px; }
   .stat-card-info strong { font-size: 1rem; }
-  .continue-section { padding: 0 12px 12px; }
-  .continue-courses-grid { grid-template-columns: repeat(2, 1fr); }
+  .new-videos-section { padding: 0 12px 12px; }
+  .new-videos-grid { grid-template-columns: repeat(2, 1fr); }
   .newly-courses-section { padding: 0 12px 12px; }
   .newly-courses-grid { grid-template-columns: repeat(2, 1fr); }
   .completed-courses-section { padding: 0 12px 12px; }
@@ -718,10 +732,12 @@
   .hero-stat strong { font-size: 0.95rem; }
   .hero-stat span { font-size: 0.65rem; }
   .dash-stat-cards { grid-template-columns: 1fr 1fr; padding: 0 8px 10px; gap: 6px; }
-  .continue-section { padding: 0 8px 10px; }
-  .continue-courses-grid { grid-template-columns: 1fr; }
+  .new-videos-section { padding: 0 8px 10px; }
+  .new-videos-grid { grid-template-columns: 1fr; }
   .newly-courses-section { padding: 0 8px 10px; }
   .newly-courses-grid { grid-template-columns: 1fr; }
   .completed-courses-section { padding: 0 8px 10px; }
   .completed-courses-grid { grid-template-columns: 1fr; }
 }
+
+

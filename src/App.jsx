@@ -34,6 +34,7 @@ import DepartmentUploadVideo from "./pages/DepartmentUploadVideo";
 import DepartmentCourses from "./pages/DepartmentCourses";
 import DepartmentTestLogs from "./pages/DepartmentTestLogs";
 import DepartmentTrainingAnalytics from "./pages/DepartmentTrainingAnalytics";
+import DepartmentAnalytics from "./pages/DepartmentAnalytics";
 import AssignedUsers from "./pages/AssignedUsers";
 
 import AddCourse from "./pages/AddCourse";
@@ -348,6 +349,7 @@ function App() {
           <Route path="my-results" element={<MyResults />} />
           <Route path="certificates" element={<Certificates />} />
           <Route path="all-certificates" element={<AllCertificates />} />
+          <Route path="analytics" element={<DepartmentAnalytics />} />
           <Route path="resources" element={<Resources />} />
           <Route path="profile" element={<Profile />} />
 

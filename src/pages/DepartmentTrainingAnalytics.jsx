@@ -4,6 +4,17 @@ import { get, ref } from "firebase/database";
 import { auth, database } from "../firebase";
 import "../styles/departmenttraininganalytics.css";
 import * as XLSX from "xlsx";
+import {
+  isAnalyticsTrainingUser,
+  getUserKeys,
+  mergeUserRecords,
+  isAssignmentActive,
+  isCompletedRecord,
+  isCourseCompletedForUser,
+  hasCertificate,
+  getUserZone,
+  normalizeZone,
+} from "../utils/trainingAnalytics";
 
 function DepartmentTrainingAnalytics() {
   const [, setCurrentUser] = useState(null);
@@ -14,6 +25,8 @@ function DepartmentTrainingAnalytics() {
   const [assignments, setAssignments] = useState({});
   const [completedCourses, setCompletedCourses] = useState({});
   const [progress, setProgress] = useState({});
+  const [courseProgress, setCourseProgress] = useState({});
+  const [videoProgress, setVideoProgress] = useState({});
 
   const [loading, setLoading] = useState(true);
 
@@ -56,12 +69,16 @@ function DepartmentTrainingAnalytics() {
           assignmentSnap,
           completedSnap,
           progressSnap,
+          courseProgressSnap,
+          videoProgressSnap,
         ] = await Promise.all([
           get(ref(database, "courses")),
           get(ref(database, "users")),
           get(ref(database, "userAssignments")),
           get(ref(database, "completedCourses")),
           get(ref(database, "progress")),
+          get(ref(database, "courseProgress")),
+          get(ref(database, "videoProgress")),
         ]);
 
         const allCourses = coursesSnap.exists()
@@ -71,9 +88,10 @@ function DepartmentTrainingAnalytics() {
             }))
           : [];
 
+        const normalizedAdminRole = String(adminData.role || "").toLowerCase().replace(/[\s_-]/g, "");
         const canSeeAllCourses =
-          adminData.role === "admin" ||
-          adminData.role === "superAdmin";
+          normalizedAdminRole === "admin" ||
+          normalizedAdminRole === "superadmin";
 
         const visibleCourses = canSeeAllCourses
           ? allCourses
@@ -95,29 +113,29 @@ function DepartmentTrainingAnalytics() {
             }))
           : [];
 
+        const normalizedRole = String(adminData.role || "").toLowerCase().replace(/[\s_-]/g, "");
         const canSeeAllUsers =
-          adminData.role === "admin" ||
-          adminData.role === "superAdmin" ||
-          adminData.role === "superadmin" ||
-          adminData.role === "departmentAdmin";
+          normalizedRole === "admin" ||
+          normalizedRole === "superadmin";
 
-        const visibleUsers = canSeeAllUsers
-          ? allUsers.filter(
-              (u) =>
-                u.role !== "admin" &&
-                u.role !== "superAdmin" &&
-                u.role !== "superadmin"
-            )
-          : allUsers.filter(
-              (u) =>
-                u.role !== "admin" &&
-                u.role !== "superAdmin" &&
-                u.role !== "superadmin" &&
-                u.role !== "departmentAdmin"
-            );
+        const visibleUsers = allUsers
+          .filter((u) => {
+            const r = String(u.role || "").toLowerCase().replace(/[\s_-]/g, "");
+            return r !== "admin" && r !== "superadmin" && r !== "departmentadmin";
+          });
+
+        const dedupedUsers = [];
+        const seen = new Map();
+        visibleUsers.forEach((u) => {
+          const key = `${u.id || ""}|${u.uid || ""}|${u.email || ""}`;
+          if (!seen.has(key)) {
+            seen.set(key, true);
+            dedupedUsers.push(u);
+          }
+        });
 
         setCourses(visibleCourses);
-        setUsers(visibleUsers);
+        setUsers(dedupedUsers);
 
         setAssignments(
           assignmentSnap.exists() ? assignmentSnap.val() : {}
@@ -129,6 +147,14 @@ function DepartmentTrainingAnalytics() {
 
         setProgress(
           progressSnap.exists() ? progressSnap.val() : {}
+        );
+
+        setCourseProgress(
+          courseProgressSnap.exists() ? courseProgressSnap.val() : {}
+        );
+
+        setVideoProgress(
+          videoProgressSnap.exists() ? videoProgressSnap.val() : {}
         );
       } catch (err) {
         console.error(err);
@@ -142,24 +168,39 @@ function DepartmentTrainingAnalytics() {
   }, []);
 
   const getCourseStatusForUser = (userId, courseId) => {
-    const assigned =
-      assignments?.[userId]?.[courseId]?.assigned;
+    const userAssignments = mergeUserRecords(assignments, { id: userId }) || {};
+    const assignment = userAssignments[courseId];
 
-    if (!assigned) return "notAssigned";
+    if (!isAssignmentActive(assignment)) return "notAssigned";
 
-    const completed =
-      completedCourses?.[userId]?.[courseId];
-
-    if (completed?.passed || completed?.completed)
+    const userObj = { id: userId };
+    if (
+      isCourseCompletedForUser(userObj, courseId, completedCourses, courseProgress, videoProgress)
+    ) {
       return "completed";
+    }
+
+    const cpRecord = courseProgress?.[userId]?.[courseId];
+    if (
+      cpRecord?.courseTestPassed === true ||
+      cpRecord?.passed === true
+    ) {
+      return "completed";
+    }
+
+    const vpEntries = videoProgress?.[userId]?.[courseId];
+    if (vpEntries && typeof vpEntries === "object") {
+      const vals = Object.values(vpEntries);
+      if (vals.some((v) => Number(v?.watchedPercent || 0) > 0 || v?.completed)) {
+        return "inProgress";
+      }
+    }
 
     const userProgress = progress?.[userId] || {};
-
     const hasStarted = Object.values(userProgress).some(
       (video) =>
         video.courseId === courseId &&
-        (Number(video.watchedPercent || 0) > 0 ||
-          video.completed)
+        (Number(video.watchedPercent || 0) > 0 || video.completed)
     );
 
     return hasStarted ? "inProgress" : "notStarted";
@@ -203,6 +244,8 @@ function DepartmentTrainingAnalytics() {
     assignments,
     completedCourses,
     progress,
+    courseProgress,
+    videoProgress,
   ]);
 
   const selectedCourse = courseStats.find(
@@ -257,6 +300,8 @@ function DepartmentTrainingAnalytics() {
     assignments,
     completedCourses,
     progress,
+    courseProgress,
+    videoProgress,
   ]);
 
 const downloadDepartmentReport = () => {

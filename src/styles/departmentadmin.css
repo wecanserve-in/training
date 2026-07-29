@@ -34,3 +34,43 @@
   color: #16a34a;
   font-weight: 700;
 }
+
+.dept-admin-user-list {
+  max-height: 310px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.dept-admin-user-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.dept-admin-user-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dept-admin-user-list::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 999px;
+}
+
+.dept-admin-user-list .department-progress-row {
+  padding: 10px 12px;
+}
+
+.dept-admin-user-list .department-progress-top h3 {
+  font-size: 13px;
+}
+
+.dept-admin-user-list .department-progress-top span {
+  font-size: 10.5px;
+}
+
+.dept-admin-user-list .department-progress-top strong {
+  font-size: 14px;
+}
+
+.dept-admin-user-list .department-progress-track {
+  margin-top: 8px;
+  height: 5px;
+}

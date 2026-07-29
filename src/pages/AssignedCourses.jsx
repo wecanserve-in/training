@@ -200,6 +200,10 @@ function AssignedCourses() {
   const getCourseProgress = (courseId) => {
     const videos = courseVideosMap?.[courseId] || [];
 
+    if (completedCourses?.[courseId]?.passed || completedCourses?.[courseId]?.completed) {
+      return 100;
+    }
+
     if (videos.length > 0) {
       const totalProgress = videos.reduce((sum, video) => {
         const progress = progressMap?.[video.id];
@@ -208,15 +212,7 @@ function AssignedCourses() {
       }, 0);
       const calculated = Math.max(0, Math.min(100, Math.round(totalProgress / videos.length)));
 
-      if (calculated >= 100 && (completedCourses?.[courseId]?.passed || completedCourses?.[courseId]?.completed)) {
-        return 100;
-      }
-
       return calculated;
-    }
-
-    if (completedCourses?.[courseId]?.passed || completedCourses?.[courseId]?.completed) {
-      return 100;
     }
 
     const courseProgressItems = Object.values(progressMap || {}).filter(
@@ -387,7 +383,9 @@ function AssignedCourses() {
             const letter = getCourseTitle(course).charAt(0).toUpperCase();
 
             const isPassed =
-              results?.[course.id]?.passed || completedCourses?.[course.id]?.passed;
+              results?.[course.id]?.passed ||
+              completedCourses?.[course.id]?.passed ||
+              courseProgressData?.[course.id]?.courseTestPassed;
 
             const actionLabel =
               status === "completed"

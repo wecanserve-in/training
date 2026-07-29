@@ -469,16 +469,28 @@ function MyLearnings() {
   const xAxisLabels = useMemo(() => {
     if (activityData.length === 0) return [];
 
-    const indexes = [
-      0,
-      Math.floor(activityData.length * 0.25),
-      Math.floor(activityData.length * 0.5),
-      Math.floor(activityData.length * 0.75),
-      activityData.length - 1,
-    ];
+    const labelCount = range >= 365 ? 7 : range >= 180 ? 6 : 5;
+    const indexes = Array.from({ length: labelCount }, (_, index) =>
+      Math.round((index * (activityData.length - 1)) / (labelCount - 1))
+    );
 
-    return [...new Set(indexes)].map((index) => activityData[index]);
-  }, [activityData]);
+    return [...new Set(indexes)].map((index) => {
+      const item = activityData[index];
+      const date = new Date(`${item.key}T00:00:00`);
+
+      return {
+        ...item,
+        displayLabel:
+          range >= 180
+            ? date.toLocaleDateString("en-IN", {
+                month: "short",
+                year: range >= 365 ? "2-digit" : undefined,
+                timeZone: "Asia/Kolkata",
+              })
+            : item.label,
+      };
+    });
+  }, [activityData, range]);
 
   const formatDate = (date) => {
     if (!date) return "-";
@@ -563,8 +575,10 @@ function MyLearnings() {
             </div>
 
             <select value={range} onChange={(e) => setRange(Number(e.target.value))}>
-              <option value="30">Last 30 Days</option>
               <option value="7">Last 7 Days</option>
+              <option value="30">Last 30 Days</option>
+              <option value="180">Last 6 Months</option>
+              <option value="365">Last 1 Year</option>
             </select>
           </div>
 
@@ -582,20 +596,21 @@ function MyLearnings() {
 
                 {pathD && <path d={pathD} className="chart-line-path" />}
 
-                {chartPoints.map((point) => (
-                  <circle
-                    key={point.key}
-                    cx={point.x}
-                    cy={point.y}
-                    r="5"
-                    className="chart-point"
-                  />
-                ))}
+                {range <= 30 &&
+                  chartPoints.map((point) => (
+                    <circle
+                      key={point.key}
+                      cx={point.x}
+                      cy={point.y}
+                      r="5"
+                      className="chart-point"
+                    />
+                  ))}
               </svg>
 
               <div className="chart-x-axis">
                 {xAxisLabels.map((item) => (
-                  <span key={item.key}>{item.label}</span>
+                  <span key={item.key}>{item.displayLabel || item.label}</span>
                 ))}
               </div>
             </div>

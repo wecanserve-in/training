@@ -6,6 +6,26 @@ import { auth, database } from "../firebase";
 import { createNotification } from "../services/doubtService";
 import "../styles/superadmin.css";
 import "../styles/assignedusers.css";
+import {
+  isAnalyticsTrainingUser,
+  isAdminRole,
+  isSuperAdminRole,
+  isDepartmentAdminRole,
+  getUserKeys,
+  mergeUserRecords,
+  isAssignmentActive,
+  isCompletedRecord,
+  isCourseCompletedForUser,
+  hasCertificate,
+  getCertificateKey,
+  getUserCertificateCount,
+  getUserZone,
+  getUserZoneField,
+  normalizeZone,
+  calculateGroupStats,
+  calculateZoneStats,
+  getUniqueAnalyticsTrainingUsers,
+} from "../utils/trainingAnalytics";
 
 function AdminDashboard() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -32,27 +52,6 @@ function AdminDashboard() {
   const normalize = (value) => String(value || "").trim().toLowerCase();
 
   const getRole = (user) => normalize(user?.role);
-
-  const isAdminRole = (role) => {
-    const cleanRole = normalize(role);
-    return cleanRole === "admin";
-  };
-
-  const isSuperAdminRole = (role) => {
-    const cleanRole = normalize(role);
-    return cleanRole === "superadmin";
-  };
-
-  const isDepartmentAdminRole = (role) => {
-    const cleanRole = normalize(role);
-    return (
-      cleanRole === "departmentadmin" ||
-      cleanRole === "department admin" ||
-      cleanRole === "department_admin" ||
-      cleanRole === "deptadmin" ||
-      cleanRole === "dept admin"
-    );
-  };
 
   const isUserRole = (role) => {
     const cleanRole = normalize(role);
@@ -104,18 +103,6 @@ function AdminDashboard() {
     const status = String(course?.status || "").trim().toLowerCase();
     return !["inactive", "archived", "deleted", "draft"].includes(status);
   };
-
-  const isAssignmentActive = (assignment) =>
-    assignment === true ||
-    assignment?.assigned === true ||
-    assignment?.status === "assigned" ||
-    assignment?.status === "active";
-
-  const isCourseCompleted = (record) =>
-    record === true ||
-    record?.completed === true ||
-    record?.passed === true ||
-    String(record?.status || "").toLowerCase() === "completed";
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
@@ -304,7 +291,7 @@ function AdminDashboard() {
       const byId = user.id !== user.uid ? completedCourses[user.id] || {} : {};
       const merged = { ...byId, ...byUid };
       Object.entries(merged).forEach(([courseId, record]) => {
-        if (validCourseIds.has(courseId) && isCourseCompleted(record)) {
+        if (validCourseIds.has(courseId) && isCompletedRecord(record)) {
           count++;
         }
       });
@@ -314,7 +301,7 @@ function AdminDashboard() {
 
   const getCourseStatusForUser = (userId, courseId) => {
     const assignment = assignments?.[userId]?.[courseId];
-    if (!assignment?.assigned) return "notAssigned";
+    if (!isAssignmentActive(assignment)) return "notAssigned";
 
     const completed = completedCourses?.[userId]?.[courseId];
     if (
@@ -325,7 +312,7 @@ function AdminDashboard() {
     ) return "completed";
 
     const cp = courseProgress?.[userId]?.[courseId];
-    if (cp?.completed || cp?.progressPercentage >= 100) return "completed";
+    if (cp?.completed || cp?.courseTestPassed || cp?.passed || cp?.progressPercentage >= 100) return "completed";
 
     const vp = videoProgress?.[userId]?.[courseId];
     if (vp && typeof vp === "object") {
@@ -363,20 +350,11 @@ function AdminDashboard() {
   }, [totalAssigned, totalCompleted, totalInProgress]);
 
   const totalCertificates = useMemo(() => {
-    let count = 0;
-    trainingUserList.forEach((user) => {
-      const completedByUser = {
-        ...(completedCourses[user.id] || {}),
-        ...(completedCourses[user.uid] || {}),
-      };
-      Object.entries(completedByUser).forEach(([courseId, record]) => {
-        if (courseId && record?.passed === true && Boolean(record?.attemptId)) {
-          count++;
-        }
-      });
-    });
-    return count;
-  }, [trainingUserList, completedCourses]);
+    const learners = getUniqueAnalyticsTrainingUsers(platformUsers);
+    return learners.reduce((sum, user) => {
+      return sum + getUserCertificateCount(user, completedCourses);
+    }, 0);
+  }, [platformUsers, completedCourses]);
 
   const countCompletedVideos = (data) => {
     let c = 0;
@@ -483,73 +461,15 @@ function AdminDashboard() {
     return Object.fromEntries(entries);
   }, [platformUsers]);
 
-  const getUserZoneField = (user) => {
-    const raw = user?.zone || user?.Zone || user?.zoneName || user?.region || user?.regionName || "";
-    return String(raw).trim();
-  };
-
-  const getUserZone = (user) => {
-    const zone = normalize(getUserZoneField(user));
-
-    if (zone.includes("east")) return "East";
-    if (zone.includes("west")) return "West";
-    if (zone.includes("north")) return "North";
-    if (zone.includes("south")) return "South";
-
-    return "";
-  };
-
   const zoneStats = useMemo(() => {
-    const initialStats = {
-      East: { zone: "East", assigned: 0, completed: 0, percentage: 0 },
-      West: { zone: "West", assigned: 0, completed: 0, percentage: 0 },
-      North: { zone: "North", assigned: 0, completed: 0, percentage: 0 },
-      South: { zone: "South", assigned: 0, completed: 0, percentage: 0 },
-    };
-
-    const zoneUserMap = { East: [], West: [], North: [], South: [] };
-
-    platformUsers.forEach((user) => {
-      const zone = getUserZone(user);
-      if (!zone || !initialStats[zone]) return;
-
-      const userAssignments = {
-        ...(assignments[user.id] || {}),
-        ...(assignments[user.uid] || {}),
-      };
-
-      const userCompletedCourses = {
-        ...(completedCourses[user.id] || {}),
-        ...(completedCourses[user.uid] || {}),
-      };
-
-      let userAssigned = 0, userCompleted = 0;
-
-      Object.entries(userAssignments).forEach(([courseId, assignment]) => {
-        if (!validCourseIds.has(courseId) || !isAssignmentActive(assignment)) return;
-        userAssigned++;
-        if (isCourseCompleted(userCompletedCourses[courseId])) {
-          userCompleted++;
-        }
-      });
-
-      if (userAssigned > 0) {
-        zoneUserMap[zone].push({ ...user, _assigned: userAssigned, _completed: userCompleted });
-        initialStats[zone].assigned += userAssigned;
-        initialStats[zone].completed += userCompleted;
-      }
+    return calculateZoneStats({
+      users: getUniqueAnalyticsTrainingUsers(platformUsers),
+      assignments,
+      completedCourses,
+      courseProgress,
+      videoProgress,
     });
-
-    return Object.values(initialStats).map((item) => ({
-      ...item,
-      users: zoneUserMap[item.zone],
-      userCount: zoneUserMap[item.zone].length,
-      percentage:
-        item.assigned > 0
-          ? Math.round((item.completed / item.assigned) * 100)
-          : 0,
-    }));
-  }, [platformUsers, assignments, completedCourses, validCourseIds]);
+  }, [platformUsers, assignments, completedCourses, courseProgress, videoProgress]);
 
   const latestCourses = useMemo(() => {
     return [...courseStats]
@@ -658,7 +578,7 @@ function AdminDashboard() {
         const compByUid = completedCourses[user.uid] || {};
         const compById = user.id !== user.uid ? completedCourses[user.id] || {} : {};
         const compMerged = { ...compById, ...compByUid };
-        if (isCourseCompleted(compMerged[course.id])) {
+        if (isCompletedRecord(compMerged[course.id])) {
           deptMap[departmentKey].completed += 1;
         }
       });
@@ -679,13 +599,10 @@ function AdminDashboard() {
       const userId = user.uid || user.id;
       const userName = user.name || user.fullName || user.displayName || user.email || "Unknown User";
 
-      const completedByUser = {
-        ...(completedCourses[user.id] || {}),
-        ...(completedCourses[user.uid] || {}),
-      };
+      const completedByUser = mergeUserRecords(completedCourses, user);
 
       Object.entries(completedByUser).forEach(([courseId, record]) => {
-        if (!isCourseCompleted(record)) return;
+        if (!isCompletedRecord(record)) return;
 
         const course = activeCourses.find((item) => String(item.id) === String(courseId));
 

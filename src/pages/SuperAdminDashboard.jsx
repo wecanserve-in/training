@@ -6,6 +6,16 @@ import { auth, database } from "../firebase";
 import { createNotification } from "../services/doubtService";
 import "../styles/superadmin.css";
 import "../styles/assignedusers.css";
+import {
+  isAdminRole,
+  isSuperAdminRole,
+  mergeUserRecords,
+  isAssignmentActive,
+  getUserCertificateCount,
+  getUserZoneField,
+  calculateZoneStats,
+  getUniqueAnalyticsTrainingUsers,
+} from "../utils/trainingAnalytics";
 
 function SuperAdminDashboard() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -32,16 +42,6 @@ function SuperAdminDashboard() {
   const normalize = (value) => String(value || "").trim().toLowerCase();
 
   const getRole = (user) => normalize(user?.role);
-
-  const isAdminRole = (role) => {
-    const cleanRole = normalize(role);
-    return cleanRole === "admin";
-  };
-
-  const isSuperAdminRole = (role) => {
-    const cleanRole = normalize(role);
-    return cleanRole === "superadmin";
-  };
 
   const isDepartmentAdminRole = (role) => {
     const cleanRole = normalize(role);
@@ -104,12 +104,6 @@ function SuperAdminDashboard() {
     const status = String(course?.status || "").trim().toLowerCase();
     return !["inactive", "archived", "deleted", "draft"].includes(status);
   };
-
-  const isAssignmentActive = (assignment) =>
-    assignment === true ||
-    assignment?.assigned === true ||
-    assignment?.status === "assigned" ||
-    assignment?.status === "active";
 
   const isCourseCompleted = (record) =>
     record === true ||
@@ -335,7 +329,7 @@ function SuperAdminDashboard() {
     ) return "completed";
 
     const cp = courseProgress?.[userId]?.[courseId];
-    if (cp?.completed || cp?.progressPercentage >= 100) return "completed";
+    if (cp?.completed || cp?.courseTestPassed || cp?.passed || cp?.progressPercentage >= 100) return "completed";
 
     const vp = videoProgress?.[userId]?.[courseId];
     if (vp && typeof vp === "object") {
@@ -372,21 +366,21 @@ function SuperAdminDashboard() {
     return Math.max(totalAssigned - totalCompleted - totalInProgress, 0);
   }, [totalAssigned, totalCompleted, totalInProgress]);
 
-  const totalCertificates = useMemo(() => {
-    let count = 0;
-    trainingUserList.forEach((user) => {
-      const completedByUser = {
-        ...(completedCourses[user.id] || {}),
-        ...(completedCourses[user.uid] || {}),
-      };
-      Object.entries(completedByUser).forEach(([courseId, record]) => {
-        if (courseId && record?.passed === true && Boolean(record?.attemptId)) {
-          count++;
-        }
-      });
-    });
-    return count;
-  }, [trainingUserList, completedCourses]);
+  /*
+   * Certificate count uses the exact same eligibility rule as the
+   * All Certificates page:
+   *   1. The final course test must be passed.
+   *   2. A valid attemptId must exist.
+   *
+   * A completed course or 100% progress alone does not mean that a
+   * certificate has been generated.
+   */
+const totalCertificates = useMemo(() => {
+  const learners = getUniqueAnalyticsTrainingUsers(platformUsers);
+  return learners.reduce((sum, user) => {
+    return sum + getUserCertificateCount(user, completedCourses);
+  }, 0);
+}, [platformUsers, completedCourses]);
 
   const countCompletedVideos = (data) => {
     let c = 0;
@@ -493,101 +487,15 @@ const averageScore = useMemo(() => {
     return Object.fromEntries(entries);
   }, [platformUsers]);
 
-  const getUserZoneField = (user) => {
-    const raw = user?.zone || user?.Zone || user?.zoneName || user?.region || user?.regionName || "";
-    return String(raw).trim();
-  };
-
-  const getUserZone = (user) => {
-    const zone = normalize(getUserZoneField(user));
-
-    if (zone.includes("east")) return "East";
-    if (zone.includes("west")) return "West";
-    if (zone.includes("north")) return "North";
-    if (zone.includes("south")) return "South";
-
-    return "";
-  };
-
 const zoneStats = useMemo(() => {
-  const initialStats = {
-    East: {
-      zone: "East",
-      assigned: 0,
-      completed: 0,
-      percentage: 0,
-    },
-    West: {
-      zone: "West",
-      assigned: 0,
-      completed: 0,
-      percentage: 0,
-    },
-    North: {
-      zone: "North",
-      assigned: 0,
-      completed: 0,
-      percentage: 0,
-    },
-    South: {
-      zone: "South",
-      assigned: 0,
-      completed: 0,
-      percentage: 0,
-    },
-  };
-
-  const zoneUserMap = { East: [], West: [], North: [], South: [] };
-
-  platformUsers.forEach((user) => {
-    const zone = getUserZone(user);
-    if (!zone || !initialStats[zone]) return;
-
-    const userAssignments = {
-      ...(assignments[user.id] || {}),
-      ...(assignments[user.uid] || {}),
-    };
-
-    const userCompletedCourses = {
-      ...(completedCourses[user.id] || {}),
-      ...(completedCourses[user.uid] || {}),
-    };
-
-    let userAssigned = 0, userCompleted = 0;
-
-    Object.entries(userAssignments).forEach(
-      ([courseId, assignment]) => {
-        if (!validCourseIds.has(courseId) || !isAssignmentActive(assignment)) return;
-        userAssigned++;
-
-        if (isCourseCompleted(userCompletedCourses[courseId])) {
-          userCompleted++;
-        }
-      }
-    );
-
-    if (userAssigned > 0) {
-      zoneUserMap[zone].push({ ...user, _assigned: userAssigned, _completed: userCompleted });
-      initialStats[zone].assigned += userAssigned;
-      initialStats[zone].completed += userCompleted;
-    }
+  return calculateZoneStats({
+    users: getUniqueAnalyticsTrainingUsers(platformUsers),
+    assignments,
+    completedCourses,
+    courseProgress,
+    videoProgress,
   });
-
-  return Object.values(initialStats).map((item) => ({
-    ...item,
-    users: zoneUserMap[item.zone],
-    userCount: zoneUserMap[item.zone].length,
-    percentage:
-      item.assigned > 0
-        ? Math.round((item.completed / item.assigned) * 100)
-        : 0,
-  }));
-}, [
-  platformUsers,
-  assignments,
-  completedCourses,
-  validCourseIds,
-]);
+}, [platformUsers, assignments, completedCourses, courseProgress, videoProgress]);
 
 
   const latestCourses = useMemo(() => {
@@ -788,10 +696,7 @@ const zoneStats = useMemo(() => {
         user.email ||
         "Unknown User";
 
-      const completedByUser = {
-        ...(completedCourses[user.id] || {}),
-        ...(completedCourses[user.uid] || {}),
-      };
+      const completedByUser = mergeUserRecords(completedCourses, user);
 
       Object.entries(completedByUser).forEach(([courseId, record]) => {
         if (!isCourseCompleted(record)) return;
@@ -908,7 +813,7 @@ const zoneStats = useMemo(() => {
       })
       .filter((user) => user.assigned > 0)
       .sort((a, b) => b.assigned - a.assigned || a.rate - b.rate);
-  }, [trainingUserList, activeCourses, assignments, completedCourses, progress]);
+  }, [trainingUserList, activeCourses, assignments, completedCourses, progress, videoProgress, courseProgress]);
 
   if (loading) {
     return (

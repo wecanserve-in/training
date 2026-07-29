@@ -416,7 +416,6 @@ function DepartmentMembers() {
 
   return (
     <div className="dm-page">
-      {/* Header */}
       <div className="dm-header">
         <div>
           <h1>Department Members</h1>
@@ -424,65 +423,79 @@ function DepartmentMembers() {
         </div>
       </div>
 
-      <div className="dm-layout">
-        {/* Left: Member List */}
-        <div className="dm-member-panel">
-          <div className="dm-search-box">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-            <input
-              type="text"
-              placeholder="Search members..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+      <div className="dm-search-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input
+          type="text"
+          placeholder="Search members by name, email, designation..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
 
-          <div className="dm-member-list">
+      <div className="dm-table-card">
+        <table className="dm-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Designation</th>
+              <th>Courses Assigned</th>
+              <th>Completed</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
             {filteredUsers.length === 0 ? (
-              <div className="dm-empty">No members found.</div>
+              <tr><td colSpan="7" className="dm-empty">No members found.</td></tr>
             ) : (
-              filteredUsers.map((user) => {
+              filteredUsers.map((user, idx) => {
                 const stats = memberStats[user.id] || {};
-                const isSelected = selectedUserId === user.id;
                 return (
-                  <div
-                    key={user.id}
-                    className={`dm-member-row ${isSelected ? "selected" : ""}`}
-                    onClick={() => setSelectedUserId(user.id)}
-                  >
-                    <div className="dm-member-avatar" style={{ background: isSelected ? "#059669" : "#e8f5ee", color: isSelected ? "#fff" : "#059669" }}>
-                      {getInitial(user)}
-                    </div>
-                    <div className="dm-member-info">
-                      <strong>{getUserName(user)}</strong>
-                      <span>{getDesignation(user)}</span>
-                    </div>
-                    <div className="dm-member-mini-stat">
-                      <span>{stats.assigned || 0}</span>
-                      <small>Courses</small>
-                    </div>
-                  </div>
+                  <tr key={user.id}>
+                    <td className="dm-td-idx">{idx + 1}</td>
+                    <td className="dm-td-name">
+                      <div className="dm-name-cell">
+                        <div className="dm-mini-avatar">{getInitial(user)}</div>
+                        <strong>{getUserName(user)}</strong>
+                      </div>
+                    </td>
+                    <td className="dm-td-email">{user.email || "-"}</td>
+                    <td>{getDesignation(user)}</td>
+                    <td className="dm-td-count"><strong>{stats.assigned || 0}</strong></td>
+                    <td className="dm-td-count"><strong>{stats.completed || 0}</strong></td>
+                    <td>
+                      <button
+                        className="dm-view-btn"
+                        onClick={() => setSelectedUserId(user.id)}
+                      >
+                        View Report
+                      </button>
+                    </td>
+                  </tr>
                 );
               })
             )}
-          </div>
-        </div>
+          </tbody>
+        </table>
+      </div>
 
-        {/* Right: Member Detail */}
-        <div className="dm-detail-panel">
-          {!selectedUser ? (
-            <div className="dm-detail-empty">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-              <h3>Select a member</h3>
-              <p>Click on a member's name to see their assigned courses and progress</p>
+      {/* Report Modal */}
+      {selectedUserId && selectedUser && (
+        <div className="dm-modal-overlay" onClick={() => setSelectedUserId(null)}>
+          <div className="dm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="dm-modal-header">
+              <h2>Member Report</h2>
+              <button className="dm-modal-close" onClick={() => setSelectedUserId(null)}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
+              </button>
             </div>
-          ) : (
-            <>
-              {/* Member Profile Card */}
+
+            <div className="dm-modal-body">
+              {/* Profile Card */}
               <div className="dm-profile-card">
-                <div className="dm-profile-avatar">
-                  {getInitial(selectedUser)}
-                </div>
+                <div className="dm-profile-avatar">{getInitial(selectedUser)}</div>
                 <div className="dm-profile-info">
                   <h2>{getUserName(selectedUser)}</h2>
                   <p>{selectedUser.email || "-"}</p>
@@ -520,7 +533,6 @@ function DepartmentMembers() {
               {/* Course List */}
               <div className="dm-course-section">
                 <h3>Assigned Courses ({selectedUserCourses.length})</h3>
-
                 {selectedUserCourses.length === 0 ? (
                   <div className="dm-empty-courses">No courses assigned to this member.</div>
                 ) : (
@@ -552,10 +564,10 @@ function DepartmentMembers() {
                   </div>
                 )}
               </div>
-            </>
-          )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

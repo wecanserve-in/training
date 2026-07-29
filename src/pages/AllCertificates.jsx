@@ -4,6 +4,11 @@ import { onAuthStateChanged } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { auth, database } from "../firebase";
 import useBasePath from "../hooks/useBasePath";
+import {
+  hasCertificate,
+  mergeUserRecords,
+  getUserZone,
+} from "../utils/trainingAnalytics";
 import "../styles/allcertificates.css";
 
 import {
@@ -241,14 +246,7 @@ function AllCertificates() {
               const passedCourses = Object.entries(
                 completedCourses
               ).filter(([, completion]) => {
-                /*
-                  Only passed users with an attempt ID receive
-                  certificates.
-                */
-                return (
-                  completion?.passed === true &&
-                  Boolean(completion?.attemptId)
-                );
+                return hasCertificate(completion);
               });
 
               const userCertificates = await Promise.all(

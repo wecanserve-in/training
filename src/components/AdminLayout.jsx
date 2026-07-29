@@ -8,7 +8,7 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
 } from "../services/doubtService";
-import FloatingDoubtButton from "./FloatingDoubtButton";
+
 import "../styles/superadminlayout.css";
 
 import { FaBell, FaComments, FaReply, FaBookOpen, FaVideo, FaClock, FaTimesCircle, FaCheckCircle, FaAward } from "react-icons/fa";
@@ -323,8 +323,6 @@ function AdminLayout() {
 
         <Outlet />
       </main>
-
-      <FloatingDoubtButton />
     </div>
   );
 }
