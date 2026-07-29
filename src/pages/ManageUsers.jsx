@@ -239,6 +239,39 @@ function ManageUsers() {
     }
   };
 
+  // Reads Excel columns safely even when headers use different
+  // casing, spaces, hyphens or underscores.
+  // Example: "Zone", "ZONE", "zone_name", "Zone Name" all work.
+  const getExcelValue = (row, possibleHeaders) => {
+    const normalizeHeader = (value) =>
+      String(value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+
+    const normalizedRow = Object.entries(row || {}).reduce(
+      (result, [key, value]) => {
+        result[normalizeHeader(key)] = value;
+        return result;
+      },
+      {}
+    );
+
+    for (const header of possibleHeaders) {
+      const value = normalizedRow[normalizeHeader(header)];
+
+      if (
+        value !== undefined &&
+        value !== null &&
+        String(value).trim() !== ""
+      ) {
+        return String(value).trim();
+      }
+    }
+
+    return "";
+  };
+
   const processFile = async (file) => {
     if (!file) return;
     setCreating(true);
@@ -256,37 +289,59 @@ function ManageUsers() {
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       setUploadModal((prev) => ({ ...prev, current: i + 1 }));
-      // Excel upload values are saved exactly as provided.
-      // No matching is done with master location or department data.
-      const result = await createUserRecord({
-        name: String(row.name || row.Name || "").trim(),
-        email: String(row.email || row.Email || "").trim(),
-        designation: String(
-          row.designation || row.Designation || ""
-        ).trim(),
-        seniority: String(
-          row.seniority ||
-            row.Seniority ||
-            row.type ||
-            row.Type ||
-            ""
-        )
-          .trim()
-          .toLowerCase(),
-        zone: String(row.zone || row.Zone || "").trim(),
-        state: String(row.state || row.State || "").trim(),
-        cityArea: String(
-          row.cityArea ||
-            row.CityArea ||
-            row["City Area"] ||
-            row.city ||
-            row.City ||
-            ""
-        ).trim(),
-        department: String(
-          row.department || row.Department || ""
-        ).trim(),
-      });
+      // Take every value directly from Excel.
+      // Nothing is matched against master location/department data.
+      const excelUser = {
+        name: getExcelValue(row, [
+          "name",
+          "full name",
+          "employee name",
+          "user name",
+        ]),
+        email: getExcelValue(row, [
+          "email",
+          "email address",
+          "mail",
+        ]),
+        designation: getExcelValue(row, [
+          "designation",
+          "job title",
+          "position",
+        ]),
+        seniority: getExcelValue(row, [
+          "seniority",
+          "type",
+          "level",
+          "employee type",
+        ]).toLowerCase(),
+        department: getExcelValue(row, [
+          "department",
+          "department name",
+          "dept",
+          "dept name",
+        ]),
+        zone: getExcelValue(row, [
+          "zone",
+          "zone name",
+          "region",
+          "region name",
+        ]),
+        state: getExcelValue(row, [
+          "state",
+          "state name",
+          "province",
+        ]),
+        cityArea: getExcelValue(row, [
+          "cityArea",
+          "city area",
+          "city",
+          "city name",
+          "area",
+          "location",
+        ]),
+      };
+
+      const result = await createUserRecord(excelUser);
       if (result.success) {
         successCount++;
       } else if (result.error.includes("already-in-use")) {
