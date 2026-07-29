@@ -156,12 +156,145 @@ function DepartmentVideoLibrary() {
 
   const getQuestionText = (q) => q.question || q.questionText || q.title || q.text || "Untitled question";
 
-  const getQuestionOptions = (q) => {
-    const options = q.options || q.choices || q.answers || q.optionList || [];
-    if (Array.isArray(options)) return options.filter(Boolean).map((o) => typeof o === "object" ? o.text || o.label || o.value || "" : String(o)).filter(Boolean);
-    if (options && typeof options === "object") return Object.values(options).map((o) => typeof o === "object" ? o.text || o.label || o.value || "" : String(o)).filter(Boolean);
-    return [];
-  };
+ const getQuestionOptions = (q) => {
+  const options =
+    q.options ||
+    q.choices ||
+    q.answers ||
+    q.optionList ||
+    [];
+
+  if (Array.isArray(options)) {
+    return options
+      .filter((option) => option !== null && option !== undefined)
+      .map((option) => {
+        if (typeof option === "object") {
+          return {
+            text:
+              option.text ||
+              option.label ||
+              option.value ||
+              option.option ||
+              "",
+            isCorrect:
+              option.isCorrect === true ||
+              option.correct === true ||
+              option.isAnswer === true,
+          };
+        }
+
+        return {
+          text: String(option),
+          isCorrect: false,
+        };
+      })
+      .filter((option) => option.text);
+  }
+
+  if (options && typeof options === "object") {
+    return Object.entries(options)
+      .map(([key, option]) => {
+        if (typeof option === "object") {
+          return {
+            key,
+            text:
+              option.text ||
+              option.label ||
+              option.value ||
+              option.option ||
+              "",
+            isCorrect:
+              option.isCorrect === true ||
+              option.correct === true ||
+              option.isAnswer === true,
+          };
+        }
+
+        return {
+          key,
+          text: String(option),
+          isCorrect: false,
+        };
+      })
+      .filter((option) => option.text);
+  }
+
+  return [];
+};
+
+const getCorrectOptionIndex = (question, options) => {
+  // Correct answer stored inside an option
+  const optionCorrectIndex = options.findIndex(
+    (option) => option.isCorrect === true
+  );
+
+  if (optionCorrectIndex !== -1) {
+    return optionCorrectIndex;
+  }
+
+  const correctAnswer =
+    question.correctAnswer ??
+    question.correctOption ??
+    question.correctOptionIndex ??
+    question.correctIndex ??
+    question.answer ??
+    question.correct ??
+    question.answerIndex;
+
+  if (correctAnswer === undefined || correctAnswer === null) {
+    return -1;
+  }
+
+  // Firebase may store zero-based index: 0, 1, 2, 3
+  if (typeof correctAnswer === "number") {
+    if (correctAnswer >= 0 && correctAnswer < options.length) {
+      return correctAnswer;
+    }
+
+    // Handles one-based index: 1, 2, 3, 4
+    if (correctAnswer >= 1 && correctAnswer <= options.length) {
+      return correctAnswer - 1;
+    }
+  }
+
+  const normalizedAnswer = String(correctAnswer)
+    .trim()
+    .toLowerCase();
+
+  // Handles A, B, C, D or optionA, optionB
+  const cleanedLetter = normalizedAnswer
+    .replace("option", "")
+    .replace(/[^a-z0-9]/g, "");
+
+  const letterIndex = ["a", "b", "c", "d", "e", "f"].indexOf(
+    cleanedLetter
+  );
+
+  if (letterIndex !== -1 && letterIndex < options.length) {
+    return letterIndex;
+  }
+
+  // Handles numeric string: "0", "1", "2", "3"
+  if (/^\d+$/.test(normalizedAnswer)) {
+    const numericAnswer = Number(normalizedAnswer);
+
+    if (numericAnswer >= 0 && numericAnswer < options.length) {
+      return numericAnswer;
+    }
+
+    if (numericAnswer >= 1 && numericAnswer <= options.length) {
+      return numericAnswer - 1;
+    }
+  }
+
+  // Handles correct answer stored as full option text
+  return options.findIndex(
+    (option) =>
+      String(option.text || "")
+        .trim()
+        .toLowerCase() === normalizedAnswer
+  );
+};
 
   const deleteVideo = async (event, videoId) => {
     event.stopPropagation();
@@ -503,25 +636,41 @@ function DepartmentVideoLibrary() {
                   <p className="vl-no-questions">No questions added with this video.</p>
                 ) : (
                   <div className="vl-question-list">
-                    {normalizeQuestions(selectedVideo.id).map((q, index) => {
-                      const options = getQuestionOptions(q);
-                      const correctAnswer = q.correctAnswer || q.correct || q.answer || "";
-                      const correctIdx = typeof correctAnswer === "number" ? correctAnswer : typeof correctAnswer === "string" ? ["a","b","c","d","e","f"].indexOf(correctAnswer.toLowerCase()) : -1;
-                      const optionLabels = ["A", "B", "C", "D", "E", "F"];
-                      return (
+                  {normalizeQuestions(selectedVideo.id).map((q, index) => {
+  const options = getQuestionOptions(q);
+  const correctIdx = getCorrectOptionIndex(q, options);
+  const optionLabels = ["A", "B", "C", "D", "E", "F"];
+
+  return (
                         <div className="vl-question-card" key={q.id}>
                           <h4><span>Q{index + 1}</span>. {getQuestionText(q)}</h4>
                           {options.length > 0 && (
-                            <ul>{options.map((opt, oi) => {
-                              const isCorrect = correctIdx === oi;
-                              return (
-                                <li key={`${q.id}-${oi}`} className={isCorrect ? "correct" : ""}>
-                                  <span className="vl-opt-label">{optionLabels[oi]}</span>
-                                  {opt}
-                                  {isCorrect && <span className="vl-correct-mark">✓</span>}
-                                </li>
-                              );
-                            })}</ul>
+                          <ul>
+  {options.map((option, optionIndex) => {
+    const isCorrect = correctIdx === optionIndex;
+
+    return (
+      <li
+        key={`${q.id}-${optionIndex}`}
+        className={isCorrect ? "correct" : ""}
+      >
+        <span className="vl-opt-label">
+          {optionLabels[optionIndex] || optionIndex + 1}
+        </span>
+
+        <span className="vl-option-text">
+          {option.text}
+        </span>
+
+        {isCorrect && (
+          <span className="vl-correct-mark">
+            ✓ Correct Answer
+          </span>
+        )}
+      </li>
+    );
+  })}
+</ul>
                           )}
                         </div>
                       );

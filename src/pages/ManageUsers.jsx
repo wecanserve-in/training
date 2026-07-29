@@ -398,35 +398,54 @@ function ManageUsers() {
     return 3;
   };
 
-  const filteredUsers = users
-    .filter((user) => {
-      const searchText = [
-        user.name,
-        user.email,
-        user.designation,
-        user.department,
-        user.zone,
-        user.state,
-        user.cityArea,
-        user.role,
-        user.seniority,
-      ]
-        .map((value) => String(value ?? ""))
-        .join(" ")
-        .toLowerCase();
+const seniorityPriority = (seniority) => {
+  const value = String(seniority || "").trim().toLowerCase();
 
-      return searchText.includes(searchTerm.trim().toLowerCase());
-    })
-    .sort((a, b) => {
-      const roleDifference = rolePriority(a.role) - rolePriority(b.role);
-      if (roleDifference !== 0) return roleDifference;
+  if (value === "senior") return 0;
+  if (value === "junior") return 1;
+  if (value === "intern") return 2;
 
-      return String(a.name || a.email || "").localeCompare(
-        String(b.name || b.email || ""),
-        undefined,
-        { sensitivity: "base" }
-      );
-    });
+  return 3;
+};
+
+const filteredUsers = users
+  .filter((user) => {
+    const searchText = [
+      user.name,
+      user.email,
+      user.designation,
+      user.department,
+      user.zone,
+      user.state,
+      user.cityArea,
+      user.role,
+      user.seniority,
+    ]
+      .map((value) => String(value ?? ""))
+      .join(" ")
+      .toLowerCase();
+
+    return searchText.includes(searchTerm.trim().toLowerCase());
+  })
+  .sort((a, b) => {
+    // 1. Role
+    const roleDifference = rolePriority(a.role) - rolePriority(b.role);
+    if (roleDifference !== 0) return roleDifference;
+
+    // 2. Seniority
+    const seniorityDifference =
+      seniorityPriority(a.seniority) -
+      seniorityPriority(b.seniority);
+
+    if (seniorityDifference !== 0) return seniorityDifference;
+
+    // 3. Name
+    return String(a.name || a.email || "").localeCompare(
+      String(b.name || b.email || ""),
+      undefined,
+      { sensitivity: "base" }
+    );
+  });
 
   const seniorityColor = (s) => {
     if (s === "senior") return { bg: "#dcfce7", color: "#166534" };
