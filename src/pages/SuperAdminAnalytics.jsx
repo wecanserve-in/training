@@ -4,22 +4,14 @@ import { ref, get } from "firebase/database";
 import { database } from "../firebase";
 import {
   getRole,
-  isAnalyticsTrainingUser,
-  getUserKeys,
   mergeUserNode,
-  mergeUserRecords,
   isAssignmentActive,
   isCompletedRecord,
   isCourseCompletedForUser,
   hasCertificate,
-  getCertificateKey,
-  getUserCertificateCount,
   getGroupCertificateCount,
-  getUserZone,
   normalizeZone,
   calculateGroupStats,
-  calculateZoneStats,
-  getUniqueAnalyticsTrainingUsers,
 } from "../utils/trainingAnalytics";
 import "../styles/superanalytics.css";
 
@@ -36,13 +28,7 @@ const AVATAR_COLORS = [
   { bg: "#f5f3ff", color: "#5b21b6" },
 ];
 
-const BAR_COLORS = [
-  "#f59e0b", "#2563eb", "#16a34a", "#7c3aed", "#db2777",
-  "#0284c7", "#ea580c", "#059669", "#be185d", "#6d28d9",
-];
-
 function getAvatarColor(i) { return AVATAR_COLORS[i % AVATAR_COLORS.length]; }
-function getBarColor(i) { return BAR_COLORS[i % BAR_COLORS.length]; }
 
 function getVal(user, keys) {
   for (const k of keys) { if (user?.[k]) return String(user[k]).trim(); }
@@ -118,9 +104,24 @@ function SuperAdminAnalytics() {
     }
   }, [loading]);
 
-const employeeUsers = useMemo(() => {
-  return getUniqueAnalyticsTrainingUsers(users);
-}, [users]);
+  const employeeUsers = useMemo(() => {
+    const uniqueUsers = new Map();
+
+    users.forEach((user) => {
+      const key = String(
+        user?.uid || user?.id || user?.email || ""
+      ).trim();
+
+      if (!key) return;
+
+      uniqueUsers.set(key, {
+        ...(uniqueUsers.get(key) || {}),
+        ...user,
+      });
+    });
+
+    return Array.from(uniqueUsers.values());
+  }, [users]);
 
   const getCompletedCount = (userOrId) => {
     const assignedEntries = getAssignedCourseEntries(userOrId);
@@ -248,15 +249,54 @@ const employeeUsers = useMemo(() => {
     return s || "Unassigned";
   };
 
-const zones = useMemo(() => {
-  return calculateZoneStats({
-    users: employeeUsers,
+  const zones = useMemo(() => {
+    const zoneMap = {};
+
+    employeeUsers.forEach((user) => {
+      const rawZone = getVal(user, [
+        "zone",
+        "Zone",
+        "zoneName",
+        "region",
+        "regionName",
+      ]);
+
+      const normalizedZone = normalizeZone(rawZone);
+      const zoneName = normalizedZone || rawZone || "Unassigned";
+
+      if (!zoneMap[zoneName]) zoneMap[zoneName] = [];
+      zoneMap[zoneName].push(user);
+    });
+
+    return Object.entries(zoneMap)
+      .map(([name, list]) => ({
+        name,
+        users: list,
+        total: list.length,
+        certs: list.reduce(
+          (sum, user) => sum + getCertificateCount(user),
+          0
+        ),
+        ...calculateGroupStats({
+          users: list,
+          assignments,
+          completedCourses,
+          courseProgress,
+          videoProgress,
+        }),
+      }))
+      .sort((a, b) =>
+        String(a.name).localeCompare(String(b.name), undefined, {
+          sensitivity: "base",
+        })
+      );
+  }, [
+    employeeUsers,
     assignments,
     completedCourses,
     courseProgress,
     videoProgress,
-  });
-}, [employeeUsers, assignments, completedCourses, courseProgress, videoProgress]);
+  ]);
 
   const states = useMemo(() => {
     const filtered = drillZone ? employeeUsers.filter((u) => normalizeZone(getVal(u, ["zone", "Zone", "zoneName"])) === drillZone) : employeeUsers;
@@ -538,27 +578,37 @@ const overallStats = useMemo(() => ({
             Zone
           </label>
           <select value={drillZone} onChange={(e) => drillIntoZone(e.target.value)}>
-            <option value="">— Select Zone —</option>
-            {zones.map((z) => <option key={z.name} value={z.name}>{z.name}</option>)}
+            <option value="">All Zones</option>
+            {zones.map((z) => (
+              <option key={z.name} value={z.name}>
+                {z.name}
+              </option>
+            ))}
           </select>
         </div>
-        <div className={`sa-select-group ${!drillZone ? "sa-select-disabled" : ""}`}>
+        <div className="sa-select-group">
           <label>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             State
           </label>
-          <select value={drillState} onChange={(e) => drillIntoState(e.target.value)} disabled={!drillZone}>
-            <option value="">— Select State —</option>
+          <select
+            value={drillState}
+            onChange={(e) => drillIntoState(e.target.value)}
+          >
+            <option value="">All States</option>
             {states.map((s) => <option key={s.name} value={s.name}>{s.name}</option>)}
           </select>
         </div>
-        <div className={`sa-select-group ${!drillState ? "sa-select-disabled" : ""}`}>
+        <div className="sa-select-group">
           <label>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             City
           </label>
-          <select value={drillCity} onChange={(e) => drillIntoCity(e.target.value)} disabled={!drillState}>
-            <option value="">— Select City —</option>
+          <select
+            value={drillCity}
+            onChange={(e) => drillIntoCity(e.target.value)}
+          >
+            <option value="">All Cities</option>
             {cities.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
           </select>
         </div>
@@ -617,9 +667,8 @@ const overallStats = useMemo(() => ({
         </div>
       )}
 
-      {/* ─── Bottom Section (animated reveal) ─── */}
-      {(drillZone || drillState || drillCity) && (
-        <div className="sa-stats-reveal">
+      {/* ─── Bottom Section (always visible) ─── */}
+      <div className="sa-stats-reveal">
           <div className="sa-kpi-row">
             <div className="sa-kpi sa-kpi-users sa-slide-up" style={{ animationDelay: "0ms" }}>
               <div className="sa-kpi-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
@@ -758,7 +807,6 @@ const overallStats = useMemo(() => ({
             </div>
           </div>
       </div>
-      )}
 
       {selectedUser && (
         <div

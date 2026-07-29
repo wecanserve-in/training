@@ -88,51 +88,166 @@ function DepartmentTrainingAnalytics() {
             }))
           : [];
 
-        const normalizedAdminRole = String(adminData.role || "").toLowerCase().replace(/[\s_-]/g, "");
+        const normalizedAdminRole = String(adminData.role || "")
+          .trim()
+          .toLowerCase()
+          .replace(/[\s_-]+/g, "");
+
         const canSeeAllCourses =
           normalizedAdminRole === "admin" ||
           normalizedAdminRole === "superadmin";
 
+        const normalizeValue = (value) =>
+          String(value || "").trim().toLowerCase();
+
+        const adminIdentityKeys = new Set(
+          [
+            loggedUser.uid,
+            adminData.id,
+            adminData.uid,
+            adminData.email,
+          ]
+            .filter(Boolean)
+            .map(normalizeValue)
+        );
+
+        const isOwnCourse = (course) => {
+          const creatorValues = [
+            course.createdBy,
+            course.createdById,
+            course.createdByUid,
+            course.createdByEmail,
+            course.creatorId,
+            course.creatorUid,
+            course.creatorEmail,
+            course.ownerId,
+            course.ownerUid,
+            course.ownerEmail,
+          ]
+            .filter(Boolean)
+            .map(normalizeValue);
+
+          return creatorValues.some((value) =>
+            adminIdentityKeys.has(value)
+          );
+        };
+
+        const isSameDepartment = (userOrCourse) => {
+          const itemDepartmentId = String(
+            userOrCourse?.departmentId || ""
+          ).trim();
+
+          const adminDepartmentId = String(
+            adminData.departmentId || ""
+          ).trim();
+
+          const itemDepartment = normalizeValue(
+            userOrCourse?.department ||
+              userOrCourse?.departmentName
+          );
+
+          const adminDepartment = normalizeValue(
+            adminData.department ||
+              adminData.departmentName
+          );
+
+          const sameDepartmentId =
+            itemDepartmentId &&
+            adminDepartmentId &&
+            itemDepartmentId === adminDepartmentId;
+
+          const sameDepartmentName =
+            itemDepartment &&
+            adminDepartment &&
+            itemDepartment === adminDepartment;
+
+          return Boolean(
+            sameDepartmentId || sameDepartmentName
+          );
+        };
+
+        /*
+         * Admin/Super Admin: all courses.
+         * Department Admin: own courses plus courses from
+         * their department.
+         */
         const visibleCourses = canSeeAllCourses
           ? allCourses
-          : allCourses.filter((course) => {
-              const courseDeptId = String(course.departmentId || "").trim();
-              const userDeptId = String(adminData.departmentId || "").trim();
-              const courseDept = String(course.department || "").trim().toLowerCase();
-              const userDept = String(adminData.department || "").trim().toLowerCase();
-
-              if (courseDeptId && userDeptId && courseDeptId === userDeptId) return true;
-              if (courseDept && userDept && courseDept === userDept) return true;
-              return false;
-            });
+          : allCourses.filter(
+              (course) =>
+                isOwnCourse(course) ||
+                isSameDepartment(course)
+            );
 
         const allUsers = usersSnap.exists()
           ? Object.entries(usersSnap.val()).map(([id, value]) => ({
               id,
+              uid: value?.uid || id,
               ...value,
             }))
           : [];
 
-        const normalizedRole = String(adminData.role || "").toLowerCase().replace(/[\s_-]/g, "");
+        const assignmentData = assignmentSnap.exists()
+          ? assignmentSnap.val()
+          : {};
+
+        const visibleCourseIds = new Set(
+          visibleCourses.map((course) => String(course.id))
+        );
+
         const canSeeAllUsers =
-          normalizedRole === "admin" ||
-          normalizedRole === "superadmin";
+          normalizedAdminRole === "admin" ||
+          normalizedAdminRole === "superadmin";
 
-        const visibleUsers = allUsers
-          .filter((u) => {
-            const r = String(u.role || "").toLowerCase().replace(/[\s_-]/g, "");
-            return r !== "admin" && r !== "superadmin" && r !== "departmentadmin";
-          });
+        /*
+         * Department Admin can see:
+         * 1. learners from their own department
+         * 2. learners assigned to any course visible to them,
+         *    even when those learners belong to another department.
+         */
+        const visibleUsers = allUsers.filter((user) => {
+          if (!isAnalyticsTrainingUser(user)) return false;
 
-        const dedupedUsers = [];
-        const seen = new Map();
-        visibleUsers.forEach((u) => {
-          const key = `${u.id || ""}|${u.uid || ""}|${u.email || ""}`;
-          if (!seen.has(key)) {
-            seen.set(key, true);
-            dedupedUsers.push(u);
-          }
+          if (canSeeAllUsers) return true;
+
+          const userAssignments =
+            mergeUserRecords(assignmentData, user) || {};
+
+          const assignedToVisibleCourse = Object.entries(
+            userAssignments
+          ).some(
+            ([courseId, assignment]) =>
+              visibleCourseIds.has(String(courseId)) &&
+              isAssignmentActive(assignment)
+          );
+
+          return (
+            isSameDepartment(user) ||
+            assignedToVisibleCourse
+          );
         });
+
+        /*
+         * Deduplicate by UID first, then Firebase key, then email.
+         * This avoids showing the same learner twice when old data
+         * exists under both id and uid.
+         */
+        const uniqueUsers = new Map();
+
+        visibleUsers.forEach((user) => {
+          const key = normalizeValue(
+            user.uid || user.id || user.email
+          );
+
+          if (!key) return;
+
+          uniqueUsers.set(key, {
+            ...(uniqueUsers.get(key) || {}),
+            ...user,
+          });
+        });
+
+        const dedupedUsers = Array.from(uniqueUsers.values());
 
         setCourses(visibleCourses);
         setUsers(dedupedUsers);
@@ -167,43 +282,92 @@ function DepartmentTrainingAnalytics() {
     return () => unsubscribe();
   }, []);
 
-  const getCourseStatusForUser = (userId, courseId) => {
-    const userAssignments = mergeUserRecords(assignments, { id: userId }) || {};
+  const getCourseStatusForUser = (user, courseId) => {
+    const userAssignments =
+      mergeUserRecords(assignments, user) || {};
+
     const assignment = userAssignments[courseId];
 
-    if (!isAssignmentActive(assignment)) return "notAssigned";
+    if (!isAssignmentActive(assignment)) {
+      return "notAssigned";
+    }
 
-    const userObj = { id: userId };
     if (
-      isCourseCompletedForUser(userObj, courseId, completedCourses, courseProgress, videoProgress)
+      isCourseCompletedForUser(
+        user,
+        courseId,
+        completedCourses,
+        courseProgress,
+        videoProgress
+      )
     ) {
       return "completed";
     }
 
-    const cpRecord = courseProgress?.[userId]?.[courseId];
+    const mergedCourseProgress =
+      mergeUserRecords(courseProgress, user) || {};
+
+    const courseProgressRecord =
+      mergedCourseProgress[courseId];
+
     if (
-      cpRecord?.courseTestPassed === true ||
-      cpRecord?.passed === true
+      courseProgressRecord?.courseTestPassed === true ||
+      courseProgressRecord?.passed === true ||
+      courseProgressRecord?.completed === true
     ) {
       return "completed";
     }
 
-    const vpEntries = videoProgress?.[userId]?.[courseId];
-    if (vpEntries && typeof vpEntries === "object") {
-      const vals = Object.values(vpEntries);
-      if (vals.some((v) => Number(v?.watchedPercent || 0) > 0 || v?.completed)) {
+    const mergedVideoProgress =
+      mergeUserRecords(videoProgress, user) || {};
+
+    const videoEntries = mergedVideoProgress[courseId];
+
+    if (
+      videoEntries &&
+      typeof videoEntries === "object"
+    ) {
+      const values = Object.values(videoEntries);
+
+      const hasVideoStarted = values.some(
+        (video) =>
+          video?.completed === true ||
+          Number(
+            video?.watchedPercent ??
+              video?.progressPercent ??
+              video?.progress ??
+              0
+          ) > 0
+      );
+
+      if (hasVideoStarted) {
         return "inProgress";
       }
     }
 
-    const userProgress = progress?.[userId] || {};
-    const hasStarted = Object.values(userProgress).some(
-      (video) =>
-        video.courseId === courseId &&
-        (Number(video.watchedPercent || 0) > 0 || video.completed)
+    const mergedLegacyProgress = getUserKeys(user).reduce(
+      (merged, key) => ({
+        ...merged,
+        ...(progress?.[key] || {}),
+      }),
+      {}
     );
 
-    return hasStarted ? "inProgress" : "notStarted";
+    const hasLegacyProgress = Object.values(
+      mergedLegacyProgress
+    ).some(
+      (video) =>
+        String(video?.courseId || "") ===
+          String(courseId) &&
+        (
+          video?.completed === true ||
+          Number(video?.watchedPercent || 0) > 0
+        )
+    );
+
+    return hasLegacyProgress
+      ? "inProgress"
+      : "notStarted";
   };
 
   const courseStats = useMemo(() => {
@@ -215,7 +379,7 @@ function DepartmentTrainingAnalytics() {
 
       users.forEach((user) => {
         const status = getCourseStatusForUser(
-          user.id,
+          user,
           course.id
         );
 
@@ -259,7 +423,7 @@ function DepartmentTrainingAnalytics() {
       .map((user) => ({
         ...user,
         status: getCourseStatusForUser(
-          user.id,
+          user,
           selectedCourseId
         ),
       }))

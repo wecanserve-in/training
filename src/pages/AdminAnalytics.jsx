@@ -119,7 +119,25 @@ function AdminAnalytics() {
   }, [loading]);
 
   const employeeUsers = useMemo(() => {
-    return getUniqueAnalyticsTrainingUsers(users);
+    const uniqueUsers = new Map();
+
+    users.forEach((user) => {
+      const key = String(
+        user?.uid ||
+        user?.id ||
+        user?.email ||
+        ""
+      ).trim();
+
+      if (!key) return;
+
+      uniqueUsers.set(key, {
+        ...(uniqueUsers.get(key) || {}),
+        ...user,
+      });
+    });
+
+    return Array.from(uniqueUsers.values());
   }, [users]);
 
   const getCompletedCount = (userOrId) => {
@@ -246,14 +264,46 @@ function AdminAnalytics() {
   };
 
   const zones = useMemo(() => {
-    return calculateZoneStats({
-      users: employeeUsers,
-      assignments,
-      completedCourses,
-      courseProgress,
-      videoProgress,
+    const map = {};
+
+    employeeUsers.forEach((user) => {
+      const rawZone = getVal(user, [
+        "zone",
+        "Zone",
+        "zoneName",
+        "region",
+        "regionName",
+      ]);
+
+      const name = rawZone || "Unassigned";
+
+      if (!map[name]) map[name] = [];
+      map[name].push(user);
     });
-  }, [employeeUsers, assignments, completedCourses, courseProgress, videoProgress]);
+
+    return Object.entries(map)
+      .map(([name, list]) => ({
+        name,
+        users: list,
+        total: list.length,
+        ...calculateGroupStats({
+          users: list,
+          assignments,
+          completedCourses,
+          courseProgress,
+          videoProgress,
+        }),
+      }))
+      .sort((a, b) =>
+        String(a.name).localeCompare(String(b.name))
+      );
+  }, [
+    employeeUsers,
+    assignments,
+    completedCourses,
+    courseProgress,
+    videoProgress,
+  ]);
 
   const states = useMemo(() => {
     const filtered = drillZone ? employeeUsers.filter((u) => normalizeZone(getVal(u, ["zone", "Zone", "zoneName"])) === drillZone) : employeeUsers;
@@ -511,27 +561,27 @@ function AdminAnalytics() {
             Zone
           </label>
           <select value={drillZone} onChange={(e) => drillIntoZone(e.target.value)}>
-            <option value="">&mdash; Select Zone &mdash;</option>
+            <option value="">All Zones</option>
             {zones.map((z) => <option key={z.name} value={z.name}>{z.name}</option>)}
           </select>
         </div>
-        <div className={`sa-select-group ${!drillZone ? "sa-select-disabled" : ""}`}>
+        <div className="sa-select-group">
           <label>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             State
           </label>
-          <select value={drillState} onChange={(e) => drillIntoState(e.target.value)} disabled={!drillZone}>
-            <option value="">&mdash; Select State &mdash;</option>
+          <select value={drillState} onChange={(e) => drillIntoState(e.target.value)}>
+            <option value="">All States</option>
             {states.map((s) => <option key={s.name} value={s.name}>{s.name}</option>)}
           </select>
         </div>
-        <div className={`sa-select-group ${!drillState ? "sa-select-disabled" : ""}`}>
+        <div className="sa-select-group">
           <label>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             City
           </label>
-          <select value={drillCity} onChange={(e) => drillIntoCity(e.target.value)} disabled={!drillState}>
-            <option value="">&mdash; Select City &mdash;</option>
+          <select value={drillCity} onChange={(e) => drillIntoCity(e.target.value)}>
+            <option value="">All Cities</option>
             {cities.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
           </select>
         </div>
@@ -591,8 +641,7 @@ function AdminAnalytics() {
       )}
 
       {/* Bottom Section */}
-      {(drillZone || drillState || drillCity) && (
-        <div className="sa-stats-reveal">
+      <div className="sa-stats-reveal">
           <div className="sa-kpi-row">
             <div className="sa-kpi sa-kpi-users sa-slide-up" style={{ animationDelay: "0ms" }}>
               <div className="sa-kpi-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
@@ -645,7 +694,9 @@ function AdminAnalytics() {
                       ? "City User Report"
                       : drillState
                       ? "State User Report"
-                      : "Zone User Report"}{" "}
+                      : drillZone
+                      ? "Zone User Report"
+                      : "All Users Report"}{" "}
                     &mdash; {currentLabel}
                   </h2>
                   <p>
@@ -731,7 +782,6 @@ function AdminAnalytics() {
             </div>
           </div>
       </div>
-      )}
 
       {selectedUser && (
         <div
