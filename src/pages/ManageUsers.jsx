@@ -256,19 +256,36 @@ function ManageUsers() {
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
       setUploadModal((prev) => ({ ...prev, current: i + 1 }));
-      const city = row.cityArea || row.CityArea || row.City || row.city || "";
-      const deptName = row.department || row.Department || "";
-      const matchedLocation = locations.find((location) => location.cities.includes(city));
-      const matchedDept = departmentTypes.find((d) => String(d).trim().toLowerCase() === String(deptName).trim().toLowerCase());
+      // Excel upload values are saved exactly as provided.
+      // No matching is done with master location or department data.
       const result = await createUserRecord({
-        name: row.name || row.Name || "",
-        email: row.email || row.Email || "",
-        designation: row.designation || row.Designation || "",
-        seniority: row.seniority || row.Seniority || row.type || row.Type || "",
-        cityArea: city,
-        zone: matchedLocation?.zone || "",
-        state: matchedLocation?.state || "",
-        department: matchedDept || "",
+        name: String(row.name || row.Name || "").trim(),
+        email: String(row.email || row.Email || "").trim(),
+        designation: String(
+          row.designation || row.Designation || ""
+        ).trim(),
+        seniority: String(
+          row.seniority ||
+            row.Seniority ||
+            row.type ||
+            row.Type ||
+            ""
+        )
+          .trim()
+          .toLowerCase(),
+        zone: String(row.zone || row.Zone || "").trim(),
+        state: String(row.state || row.State || "").trim(),
+        cityArea: String(
+          row.cityArea ||
+            row.CityArea ||
+            row["City Area"] ||
+            row.city ||
+            row.City ||
+            ""
+        ).trim(),
+        department: String(
+          row.department || row.Department || ""
+        ).trim(),
       });
       if (result.success) {
         successCount++;
@@ -292,27 +309,69 @@ function ManageUsers() {
   };
 
   const downloadTemplate = () => {
-    const templateData = [{ name: "Rahul Sharma", email: "rahul@example.com", designation: "Sales Executive", seniority: "senior", department: "Sales & Marketing", cityArea: "Mumbai" }];
+    const templateData = [
+      {
+        name: "Rahul Sharma",
+        email: "rahul@example.com",
+        designation: "Sales Executive",
+        seniority: "senior",
+        department: "Sales & Marketing",
+        zone: "West",
+        state: "Maharashtra",
+        cityArea: "Mumbai",
+      },
+    ];
+
     const worksheet = XLSX.utils.json_to_sheet(templateData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
     XLSX.writeFile(workbook, "user-template.xlsx");
   };
 
-  const filteredUsers = users.filter((user) => {
-    const searchText = [user.name, user.email, user.designation, user.department, user.zone, user.state, user.cityArea, user.role, user.seniority]
-      .map((v) => String(v ?? "")).join(" ").toLowerCase();
-    return searchText.includes(searchTerm.toLowerCase());
-  }).sort((a, b) => {
-    const rolePriority = (r) => {
-      const v = String(r || "").trim().toLowerCase();
-      if (v === "superadmin") return 0;
-      if (v === "admin") return 1;
-      if (v === "departmentadmin" || v === "department admin" || v === "department_admin" || v === "deptadmin" || v === "dept admin") return 2;
-      return 3;
-    };
-    return rolePriority(a.role) - rolePriority(b.role);
-  });
+  const normalizeRole = (role) =>
+    String(role || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_-]+/g, "");
+
+  const rolePriority = (role) => {
+    const normalizedRole = normalizeRole(role);
+
+    if (normalizedRole === "superadmin") return 0;
+    if (normalizedRole === "admin") return 1;
+    if (normalizedRole === "departmentadmin" || normalizedRole === "deptadmin") return 2;
+    return 3;
+  };
+
+  const filteredUsers = users
+    .filter((user) => {
+      const searchText = [
+        user.name,
+        user.email,
+        user.designation,
+        user.department,
+        user.zone,
+        user.state,
+        user.cityArea,
+        user.role,
+        user.seniority,
+      ]
+        .map((value) => String(value ?? ""))
+        .join(" ")
+        .toLowerCase();
+
+      return searchText.includes(searchTerm.trim().toLowerCase());
+    })
+    .sort((a, b) => {
+      const roleDifference = rolePriority(a.role) - rolePriority(b.role);
+      if (roleDifference !== 0) return roleDifference;
+
+      return String(a.name || a.email || "").localeCompare(
+        String(b.name || b.email || ""),
+        undefined,
+        { sensitivity: "base" }
+      );
+    });
 
   const seniorityColor = (s) => {
     if (s === "senior") return { bg: "#dcfce7", color: "#166534" };
@@ -321,20 +380,46 @@ function ManageUsers() {
   };
 
   const getRoleLabel = (role) => {
-    const r = String(role || "").trim().toLowerCase();
-    if (r === "superadmin") return "Super Admin";
-    if (r === "admin") return "Admin";
-    if (r === "departmentadmin" || r === "department admin" || r === "department_admin" || r === "deptadmin" || r === "dept admin") return "Dept Admin";
+    const normalizedRole = normalizeRole(role);
+
+    if (normalizedRole === "superadmin") return "Super Admin";
+    if (normalizedRole === "admin") return "Admin";
+    if (normalizedRole === "departmentadmin" || normalizedRole === "deptadmin") {
+      return "Dept Admin";
+    }
+
     return "User";
   };
 
   const roleBadgeColor = (role) => {
-    const r = String(role || "").trim().toLowerCase();
-    if (r === "superadmin") return { bg: "#ede9fe", color: "#7c3aed" };
-    if (r === "admin") return { bg: "#fef3c7", color: "#b45309" };
-    if (r === "departmentadmin" || r === "department admin" || r === "department_admin" || r === "deptadmin" || r === "dept admin") return { bg: "#dbeafe", color: "#1d4ed8" };
-    return { bg: "#f1f5f9", color: "#475569" };
+    const normalizedRole = normalizeRole(role);
+
+    if (normalizedRole === "superadmin") {
+      return { backgroundColor: "#ede9fe", color: "#7c3aed" };
+    }
+
+    if (normalizedRole === "admin") {
+      return { backgroundColor: "#fef3c7", color: "#b45309" };
+    }
+
+    if (normalizedRole === "departmentadmin" || normalizedRole === "deptadmin") {
+      return { backgroundColor: "#dbeafe", color: "#1d4ed8" };
+    }
+
+    return { backgroundColor: "#f1f5f9", color: "#475569" };
   };
+
+  const totalUsersCount = users.length;
+  const superAdminCount = users.filter(
+    (user) => normalizeRole(user.role) === "superadmin"
+  ).length;
+  const adminCount = users.filter(
+    (user) => normalizeRole(user.role) === "admin"
+  ).length;
+  const departmentAdminCount = users.filter((user) => {
+    const normalizedRole = normalizeRole(user.role);
+    return normalizedRole === "departmentadmin" || normalizedRole === "deptadmin";
+  }).length;
 
   return (
     <div className="manage-users-page">
@@ -351,16 +436,34 @@ function ManageUsers() {
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             </div>
             <div>
-              <strong>{users.length}</strong>
+              <strong>{totalUsersCount}</strong>
               <span>Total Users</span>
             </div>
           </div>
+          <div className="mu-hero-stat">
+            <div
+              className="mu-hero-stat-icon"
+              style={{ background: "#fef3c7", color: "#b45309" }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="7" height="7" />
+                <rect x="14" y="3" width="7" height="7" />
+                <rect x="14" y="14" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" />
+              </svg>
+            </div>
+            <div>
+              <strong>{adminCount}</strong>
+              <span>Admins</span>
+            </div>
+          </div>
+
           <div className="mu-hero-stat">
             <div className="mu-hero-stat-icon dept-icon">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
             </div>
             <div>
-              <strong>{users.filter((u) => { const r = String(u?.role || "").trim().toLowerCase(); return r === "departmentadmin" || r === "department admin" || r === "department_admin" || r === "deptadmin" || r === "dept admin"; }).length}</strong>
+              <strong>{departmentAdminCount}</strong>
               <span>Dept Admins</span>
             </div>
           </div>
@@ -369,7 +472,7 @@ function ManageUsers() {
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             </div>
             <div>
-              <strong>{users.filter((u) => String(u?.role || "").trim().toLowerCase() === "superadmin").length}</strong>
+              <strong>{superAdminCount}</strong>
               <span>Super Admins</span>
             </div>
           </div>
@@ -496,7 +599,7 @@ function ManageUsers() {
                   <td>{user.state || "-"}</td>
                   <td>{user.cityArea || "-"}</td>
                   <td>
-                    {String(user?.role || "").trim().toLowerCase() !== "superadmin" ? (
+                    {normalizeRole(user.role) !== "superadmin" ? (
                     <div className="mu-actions">
                       <button className="mu-action-edit" onClick={() => startEditUser(user)} title="Edit">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
