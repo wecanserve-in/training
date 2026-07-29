@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { get, onValue, ref, remove } from "firebase/database";
+import { get, onValue, ref, remove, update } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, database } from "../firebase";
 import "../styles/videolibrarylist.css";
@@ -165,10 +165,107 @@ function DepartmentVideoLibrary() {
 
   const deleteVideo = async (event, videoId) => {
     event.stopPropagation();
-    if (!window.confirm("Delete this video?")) return;
-    await remove(ref(database, `videoLibrary/${videoId}`));
-    await remove(ref(database, `videoQuizzes/${videoId}`));
-    if (selectedVideo?.id === videoId) setSelectedVideo(null);
+    if (!window.confirm("Delete this video? This will remove it from all courses and cannot be undone.")) return;
+
+    try {
+      const db = database;
+      const updates = {};
+
+      // 1. Find all courses that reference this video
+      const courseVideosSnap = await get(ref(db, "courseVideos"));
+      if (courseVideosSnap.exists()) {
+        const allCourseVideos = courseVideosSnap.val();
+        Object.entries(allCourseVideos).forEach(([courseId, videos]) => {
+          if (videos && videos[videoId]) {
+            updates[`courseVideos/${courseId}/${videoId}`] = null;
+          }
+        });
+      }
+
+      // 2. Remove videoId from courses/videoIds arrays
+      const coursesSnap = await get(ref(db, "courses"));
+      if (coursesSnap.exists()) {
+        const allCourses = coursesSnap.val();
+        Object.entries(allCourses).forEach(([courseId, course]) => {
+          if (Array.isArray(course.videoIds) && course.videoIds.includes(videoId)) {
+            const cleaned = course.videoIds.filter((id) => id !== videoId);
+            updates[`courses/${courseId}/videoIds`] = cleaned;
+            updates[`courses/${courseId}/totalVideos`] = cleaned.length;
+          }
+        });
+      }
+
+      // 3. Remove video progress for all users
+      const videoProgressSnap = await get(ref(db, "videoProgress"));
+      if (videoProgressSnap.exists()) {
+        const allProgress = videoProgressSnap.val();
+        Object.entries(allProgress).forEach(([uid, courses]) => {
+          Object.entries(courses).forEach(([courseId, videos]) => {
+            if (videos && videos[videoId]) {
+              updates[`videoProgress/${uid}/${courseId}/${videoId}`] = null;
+            }
+          });
+        });
+      }
+
+      // 4. Remove quiz attempts referencing this video
+      const quizAttemptsSnap = await get(ref(db, "quizAttempts"));
+      if (quizAttemptsSnap.exists()) {
+        const allAttempts = quizAttemptsSnap.val();
+        Object.entries(allAttempts).forEach(([uid, courses]) => {
+          Object.entries(courses).forEach(([courseId, attempts]) => {
+            if (attempts && typeof attempts === "object") {
+              Object.entries(attempts).forEach(([attemptId, attempt]) => {
+                if (attempt && attempt.videoId === videoId) {
+                  updates[`quizAttempts/${uid}/${courseId}/${attemptId}`] = null;
+                }
+              });
+            }
+          });
+        });
+      }
+
+      // 5. Remove learning activity entries for this video
+      const activitySnap = await get(ref(db, "learningActivity"));
+      if (activitySnap.exists()) {
+        const allActivity = activitySnap.val();
+        Object.entries(allActivity).forEach(([uid, days]) => {
+          Object.entries(days).forEach(([dayKey, courses]) => {
+            if (courses && typeof courses === "object") {
+              Object.entries(courses).forEach(([courseId, videos]) => {
+                if (videos && videos[videoId]) {
+                  updates[`learningActivity/${uid}/${dayKey}/${courseId}/${videoId}`] = null;
+                }
+              });
+            }
+          });
+        });
+      }
+
+      // 6. Remove course-specific video quizzes
+      const courseVideoQuizzesSnap = await get(ref(db, "videoQuizzes"));
+      if (courseVideoQuizzesSnap.exists()) {
+        const allVQ = courseVideoQuizzesSnap.val();
+        Object.entries(allVQ).forEach(([key, val]) => {
+          // course-specific quizzes: videoQuizzes/{courseId}/{videoId}
+          if (val && typeof val === "object" && val[videoId]) {
+            updates[`videoQuizzes/${key}/${videoId}`] = null;
+          }
+        });
+      }
+
+      // 7. Remove the video and its global quizzes
+      updates[`videoLibrary/${videoId}`] = null;
+      updates[`videoQuizzes/${videoId}`] = null;
+
+      // Execute all removals atomically
+      await update(ref(db), updates);
+
+      if (selectedVideo?.id === videoId) setSelectedVideo(null);
+    } catch (error) {
+      console.error("Error deleting video:", error);
+      alert("Failed to delete video. Please try again.");
+    }
   };
 
   const filteredVideos = useMemo(() => {

@@ -14,7 +14,7 @@ import { database, firebaseConfig } from "../firebase";
 import { locations } from "../data/masterData";
 import "../styles/manageusers.css";
 
-const DEFAULT_PASSWORD = "portal@123";
+const DEFAULT_PASSWORD = import.meta.env.VITE_DEFAULT_PASSWORD || "portal@123";
 
 function ManageUsers() {
   const [users, setUsers] = useState([]);

@@ -14,32 +14,32 @@
 
     "courses": {
       ".read": "auth !== null",
-      ".write": "auth !== null && ['superAdmin', 'admin', 'departmentAdmin'].includes(root.child('users/' + auth.uid + '/role').val())"
+      ".write": "auth !== null && root.child('users/' + auth.uid + '/role').val() === 'superAdmin' || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'departmentAdmin'"
     },
 
     "videos": {
       ".read": "auth !== null",
-      ".write": "auth !== null && ['superAdmin', 'admin', 'departmentAdmin'].includes(root.child('users/' + auth.uid + '/role').val())"
+      ".write": "auth !== null && root.child('users/' + auth.uid + '/role').val() === 'superAdmin' || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'departmentAdmin'"
     },
 
     "videoLibrary": {
       ".read": "auth !== null",
-      ".write": "auth !== null && ['superAdmin', 'admin', 'departmentAdmin'].includes(root.child('users/' + auth.uid + '/role').val())"
+      ".write": "auth !== null && root.child('users/' + auth.uid + '/role').val() === 'superAdmin' || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'departmentAdmin'"
     },
 
     "courseVideos": {
       ".read": "auth !== null",
-      ".write": "auth !== null && ['superAdmin', 'admin', 'departmentAdmin'].includes(root.child('users/' + auth.uid + '/role').val())"
+      ".write": "auth !== null && root.child('users/' + auth.uid + '/role').val() === 'superAdmin' || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'departmentAdmin'"
     },
 
     "videoQuizzes": {
       ".read": "auth !== null",
-      ".write": "auth !== null && ['superAdmin', 'admin', 'departmentAdmin'].includes(root.child('users/' + auth.uid + '/role').val())"
+      ".write": "auth !== null && root.child('users/' + auth.uid + '/role').val() === 'superAdmin' || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'departmentAdmin'"
     },
 
     "questions": {
       ".read": "auth !== null",
-      ".write": "auth !== null && ['superAdmin', 'admin', 'departmentAdmin'].includes(root.child('users/' + auth.uid + '/role').val())"
+      ".write": "auth !== null && root.child('users/' + auth.uid + '/role').val() === 'superAdmin' || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'departmentAdmin'"
     },
 
     "userAssignments": {
@@ -54,7 +54,7 @@
         ".read": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')",
         "$courseId": {
           "$videoId": {
-            ".write": "auth !== null && auth.uid === $uid"
+            ".write": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')"
           }
         }
       }
@@ -64,7 +64,7 @@
       "$uid": {
         ".read": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')",
         "$courseId": {
-          ".write": "auth !== null && auth.uid === $uid"
+          ".write": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')"
         }
       }
     },
@@ -74,7 +74,7 @@
         ".read": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')",
         "$courseId": {
           "$quizId": {
-            ".write": "auth !== null && auth.uid === $uid"
+            ".write": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')"
           }
         }
       }
@@ -84,7 +84,7 @@
       "$uid": {
         ".read": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')",
         "$courseId": {
-          ".write": "auth !== null && auth.uid === $uid"
+          ".write": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')"
         }
       }
     },
@@ -92,7 +92,7 @@
     "results": {
       "$uid": {
         ".read": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')",
-        ".write": "auth !== null && auth.uid === $uid"
+        ".write": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')"
       }
     },
 
@@ -172,13 +172,13 @@
 
     "courseContentUpdates": {
       ".read": "auth !== null",
-      ".write": "auth !== null && ['superAdmin', 'admin', 'departmentAdmin'].includes(root.child('users/' + auth.uid + '/role').val())"
+      ".write": "auth !== null && root.child('users/' + auth.uid + '/role').val() === 'superAdmin' || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'departmentAdmin'"
     },
 
     "learningActivity": {
       "$uid": {
         ".read": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')",
-        ".write": "auth !== null && auth.uid === $uid"
+        ".write": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')"
       }
     }
   }
