@@ -9,14 +9,10 @@ import {
   getUserKeys,
   mergeUserRecords,
   isAssignmentActive,
-  isCompletedRecord,
   isCourseCompletedForUser,
-  hasCertificate,
-  getUserZone,
-  normalizeZone,
 } from "../utils/trainingAnalytics";
 
-function DepartmentTrainingAnalytics() {
+function DepartmentAnalytics() {
   const [, setCurrentUser] = useState(null);
 
   const [courses, setCourses] = useState([]);
@@ -35,8 +31,10 @@ function DepartmentTrainingAnalytics() {
   // search
   const [search, setSearch] = useState("");
 
-  // NEW
+  // Filters
   const [selectedStatus, setSelectedStatus] = useState("");
+  const [selectedZone, setSelectedZone] = useState("");
+  const [selectedState, setSelectedState] = useState("");
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
@@ -252,6 +250,21 @@ function DepartmentTrainingAnalytics() {
         setCourses(visibleCourses);
         setUsers(dedupedUsers);
 
+        setSelectedCourseId((currentCourseId) => {
+          if (
+            currentCourseId &&
+            visibleCourses.some(
+              (course) =>
+                String(course.id) ===
+                String(currentCourseId)
+            )
+          ) {
+            return currentCourseId;
+          }
+
+          return visibleCourses[0]?.id || "";
+        });
+
         setAssignments(
           assignmentSnap.exists() ? assignmentSnap.val() : {}
         );
@@ -416,7 +429,23 @@ function DepartmentTrainingAnalytics() {
     (course) => course.id === selectedCourseId
   );
 
-  const selectedUsers = useMemo(() => {
+  const getUserZoneValue = (user) =>
+    String(
+      user?.zone ||
+        user?.Zone ||
+        user?.zoneName ||
+        ""
+    ).trim();
+
+  const getUserStateValue = (user) =>
+    String(
+      user?.state ||
+        user?.State ||
+        user?.stateName ||
+        ""
+    ).trim();
+
+  const assignedUsersForSelectedCourse = useMemo(() => {
     if (!selectedCourseId) return [];
 
     return users
@@ -427,9 +456,54 @@ function DepartmentTrainingAnalytics() {
           selectedCourseId
         ),
       }))
-      .filter((user) => {
-        if (user.status === "notAssigned") return false;
+      .filter(
+        (user) => user.status !== "notAssigned"
+      );
+  }, [
+    users,
+    selectedCourseId,
+    assignments,
+    completedCourses,
+    progress,
+    courseProgress,
+    videoProgress,
+  ]);
 
+  const zoneOptions = useMemo(() => {
+    return [
+      ...new Set(
+        assignedUsersForSelectedCourse
+          .map(getUserZoneValue)
+          .filter(Boolean)
+      ),
+    ].sort((a, b) => a.localeCompare(b));
+  }, [assignedUsersForSelectedCourse]);
+
+  const stateOptions = useMemo(() => {
+    const usersForState = selectedZone
+      ? assignedUsersForSelectedCourse.filter(
+          (user) =>
+            getUserZoneValue(user) === selectedZone
+        )
+      : assignedUsersForSelectedCourse;
+
+    return [
+      ...new Set(
+        usersForState
+          .map(getUserStateValue)
+          .filter(Boolean)
+      ),
+    ].sort((a, b) => a.localeCompare(b));
+  }, [
+    assignedUsersForSelectedCourse,
+    selectedZone,
+  ]);
+
+  const selectedUsers = useMemo(() => {
+    if (!selectedCourseId) return [];
+
+    return assignedUsersForSelectedCourse
+      .filter((user) => {
         const searchText = [
           user.name,
           user.email,
@@ -454,21 +528,40 @@ function DepartmentTrainingAnalytics() {
           ? user.status === selectedStatus
           : true;
 
-        return searchMatch && statusMatch;
+        const zoneMatch = selectedZone
+          ? getUserZoneValue(user) === selectedZone
+          : true;
+
+        const stateMatch = selectedState
+          ? getUserStateValue(user) === selectedState
+          : true;
+
+        return (
+          searchMatch &&
+          statusMatch &&
+          zoneMatch &&
+          stateMatch
+        );
       });
   }, [
-    users,
+    assignedUsersForSelectedCourse,
     selectedCourseId,
     search,
     selectedStatus,
-    assignments,
-    completedCourses,
-    progress,
-    courseProgress,
-    videoProgress,
+    selectedZone,
+    selectedState,
   ]);
 
-const downloadDepartmentReport = () => {
+  const makeStableKey = (prefix, value, index) => {
+    const normalizedValue = String(value || "empty")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-");
+
+    return `${prefix}-${normalizedValue}-${index}`;
+  };
+
+  const downloadDepartmentReport = () => {
   if (!selectedCourse) {
     alert("Please select a course first.");
     return;
@@ -478,10 +571,13 @@ const downloadDepartmentReport = () => {
     Name: user.name || "",
     Email: user.email || "",
     Designation: user.designation || user.userRole || "",
-    Department: user.department || "",
+    Department:
+      user.department ||
+      user.departmentName ||
+      "",
     City: user.city || user.cityArea || user.area || "",
-    State: user.state || "",
-    Zone: user.zone || "",
+    State: getUserStateValue(user),
+    Zone: getUserZoneValue(user),
     Status:
       user.status === "completed"
         ? "Completed"
@@ -500,11 +596,17 @@ const downloadDepartmentReport = () => {
     "Department Report"
   );
 
-  XLSX.writeFile(
-    workbook,
-    `${selectedCourse.title || "Department"}_Report.xlsx`
-  );
-};
+    const safeCourseTitle = String(
+      selectedCourse.title || "Department"
+    )
+      .replace(/[\\/:*?"<>|]+/g, "-")
+      .trim();
+
+    XLSX.writeFile(
+      workbook,
+      `${safeCourseTitle}_Report.xlsx`
+    );
+  };
 
   if (loading) {
   return (
@@ -547,13 +649,23 @@ return (
 
         <div className="course-grid">
 
-          {courseStats.map((course) => (
+          {courseStats.map((course, courseIndex) => (
 
             <div
-              key={course.id}
+              key={
+                course.id ||
+                makeStableKey(
+                  "course",
+                  course.title || course.courseTitle,
+                  courseIndex
+                )
+              }
               onClick={() => {
                 setSelectedCourseId(course.id);
                 setSelectedStatus("");
+                setSelectedZone("");
+                setSelectedState("");
+                setSearch("");
               }}
               className={`course-card ${
                 selectedCourseId === course.id
@@ -746,14 +858,57 @@ return (
         }
       />
 
-      {selectedStatus && (
+      <select
+        className="analytics-filter-select"
+        value={selectedZone}
+        onChange={(e) => {
+          setSelectedZone(e.target.value);
+          setSelectedState("");
+        }}
+      >
+        <option key="zone-all" value="">All Zones</option>
+        {zoneOptions.map((zone, zoneIndex) => (
+          <option
+            key={`zone-option-${zoneIndex}`}
+            value={zone}
+          >
+            {zone}
+          </option>
+        ))}
+      </select>
+
+      <select
+        className="analytics-filter-select"
+        value={selectedState}
+        onChange={(e) =>
+          setSelectedState(e.target.value)
+        }
+      >
+        <option key="state-all" value="">All States</option>
+        {stateOptions.map((state, stateIndex) => (
+          <option
+            key={`state-option-${stateIndex}`}
+            value={state}
+          >
+            {state}
+          </option>
+        ))}
+      </select>
+
+      {(selectedStatus ||
+        selectedZone ||
+        selectedState ||
+        search) && (
         <button
           className="clear-filter-btn"
-          onClick={() =>
-            setSelectedStatus("")
-          }
+          onClick={() => {
+            setSelectedStatus("");
+            setSelectedZone("");
+            setSelectedState("");
+            setSearch("");
+          }}
         >
-          Clear Filter
+          Clear Filters
         </button>
       )}
 
@@ -785,9 +940,20 @@ return (
 
       {selectedUsers.length > 0 ? (
 
-        selectedUsers.map((user) => (
+        selectedUsers.map((user, userIndex) => (
 
-          <tr key={user.id}>
+          <tr
+            key={
+              user.id ||
+              user.uid ||
+              user.email ||
+              makeStableKey(
+                "user",
+                user.name,
+                userIndex
+              )
+            }
+          >
 
             <td>
 
@@ -812,7 +978,9 @@ return (
             </td>
 
             <td>
-              {user.department || "-"}
+              {user.department ||
+                user.departmentName ||
+                "-"}
             </td>
 
             <td>
@@ -821,8 +989,8 @@ return (
                 user.city ||
                   user.cityArea ||
                   user.area,
-                user.state,
-                user.zone,
+                getUserStateValue(user),
+                getUserZoneValue(user),
               ]
                 .filter(Boolean)
                 .join(", ") || "-"}
@@ -879,4 +1047,4 @@ return (
 );
 }
 
-export default DepartmentTrainingAnalytics;
+export default DepartmentAnalytics;

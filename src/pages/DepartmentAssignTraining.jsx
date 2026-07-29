@@ -24,6 +24,10 @@ function DepartmentAssignTraining() {
   const [zoneFilter, setZoneFilter] = useState("");
   const [stateFilter, setStateFilter] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
+  const [designationFilter, setDesignationFilter] = useState("");
+
+  const [quickDepartment, setQuickDepartment] = useState("");
+  const [quickDesignation, setQuickDesignation] = useState("");
 
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
@@ -41,7 +45,8 @@ function DepartmentAssignTraining() {
     zone: ["zone", "Zone", "zoneName"],
     state: ["state", "State", "stateName"],
     city: ["city", "City", "area", "Area", "cityArea"],
-    designation: ["designation", "jobTitle", "position", "title"],
+    designation: ["designation", "userRole", "jobTitle", "position", "title"],
+    department: ["department", "departmentName", "deptName", "dept"],
   };
 
   useEffect(() => {
@@ -179,7 +184,33 @@ function DepartmentAssignTraining() {
     const base = zoneFilter ? users.filter((u) => getField(u, fieldKeys.zone) === zoneFilter) : users;
     return [...new Set(base.map((u) => getField(u, fieldKeys.state)).filter(Boolean))].sort();
   }, [users, zoneFilter]);
-  const departmentOptions = useMemo(() => [...new Set(users.map((u) => u.department).filter(Boolean))].sort(), [users]);
+  const departmentOptions = useMemo(
+    () =>
+      [
+        ...new Set(
+          users
+            .map((user) =>
+              getField(user, fieldKeys.department)
+            )
+            .filter(Boolean)
+        ),
+      ].sort((a, b) => a.localeCompare(b)),
+    [users]
+  );
+
+  const designationOptions = useMemo(
+    () =>
+      [
+        ...new Set(
+          users
+            .map((user) =>
+              getField(user, fieldKeys.designation)
+            )
+            .filter(Boolean)
+        ),
+      ].sort((a, b) => a.localeCompare(b)),
+    [users]
+  );
 
   const getUserCourseStatus = (userId) => {
     if (!selectedCourseId || !selectedCourse) return "notAssigned";
@@ -198,40 +229,132 @@ function DepartmentAssignTraining() {
 
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
-      const status = getUserCourseStatus(user.id);
-      const shouldShow = status === "notAssigned" || status === "latestNotAssigned" || status === "updatedAfterCompletion";
-      if (!shouldShow) return false;
-
       const role = getField(user, ["role"]);
       const zone = getField(user, fieldKeys.zone);
       const state = getField(user, fieldKeys.state);
+      const department = getField(
+        user,
+        fieldKeys.department
+      );
+      const designation = getField(
+        user,
+        fieldKeys.designation
+      );
 
-      const text = [user.name, user.email, role, getField(user, fieldKeys.designation), zone, state, user.department, user.cityArea]
-        .filter(Boolean).join(" ").toLowerCase();
+      const text = [
+        user.name,
+        user.email,
+        role,
+        designation,
+        zone,
+        state,
+        department,
+        getField(user, fieldKeys.city),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
 
       return (
         text.includes(search.trim().toLowerCase()) &&
-        (roleFilter ? role.toLowerCase() === roleFilter.toLowerCase() : true) &&
+        (roleFilter
+          ? role.toLowerCase() === roleFilter.toLowerCase()
+          : true) &&
         (zoneFilter ? zone === zoneFilter : true) &&
         (stateFilter ? state === stateFilter : true) &&
-        (departmentFilter ? user.department === departmentFilter : true)
+        (departmentFilter
+          ? department === departmentFilter
+          : true) &&
+        (designationFilter
+          ? designation === designationFilter
+          : true)
       );
     });
-  }, [users, search, roleFilter, zoneFilter, stateFilter, departmentFilter, selectedCourseId, selectedCourse, assignments, completedCourses]);
+  }, [
+    users,
+    search,
+    roleFilter,
+    zoneFilter,
+    stateFilter,
+    departmentFilter,
+    designationFilter,
+    selectedCourseId,
+    selectedCourse,
+    assignments,
+    completedCourses,
+  ]);
 
   const toggleUser = (userId) => {
     setSelectedUsers((prev) => prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]);
   };
 
   const selectByRole = (role) => {
-    const matched = filteredUsers.filter((u) => getField(u, ["role"]).toLowerCase() === role.toLowerCase()).map((u) => u.id);
+    const matched = filteredUsers
+      .filter(
+        (user) =>
+          getField(user, ["role"]).toLowerCase() ===
+          role.toLowerCase()
+      )
+      .map((user) => user.id);
+
     setSelectedUsers(matched);
   };
 
-  const selectAll = () => setSelectedUsers(filteredUsers.map((u) => u.id));
+  const selectByDepartment = (department) => {
+    setQuickDepartment(department);
+    setQuickDesignation("");
+
+    if (!department) {
+      setSelectedUsers([]);
+      return;
+    }
+
+    const matched = filteredUsers
+      .filter(
+        (user) =>
+          getField(user, fieldKeys.department) ===
+          department
+      )
+      .map((user) => user.id);
+
+    setSelectedUsers(matched);
+  };
+
+  const selectByDesignation = (designation) => {
+    setQuickDesignation(designation);
+    setQuickDepartment("");
+
+    if (!designation) {
+      setSelectedUsers([]);
+      return;
+    }
+
+    const matched = filteredUsers
+      .filter(
+        (user) =>
+          getField(user, fieldKeys.designation) ===
+          designation
+      )
+      .map((user) => user.id);
+
+    setSelectedUsers(matched);
+  };
+
+  const selectAll = () =>
+    setSelectedUsers(filteredUsers.map((user) => user.id));
   const deselectAll = () => setSelectedUsers([]);
 
-  const resetFilters = () => { setSearch(""); setRoleFilter(""); setZoneFilter(""); setStateFilter(""); setDepartmentFilter(""); setSelectedUsers([]); };
+  const resetFilters = () => {
+    setSearch("");
+    setRoleFilter("");
+    setZoneFilter("");
+    setStateFilter("");
+    setDepartmentFilter("");
+    setDesignationFilter("");
+    setQuickDepartment("");
+    setQuickDesignation("");
+    setSelectedUsers([]);
+  };
 
   const assignCourse = async () => {
     if (!selectedCourseId) { alert("Please select a course."); return; }
@@ -287,7 +410,19 @@ function DepartmentAssignTraining() {
     }
   };
 
-  if (loading) return <div className="ac-page"><div className="ac-loading">Loading...</div></div>;
+  const makeOptionKey = (prefix, value, index) =>
+    `${prefix}-${String(value || "empty")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")}-${index}`;
+
+  if (loading) {
+    return (
+      <div className="ac-page">
+        <div className="ac-loading">Loading...</div>
+      </div>
+    );
+  }
 
   const getRoleBadge = (role) => {
     const r = (role || "").toLowerCase();
@@ -333,9 +468,33 @@ function DepartmentAssignTraining() {
         <div className="ac-course-top">
           <div className="ac-course-select-wrap">
             <label>Select Course</label>
-            <select className="ac-select" value={selectedCourseId} onChange={(e) => { setSelectedCourseId(e.target.value); setSelectedUsers([]); setShowFullDescription(false); }}>
+            <select
+              className="ac-select"
+              value={selectedCourseId}
+              onChange={(e) => {
+                setSelectedCourseId(e.target.value);
+                setSelectedUsers([]);
+                setQuickDepartment("");
+                setQuickDesignation("");
+                setShowFullDescription(false);
+              }}
+            >
               <option value="">Choose a course...</option>
-              {courses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+              {courses.map((course, index) => (
+                <option
+                  key={
+                    course.id ||
+                    makeOptionKey(
+                      "course",
+                      course.title,
+                      index
+                    )
+                  }
+                  value={course.id}
+                >
+                  {course.title || "Untitled Course"}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -367,29 +526,184 @@ function DepartmentAssignTraining() {
       {/* Quick Assign Buttons */}
       <div className="ac-card ac-quick-row">
         <span className="ac-quick-label">Quick Select:</span>
-        <button className="ac-quick-btn" onClick={selectAll}>All ({filteredUsers.length})</button>
-        <button className="ac-quick-btn" onClick={deselectAll}>None</button>
-        {roleOptions.map((role) => {
+
+        <button
+          className="ac-quick-btn"
+          onClick={() => {
+            selectAll();
+            setQuickDepartment("");
+            setQuickDesignation("");
+          }}
+        >
+          All ({filteredUsers.length})
+        </button>
+
+        <button
+          className="ac-quick-btn"
+          onClick={() => {
+            deselectAll();
+            setQuickDepartment("");
+            setQuickDesignation("");
+          }}
+        >
+          None
+        </button>
+
+        {roleOptions.map((role, roleIndex) => {
           const badge = getRoleBadge(role);
-          const count = filteredUsers.filter((u) => getField(u, ["role"]).toLowerCase() === role.toLowerCase()).length;
+          const count = filteredUsers.filter(
+            (user) =>
+              getField(user, ["role"]).toLowerCase() ===
+              role.toLowerCase()
+          ).length;
+
           return (
-            <button key={role} className={`ac-quick-btn role-${badge.cls}`} onClick={() => selectByRole(role)}>
+            <button
+              key={makeOptionKey(
+                "quick-role",
+                role,
+                roleIndex
+              )}
+              className={`ac-quick-btn role-${badge.cls}`}
+              onClick={() => {
+                selectByRole(role);
+                setQuickDepartment("");
+                setQuickDesignation("");
+              }}
+            >
               {badge.label} ({count})
             </button>
           );
         })}
-        <button className="ac-quick-btn dept" onClick={() => {
-          const myDeptId = currentUser?.departmentId || "";
-          const myDept = (currentUser?.department || "").toLowerCase();
-          const matched = filteredUsers.filter((u) =>
-            (u.departmentId && u.departmentId === myDeptId) || (u.department || "").toLowerCase() === myDept
-          ).map((u) => u.id);
-          setSelectedUsers(matched);
-        }}>My Dept ({filteredUsers.filter((u) => {
-          const myDeptId = currentUser?.departmentId || "";
-          const myDept = (currentUser?.department || "").toLowerCase();
-          return (u.departmentId && u.departmentId === myDeptId) || (u.department || "").toLowerCase() === myDept;
-        }).length})</button>
+
+        <select
+          className="ac-filter-select ac-quick-select"
+          value={quickDepartment}
+          onChange={(e) =>
+            selectByDepartment(e.target.value)
+          }
+        >
+          <option value="">Select by Department</option>
+          {departmentOptions.map(
+            (department, departmentIndex) => {
+            const count = filteredUsers.filter(
+              (user) =>
+                getField(
+                  user,
+                  fieldKeys.department
+                ) === department
+            ).length;
+
+            return (
+              <option
+                key={makeOptionKey(
+                  "quick-department",
+                  department,
+                  departmentIndex
+                )}
+                value={department}
+              >
+                {department} ({count})
+              </option>
+            );
+          })}
+        </select>
+
+        <select
+          className="ac-filter-select ac-quick-select"
+          value={quickDesignation}
+          onChange={(e) =>
+            selectByDesignation(e.target.value)
+          }
+        >
+          <option value="">Select by Designation</option>
+          {designationOptions.map(
+            (designation, designationIndex) => {
+            const count = filteredUsers.filter(
+              (user) =>
+                getField(
+                  user,
+                  fieldKeys.designation
+                ) === designation
+            ).length;
+
+            return (
+              <option
+                key={makeOptionKey(
+                  "quick-designation",
+                  designation,
+                  designationIndex
+                )}
+                value={designation}
+              >
+                {designation} ({count})
+              </option>
+            );
+          })}
+        </select>
+
+        <button
+          className="ac-quick-btn dept"
+          onClick={() => {
+            const myDeptId =
+              currentUser?.departmentId || "";
+            const myDept = String(
+              currentUser?.department ||
+                currentUser?.departmentName ||
+                ""
+            ).toLowerCase();
+
+            const matched = filteredUsers
+              .filter((user) => {
+                const userDeptId =
+                  user.departmentId || "";
+                const userDept = getField(
+                  user,
+                  fieldKeys.department
+                ).toLowerCase();
+
+                return (
+                  (userDeptId &&
+                    userDeptId === myDeptId) ||
+                  (userDept &&
+                    userDept === myDept)
+                );
+              })
+              .map((user) => user.id);
+
+            setSelectedUsers(matched);
+            setQuickDepartment("");
+            setQuickDesignation("");
+          }}
+        >
+          My Dept (
+          {
+            filteredUsers.filter((user) => {
+              const myDeptId =
+                currentUser?.departmentId || "";
+              const myDept = String(
+                currentUser?.department ||
+                  currentUser?.departmentName ||
+                  ""
+              ).toLowerCase();
+
+              const userDeptId =
+                user.departmentId || "";
+              const userDept = getField(
+                user,
+                fieldKeys.department
+              ).toLowerCase();
+
+              return (
+                (userDeptId &&
+                  userDeptId === myDeptId) ||
+                (userDept &&
+                  userDept === myDept)
+              );
+            }).length
+          }
+          )
+        </button>
       </div>
 
       {/* Filters + Search + Assign */}
@@ -400,21 +714,109 @@ function DepartmentAssignTraining() {
         </div>
         <select className="ac-filter-select" value={roleFilter} onChange={(e) => { setRoleFilter(e.target.value); setSelectedUsers([]); }}>
           <option value="">All Roles</option>
-          {roleOptions.map((r) => <option key={r} value={r}>{getRoleBadge(r).label}</option>)}
+          {roleOptions.map((role, index) => (
+            <option
+              key={makeOptionKey(
+                "filter-role",
+                role,
+                index
+              )}
+              value={role}
+            >
+              {getRoleBadge(role).label}
+            </option>
+          ))}
         </select>
         <select className="ac-filter-select" value={zoneFilter} onChange={(e) => { setZoneFilter(e.target.value); setStateFilter(""); setSelectedUsers([]); }}>
           <option value="">All Zones</option>
-          {zoneOptions.map((z) => <option key={z} value={z}>{z}</option>)}
+          {zoneOptions.map((zone, index) => (
+            <option
+              key={makeOptionKey(
+                "filter-zone",
+                zone,
+                index
+              )}
+              value={zone}
+            >
+              {zone}
+            </option>
+          ))}
         </select>
         <select className="ac-filter-select" value={stateFilter} onChange={(e) => { setStateFilter(e.target.value); setSelectedUsers([]); }}>
           <option value="">All States</option>
-          {stateOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+          {stateOptions.map((state, index) => (
+            <option
+              key={makeOptionKey(
+                "filter-state",
+                state,
+                index
+              )}
+              value={state}
+            >
+              {state}
+            </option>
+          ))}
         </select>
-        <select className="ac-filter-select" value={departmentFilter} onChange={(e) => { setDepartmentFilter(e.target.value); setSelectedUsers([]); }}>
+        <select
+          className="ac-filter-select"
+          value={departmentFilter}
+          onChange={(e) => {
+            setDepartmentFilter(e.target.value);
+            setSelectedUsers([]);
+            setQuickDepartment("");
+            setQuickDesignation("");
+          }}
+        >
           <option value="">All Departments</option>
-          {departmentOptions.map((d) => <option key={d} value={d}>{d}</option>)}
+          {departmentOptions.map(
+            (department, index) => (
+              <option
+                key={makeOptionKey(
+                  "filter-department",
+                  department,
+                  index
+                )}
+                value={department}
+              >
+                {department}
+              </option>
+            )
+          )}
         </select>
-        <button className="ac-btn ac-btn-clear" onClick={resetFilters}>Clear</button>
+
+        <select
+          className="ac-filter-select"
+          value={designationFilter}
+          onChange={(e) => {
+            setDesignationFilter(e.target.value);
+            setSelectedUsers([]);
+            setQuickDepartment("");
+            setQuickDesignation("");
+          }}
+        >
+          <option value="">All Designations</option>
+          {designationOptions.map(
+            (designation, index) => (
+              <option
+                key={makeOptionKey(
+                  "filter-designation",
+                  designation,
+                  index
+                )}
+                value={designation}
+              >
+                {designation}
+              </option>
+            )
+          )}
+        </select>
+
+        <button
+          className="ac-btn ac-btn-clear"
+          onClick={resetFilters}
+        >
+          Clear
+        </button>
       </div>
 
       {/* User Table */}
@@ -455,10 +857,45 @@ function DepartmentAssignTraining() {
                   const status = getUserCourseStatus(user.id);
                   const badge = getRoleBadge(getField(user, ["role"]));
                   const location = [getField(user, fieldKeys.city), getField(user, fieldKeys.state), getField(user, fieldKeys.zone)].filter(Boolean).join(", ") || "-";
-                  const isSameDept = isDeptAdmin && ((user.departmentId && user.departmentId === (currentUser?.departmentId || "")) || (user.department || "").toLowerCase() === (currentUser?.department || "").toLowerCase());
+                  const userDepartment = getField(
+                    user,
+                    fieldKeys.department
+                  );
+
+                  const currentDepartment = String(
+                    currentUser?.department ||
+                      currentUser?.departmentName ||
+                      ""
+                  ).trim();
+
+                  const isSameDept =
+                    isDeptAdmin &&
+                    (
+                      (
+                        user.departmentId &&
+                        user.departmentId ===
+                          (currentUser?.departmentId || "")
+                      ) ||
+                      (
+                        userDepartment &&
+                        userDepartment.toLowerCase() ===
+                          currentDepartment.toLowerCase()
+                      )
+                    );
 
                   return (
-                    <tr key={user.id} className={`${selected ? "selected" : ""} ${isSameDept ? "same-dept" : ""}`} onClick={() => toggleUser(user.id)}>
+                    <tr
+                      key={
+                        user.id ||
+                        user.uid ||
+                        user.email ||
+                        `user-${idx}`
+                      }
+                      className={`${selected ? "selected" : ""} ${
+                        isSameDept ? "same-dept" : ""
+                      }`}
+                      onClick={() => toggleUser(user.id)}
+                    >
                       <td className="ac-td-check"><input type="checkbox" checked={selected} onChange={() => toggleUser(user.id)} onClick={(e) => e.stopPropagation()} /></td>
                       <td className="ac-td-idx">{idx + 1}</td>
                       <td className="ac-td-name">
@@ -466,10 +903,31 @@ function DepartmentAssignTraining() {
                         <span>{user.email}</span>
                       </td>
                       <td><span className={`ac-role-badge ${badge.cls}`}>{badge.label}</span></td>
-                      <td>{user.department || "-"}</td>
+                      <td>
+                        {getField(
+                          user,
+                          fieldKeys.department
+                        ) || "-"}
+                      </td>
                       <td>{getField(user, fieldKeys.designation) || "-"}</td>
                       <td className="ac-td-location">{location}</td>
-                      <td><span className={`ac-status ${status}`}>{status === "notAssigned" ? "Not Assigned" : status === "latestNotAssigned" ? "Update Needed" : status === "updatedAfterCompletion" ? "Course Updated" : "Assigned"}</span></td>
+                      <td>
+                        <span
+                          className={`ac-status ${status}`}
+                        >
+                          {status === "notAssigned"
+                            ? "Not Assigned"
+                            : status === "latestNotAssigned"
+                            ? "Update Needed"
+                            : status ===
+                              "updatedAfterCompletion"
+                            ? "Course Updated"
+                            : status ===
+                              "completedLatest"
+                            ? "Completed"
+                            : "Assigned"}
+                        </span>
+                      </td>
                     </tr>
                   );
                 })
