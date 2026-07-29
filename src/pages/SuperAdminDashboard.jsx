@@ -259,9 +259,13 @@ function SuperAdminDashboard() {
   }, [platformUsers]);
 
   const adminCount = useMemo(() => {
-    return platformUsers.filter((user) =>
-      isAdminRole(getRole(user))
-    ).length;
+    return platformUsers.filter((user) => {
+      const role = getRole(user);
+
+      // Count only actual Admin accounts.
+      // Do not count Super Admin or Department Admin as Admin.
+      return role === "admin";
+    }).length;
   }, [platformUsers]);
 
   const superAdminCount = useMemo(() => {
