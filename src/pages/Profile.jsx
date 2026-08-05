@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   EmailAuthProvider,
   reauthenticateWithCredential,
@@ -6,6 +6,7 @@ import {
 } from "firebase/auth";
 import { auth, database } from "../firebase";
 import { ref, get, update } from "firebase/database";
+import { uploadImageToCloudinary } from "../utils/cloudinaryUpload";
 import "../styles/profile.css";
 
 const createEmptyChild = () => ({
@@ -39,6 +40,9 @@ function Profile() {
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState("");
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     fetchUser();
@@ -77,6 +81,7 @@ function Profile() {
         );
 
         setUserData(data);
+        setPhotoPreview(data.photoURL || "");
 
         setProfileForm({
           name: data.name || "",
@@ -105,6 +110,64 @@ function Profile() {
       alert("Failed to load profile");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image file");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image must be less than 5MB");
+      return;
+    }
+
+    try {
+      setUploadingPhoto(true);
+      const previewURL = URL.createObjectURL(file);
+      setPhotoPreview(previewURL);
+
+      const cloudinaryURL = await uploadImageToCloudinary(file, "profile-photos");
+
+      const user = auth.currentUser;
+      if (user) {
+        await update(ref(database, `users/${user.uid}`), {
+          photoURL: cloudinaryURL,
+          updatedAt: new Date().toISOString(),
+        });
+        setUserData((prev) => ({ ...prev, photoURL: cloudinaryURL }));
+        setPhotoPreview(cloudinaryURL);
+      }
+    } catch (error) {
+      console.error("Photo upload error:", error);
+      alert("Failed to upload photo. Please try again.");
+      setPhotoPreview(userData?.photoURL || "");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleDeletePhoto = async () => {
+    if (!window.confirm("Remove profile photo?")) return;
+
+    try {
+      const user = auth.currentUser;
+      if (user) {
+        await update(ref(database, `users/${user.uid}`), {
+          photoURL: "",
+          updatedAt: new Date().toISOString(),
+        });
+        setUserData((prev) => ({ ...prev, photoURL: "" }));
+        setPhotoPreview("");
+      }
+    } catch (error) {
+      console.error("Photo delete error:", error);
+      alert("Failed to remove photo. Please try again.");
     }
   };
 
@@ -375,8 +438,55 @@ function Profile() {
     <div className="profile-page">
       <div className="profile-hero-section">
         <div className="profile-hero-left">
-          <div className="profile-hero-avatar">
-            {(profileForm.name || "U").charAt(0).toUpperCase()}
+          <div className="profile-hero-avatar-wrap">
+            <div className="profile-hero-avatar">
+              {photoPreview ? (
+                <img
+                  src={photoPreview}
+                  alt="Profile"
+                  className="profile-hero-img"
+                />
+              ) : (
+                (profileForm.name || "U").charAt(0).toUpperCase()
+              )}
+            </div>
+            <div className="profile-photo-actions">
+              <button
+                type="button"
+                className="profile-photo-edit-btn"
+                onClick={() => !uploadingPhoto && fileInputRef.current?.click()}
+                disabled={uploadingPhoto}
+                title="Change profile photo"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                  <path d="m15 5 4 4"/>
+                </svg>
+              </button>
+              {photoPreview && (
+                <button
+                  type="button"
+                  className="profile-photo-delete-btn"
+                  onClick={handleDeletePhoto}
+                  disabled={uploadingPhoto}
+                  title="Remove profile photo"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 6h18"/>
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>
+                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handlePhotoUpload}
+              style={{ display: "none" }}
+            />
+            {uploadingPhoto && <span className="profile-photo-uploading">Uploading...</span>}
           </div>
           <div className="profile-hero-info">
             <h1>{profileForm.name || "User"}</h1>

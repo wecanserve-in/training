@@ -105,6 +105,13 @@
   font-weight: 700;
   font-size: 13px;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.dept-profile-circle-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .dept-profile-text {
@@ -285,7 +292,7 @@
 }
 
 @media (max-width: 768px) {
-  .dept-admin-sidebar {
+  .dept-sidebar {
     position: fixed;
     top: 0;
     left: 0;

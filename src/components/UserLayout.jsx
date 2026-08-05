@@ -10,6 +10,7 @@ import {
 } from "../services/doubtService";
 
 import { FaBell, FaComments, FaReply, FaBookOpen, FaVideo, FaClock, FaTimesCircle, FaCheckCircle, FaAward } from "react-icons/fa";
+import ProfileCompletionBadge from "./ProfileCompletionBadge";
 import "../styles/userLayout.css";
 
 function UserLayout() {
@@ -204,7 +205,13 @@ function UserLayout() {
         </div>
 
         <div className="learner-sidebar-profile">
-          <div className="learner-profile-circle">{initials}</div>
+          <div className="learner-profile-circle">
+            {userData?.photoURL ? (
+              <img src={userData.photoURL} alt={displayName} className="learner-profile-circle-img" />
+            ) : (
+              initials
+            )}
+          </div>
           <div className="learner-sidebar-profile-text">
             <h3>{displayName}</h3>
             <p>{displayEmail}</p>
@@ -313,6 +320,7 @@ function UserLayout() {
         </div>
 
         <Outlet />
+        <ProfileCompletionBadge profileData={userData} profilePath="/profile" />
       </main>
     </div>
   );

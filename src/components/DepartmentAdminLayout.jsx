@@ -12,6 +12,7 @@ import {
 import "../styles/departmentadminlayout.css";
 
 import { FaBell, FaComments, FaReply, FaBookOpen, FaVideo, FaClock, FaTimesCircle, FaCheckCircle, FaAward } from "react-icons/fa";
+import ProfileCompletionBadge from "./ProfileCompletionBadge";
 
 function DepartmentAdminLayout() {
   const navigate = useNavigate();
@@ -141,14 +142,14 @@ function DepartmentAdminLayout() {
             <FaBell />
             {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
           </button>
-          <button type="button" onClick={() => setSidebarOpen(true)}>☰</button>
+          <button type="button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation menu">☰</button>
         </div>
       </div>
 
       {sidebarOpen && <div className="dept-sidebar-backdrop" onClick={closeSidebar} />}
 
       <aside className={`dept-sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
-        <button type="button" className="dept-sidebar-close" onClick={closeSidebar}>×</button>
+        <button type="button" className="dept-sidebar-close" onClick={closeSidebar} aria-label="Close navigation menu">×</button>
 
         <div className="dept-sidebar-top">
           <div className="dept-sidebar-logo-box">
@@ -165,7 +166,13 @@ function DepartmentAdminLayout() {
         </div>
 
         <div className="dept-sidebar-profile">
-          <div className="dept-profile-circle">{getInitials()}</div>
+          <div className="dept-profile-circle">
+            {profile?.photoURL ? (
+              <img src={profile.photoURL} alt={profile?.name} className="dept-profile-circle-img" />
+            ) : (
+              getInitials()
+            )}
+          </div>
           <div className="dept-profile-text">
             <h3>{profile?.name || "Department Admin"}</h3>
             <p>{profile?.department || profile?.departmentType || "Dept Admin"}</p>
@@ -309,6 +316,7 @@ function DepartmentAdminLayout() {
         </div>
 
         <Outlet />
+        <ProfileCompletionBadge profileData={profile} profilePath="/department-admin/profile" />
       </main>
     </div>
   );

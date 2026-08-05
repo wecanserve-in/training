@@ -1,3 +1,11 @@
+.dept-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 12px;
+  border: 1px solid #e8f5ee;
+}
+
 .dept-table {
   width: 100%;
   border-collapse: collapse;
@@ -14,6 +22,9 @@
   font-weight: 600;
   padding: 10px 12px;
   border-bottom: 1px solid #e8f5ee;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .dept-table td {
@@ -73,4 +84,29 @@
 .dept-admin-user-list .department-progress-track {
   margin-top: 8px;
   height: 5px;
+}
+
+@media (max-width: 768px) {
+  .dept-table {
+    min-width: 700px;
+  }
+  .dept-table th,
+  .dept-table td {
+    padding: 8px 10px;
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dept-table {
+    min-width: 600px;
+  }
+  .dept-table th,
+  .dept-table td {
+    padding: 6px 8px;
+    font-size: 0.7rem;
+  }
+  .dept-admin-user-list {
+    max-height: 250px;
+  }
 }

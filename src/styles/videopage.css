@@ -21,7 +21,7 @@
 
 .video-page-clean {
   max-width: 1400px;
-  margin: 10 10;
+  margin: 10px 10px;
   padding: 0 24px 40px;
   background: var(--vp-bg);
   min-height: 100vh;

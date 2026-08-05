@@ -15,6 +15,8 @@ import {
   getUserZoneField,
   calculateZoneStats,
   getUniqueAnalyticsTrainingUsers,
+  flattenAttempts,
+  computeTestPerformance,
 } from "../utils/trainingAnalytics";
 
 function SuperAdminDashboard() {
@@ -27,6 +29,7 @@ function SuperAdminDashboard() {
 
   const [assignments, setAssignments] = useState({});
   const [completedCourses, setCompletedCourses] = useState({});
+  const [rawAttempts, setRawAttempts] = useState({});
   const [progress, setProgress] = useState({});
   const [videoProgress, setVideoProgress] = useState({});
   const [courseProgress, setCourseProgress] = useState({});
@@ -158,7 +161,7 @@ function SuperAdminDashboard() {
 
     const markLoaded = (path) => {
       loadedPaths.add(path);
-      if (loadedPaths.size === 10) {
+      if (loadedPaths.size === 11) {
         setLoading(false);
       }
     };
@@ -185,6 +188,7 @@ function SuperAdminDashboard() {
     const unsubOldVideos = watchPath("videos", setOldVideos, true);
     const unsubAssignments = watchPath("userAssignments", setAssignments);
     const unsubCompleted = watchPath("completedCourses", setCompletedCourses);
+    const unsubAttempts = watchPath("attempts", setRawAttempts);
     const unsubProgress = watchPath("progress", setProgress);
     const unsubVideoProgress = watchPath("videoProgress", setVideoProgress);
     const unsubCourseProgress = watchPath("courseProgress", setCourseProgress);
@@ -197,6 +201,7 @@ function SuperAdminDashboard() {
       unsubOldVideos();
       unsubAssignments();
       unsubCompleted();
+      unsubAttempts();
       unsubProgress();
       unsubVideoProgress();
       unsubCourseProgress();
@@ -240,10 +245,7 @@ function SuperAdminDashboard() {
    * not incorrectly affect assignment/completion analytics.
    */
   const trainingUserList = useMemo(() => {
-    return platformUsers.filter((user) => {
-      const role = getRole(user);
-      return !isAdminRole(role) && !isSuperAdminRole(role);
-    });
+    return platformUsers;
   }, [platformUsers]);
 
   const userCount = useMemo(() => {
@@ -402,36 +404,6 @@ const totalCertificates = useMemo(() => {
   const totalVideosCompleted = useMemo(() => {
     return countCompletedVideos(progress) + countCompletedVideos(videoProgress);
   }, [progress, videoProgress]);
-
-const averageScore = useMemo(() => {
-  let totalScore = 0;
-  let scoreCount = 0;
-
-  Object.values(completedCourses || {}).forEach((userCourses) => {
-    if (!userCourses || typeof userCourses !== "object") return;
-
-    Object.values(userCourses).forEach((courseRecord) => {
-      if (!courseRecord || typeof courseRecord !== "object") return;
-
-      const score = Number(
-        courseRecord.percentage ??
-        courseRecord.score ??
-        courseRecord.finalScore ??
-        courseRecord.marksPercentage ??
-        courseRecord.testPercentage
-      );
-
-      if (Number.isFinite(score) && score >= 0) {
-        totalScore += score;
-        scoreCount++;
-      }
-    });
-  });
-
-  return scoreCount > 0
-    ? Math.round(totalScore / scoreCount)
-    : 0;
-}, [completedCourses]);
 
   const completionRate = totalAssigned > 0
     ? Math.round((totalCompleted / totalAssigned) * 100)
@@ -712,6 +684,7 @@ const zoneStats = useMemo(() => {
         activities.push({
           id: `${userId}-${courseId}`,
           userName,
+          userPhoto: user.photoURL || "",
           courseTitle: course ? getCourseTitle(course) : "Course completed",
           time: getTime(
             record?.completedAt ||
@@ -730,67 +703,8 @@ const zoneStats = useMemo(() => {
   }, [trainingUserList, completedCourses, activeCourses]);
 
   const testPerformance = useMemo(() => {
-    let totalAttempts = 0;
-    let passedAttempts = 0;
-    let failedAttempts = 0;
-    let scoreTotal = 0;
-    let scoredAttempts = 0;
-
-    Object.values(completedCourses || {}).forEach((userCourses) => {
-      if (!userCourses || typeof userCourses !== "object") return;
-
-      Object.values(userCourses).forEach((record) => {
-        if (!record || typeof record !== "object") return;
-
-        const hasTestData =
-          record.attemptId ||
-          record.testAttemptId ||
-          record.score !== undefined ||
-          record.percentage !== undefined ||
-          record.finalScore !== undefined ||
-          record.passed !== undefined;
-
-        if (!hasTestData) return;
-
-        totalAttempts += 1;
-
-        const passed =
-          record.passed === true ||
-          record.completed === true ||
-          String(record.status || "").toLowerCase() === "passed";
-
-        if (passed) passedAttempts += 1;
-        else failedAttempts += 1;
-
-        const score = Number(
-          record.percentage ??
-          record.score ??
-          record.finalScore ??
-          record.marksPercentage ??
-          record.testPercentage
-        );
-
-        if (Number.isFinite(score) && score >= 0) {
-          scoreTotal += score;
-          scoredAttempts += 1;
-        }
-      });
-    });
-
-    return {
-      totalAttempts,
-      passedAttempts,
-      failedAttempts,
-      passRate:
-        totalAttempts > 0
-          ? Math.round((passedAttempts / totalAttempts) * 100)
-          : 0,
-      average:
-        scoredAttempts > 0
-          ? Math.round(scoreTotal / scoredAttempts)
-          : 0,
-    };
-  }, [completedCourses]);
+    return computeTestPerformance(flattenAttempts(rawAttempts));
+  }, [rawAttempts]);
 
   const userRows = useMemo(() => {
     return trainingUserList
@@ -1000,7 +914,7 @@ const zoneStats = useMemo(() => {
 
     <div className="stat-card-info">
       <span>Average Score</span>
-      <strong>{averageScore}%</strong>
+      <strong>{testPerformance.average}%</strong>
     </div>
   </Link>
 </section>
@@ -1019,8 +933,9 @@ const zoneStats = useMemo(() => {
               <p className="empty-text">No department data available.</p>
             ) : (
               topDepartments.map((item) => (
-                <div
-                  className="department-progress-row"
+                <Link
+                  to={`/super-admin/department-analytics?dept=${encodeURIComponent(item.department)}`}
+                  className="department-progress-row department-progress-link"
                   key={item.departmentId || item.department}
                 >
                   <div className="department-progress-top">
@@ -1035,7 +950,7 @@ const zoneStats = useMemo(() => {
                   <div className="department-progress-track">
                     <span style={{ width: `${item.rate}%` }}></span>
                   </div>
-                </div>
+                </Link>
               ))
             )}
           </div>
@@ -1137,7 +1052,11 @@ const zoneStats = useMemo(() => {
               recentActivities.map((activity) => (
                 <div className="recent-activity-item" key={activity.id}>
                   <div className="activity-avatar">
-                    {activity.userName.charAt(0).toUpperCase()}
+                    {activity.userPhoto ? (
+                      <img src={activity.userPhoto} alt={activity.userName} className="activity-avatar-img" />
+                    ) : (
+                      activity.userName.charAt(0).toUpperCase()
+                    )}
                   </div>
                   <div className="activity-copy">
                     <h3>{activity.userName}</h3>
@@ -1154,35 +1073,35 @@ const zoneStats = useMemo(() => {
           <div className="insight-card-head">
             <div>
               <h2>Test Performance</h2>
-              <p>Final test results summary</p>
+              <p>Course test &amp; video quiz results</p>
             </div>
-            <Link to="/super-admin/results">Results</Link>
-          </div>
-
-          <div className="test-main-score">
-            <span>Average Score</span>
-            <strong>{testPerformance.average}%</strong>
-            <div className="test-score-track">
-              <span style={{ width: `${testPerformance.average}%` }}></span>
-            </div>
+            <Link to="/super-admin/results">View All</Link>
           </div>
 
           <div className="test-mini-grid">
             <div>
-              <span>Total Tests</span>
+              <span>Users Attempted</span>
+              <strong>{testPerformance.uniqueUsers}</strong>
+            </div>
+            <div>
+              <span>Total Attempts</span>
               <strong>{testPerformance.totalAttempts}</strong>
             </div>
             <div>
               <span>Passed</span>
-              <strong>{testPerformance.passedAttempts}</strong>
+              <strong>{testPerformance.passed}</strong>
             </div>
             <div>
               <span>Failed</span>
-              <strong>{testPerformance.failedAttempts}</strong>
+              <strong>{testPerformance.failed}</strong>
             </div>
             <div>
               <span>Pass Rate</span>
               <strong>{testPerformance.passRate}%</strong>
+            </div>
+            <div>
+              <span>Avg Score</span>
+              <strong>{testPerformance.average}%</strong>
             </div>
           </div>
         </div>

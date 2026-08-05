@@ -154,6 +154,7 @@ function CourseDiscussionDrawer({
         senderRole: String(userData.role || "user")
           .toLowerCase()
           .replace(/[\s_-]/g, ""),
+        senderPhotoURL: userData.photoURL || "",
         message: text,
       });
 
@@ -261,12 +262,16 @@ function CourseDiscussionDrawer({
                 >
                   {!isOwn && (
                     <div className="discussion-avatar">
-                      {(message.senderName || "U")
-                        .split(" ")
-                        .map((part) => part[0])
-                        .join("")
-                        .slice(0, 2)
-                        .toUpperCase()}
+                      {message.senderPhotoURL ? (
+                        <img src={message.senderPhotoURL} alt={message.senderName} className="discussion-avatar-img" />
+                      ) : (
+                        (message.senderName || "U")
+                          .split(" ")
+                          .map((part) => part[0])
+                          .join("")
+                          .slice(0, 2)
+                          .toUpperCase()
+                      )}
                     </div>
                   )}
 

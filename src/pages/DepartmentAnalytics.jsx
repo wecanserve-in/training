@@ -117,15 +117,6 @@ function DepartmentAnalytics() {
     if (zoneParam) drillIntoZone(zoneParam);
   }, [loading, currentUser]);
 
-  const employeeUsers = useMemo(() => {
-    return getUniqueAnalyticsTrainingUsers(allUsers.filter((user) => {
-      const role = String(user?.role || "").trim().toLowerCase();
-      if (role === "admin" || role === "superadmin" || role === "departmentadmin" || role === "deptadmin") return false;
-      if (!departmentName) return true;
-      return sameText(getDepartmentName(user), departmentName);
-    }));
-  }, [allUsers, departmentName]);
-
   const deptCourses = useMemo(() => {
     const userDeptId = String(currentUser?.departmentId || "").trim();
     const userDept = String(departmentName || "").trim().toLowerCase();
@@ -140,6 +131,26 @@ function DepartmentAnalytics() {
       return false;
     });
   }, [courses, currentUser, departmentName]);
+
+  const employeeUsers = useMemo(() => {
+    const deptCourseIds = new Set(deptCourses.map((c) => c.id));
+    return getUniqueAnalyticsTrainingUsers(allUsers.filter((user) => {
+      const role = String(user?.role || "").trim().toLowerCase();
+      if (role === "admin" || role === "superadmin" || role === "departmentadmin" || role === "deptadmin") return false;
+      if (!departmentName) {
+        if (deptCourseIds.size === 0) return true;
+        const userAssignments = mergeUserRecords(assignments, user) || {};
+        return Object.entries(userAssignments).some(
+          ([courseId, assignment]) => deptCourseIds.has(courseId) && isAssignmentActive(assignment)
+        );
+      }
+      if (sameText(getDepartmentName(user), departmentName)) return true;
+      const userAssignments = mergeUserRecords(assignments, user) || {};
+      return Object.entries(userAssignments).some(
+        ([courseId, assignment]) => deptCourseIds.has(courseId) && isAssignmentActive(assignment)
+      );
+    }));
+  }, [allUsers, departmentName, deptCourses, assignments]);
 
   const getCompletedCount = (userOrId) => {
     const assignedEntries = getAssignedCourseEntries(userOrId);
@@ -327,7 +338,7 @@ function DepartmentAnalytics() {
           </label>
           <select value={drillZone} onChange={(e) => drillIntoZone(e.target.value)}>
             <option value="">— Select Zone —</option>
-            {zones.map((z) => <option key={z.name} value={z.name}>{z.name}</option>)}
+            {zones.map((z) => <option key={z.zone} value={z.zone}>{z.zone}</option>)}
           </select>
         </div>
         <div className={`sa-select-group ${!drillZone ? "sa-select-disabled" : ""}`}>
@@ -353,16 +364,15 @@ function DepartmentAnalytics() {
       </div>
 
       {/* Selected Cards Row */}
-      {(drillZone || drillState || drillCity) && (
-        <div className="sa-cards-row">
+      <div className="sa-cards-row">
           {drillZone && (() => {
-            const z = zones.find((x) => x.name === drillZone);
+            const z = zones.find((x) => x.zone === drillZone);
             if (!z) return null;
             return (
               <div className="sa-detail-card" onClick={() => { setDrillLevel("zone"); setDrillState(""); setDrillCity(""); }}>
                 <button className="sa-dcard-remove" onClick={(e) => { e.stopPropagation(); setDrillZone(""); setDrillState(""); setDrillCity(""); setSearch(""); setDesignationFilter(""); bumpAnim(); }}>×</button>
-                <div className="sa-dcard-avatar" style={{ background: getAvatarColor(0).bg, color: getAvatarColor(0).color }}>{z.name.charAt(0).toUpperCase()}</div>
-                <div className="sa-dcard-body"><strong>{z.name}</strong><span className="sa-dcard-tag">Zone</span><span className="sa-dcard-meta">{z.total} users • {z.rate}% completion</span></div>
+                <div className="sa-dcard-avatar" style={{ background: getAvatarColor(0).bg, color: getAvatarColor(0).color }}>{z.zone.charAt(0).toUpperCase()}</div>
+                <div className="sa-dcard-body"><strong>{z.zone}</strong><span className="sa-dcard-tag">Zone</span><span className="sa-dcard-meta">{z.total} users • {z.rate}% completion</span></div>
               </div>
             );
           })()}
@@ -390,11 +400,9 @@ function DepartmentAnalytics() {
               </div>
             );
           })()}
-        </div>
-      )}
+      </div>
 
       {/* Bottom Section */}
-      {(drillZone || drillState || drillCity) && (
         <div className="sa-stats-reveal">
           <div className="sa-kpi-row">
             <div className="sa-kpi sa-kpi-users sa-slide-up" style={{ animationDelay: "0ms" }}>

@@ -175,6 +175,25 @@
   }
 }
 
+@media (max-width: 480px) {
+  .admin-form-container {
+    padding: 8px;
+  }
+
+  .admin-form-card {
+    padding: 16px;
+  }
+
+  .admin-form-submit-zone {
+    flex-direction: column;
+  }
+
+  .btn-admin-submit-form {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 
 .video-upload-progress-wrapper {
   margin-top: 14px;

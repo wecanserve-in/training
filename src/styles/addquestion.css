@@ -200,6 +200,25 @@
   }
 }
 
+@media (max-width: 480px) {
+  .admin-question-container {
+    padding: 16px 12px 60px 12px;
+  }
+
+  .admin-question-card {
+    padding: 16px;
+    border-radius: 8px;
+  }
+
+  .admin-question-title {
+    font-size: 1.3rem;
+  }
+
+  .excel-upload-card {
+    padding: 16px;
+  }
+}
+
 .excel-upload-card {
   background: #f8fafc;
   border: 1px dashed #cbd5e1;

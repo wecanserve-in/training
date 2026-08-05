@@ -122,6 +122,7 @@ function ManageDepartments() {
           departmentAdminEmail: admin.email || "",
           departmentAdminDesignation: admin.designation || "",
           departmentAdminSeniority: admin.seniority || "",
+          departmentAdminPhotoURL: admin.photoURL || "",
           updatedAt: new Date().toISOString(),
         });
       } else {
@@ -134,6 +135,7 @@ function ManageDepartments() {
           departmentAdminEmail: admin.email || "",
           departmentAdminDesignation: admin.designation || "",
           departmentAdminSeniority: admin.seniority || "",
+          departmentAdminPhotoURL: admin.photoURL || "",
           createdAt: new Date().toISOString(),
         });
       }
@@ -269,7 +271,11 @@ function ManageDepartments() {
                       <td>
                         <div className="md-admin-cell">
                           <div className="md-admin-avatar">
-                            {(dept.departmentAdminName || "A").charAt(0).toUpperCase()}
+                            {dept.departmentAdminPhotoURL ? (
+                              <img src={dept.departmentAdminPhotoURL} alt={dept.departmentAdminName} className="md-admin-avatar-img" />
+                            ) : (
+                              (dept.departmentAdminName || "A").charAt(0).toUpperCase()
+                            )}
                           </div>
                           <div>
                             <strong>{dept.departmentAdminName || "-"}</strong>
@@ -304,7 +310,11 @@ function ManageDepartments() {
                                 {deptUsers.map((u, i) => (
                                   <div className="md-user-row" key={u.id} style={{ animationDelay: `${i * 50}ms` }}>
                                     <div className="md-user-row-avatar">
-                                      {(u.name || u.email || "U").charAt(0).toUpperCase()}
+                                      {u.photoURL ? (
+                                        <img src={u.photoURL} alt={u.name} className="md-user-row-avatar-img" />
+                                      ) : (
+                                        (u.name || u.email || "U").charAt(0).toUpperCase()
+                                      )}
                                     </div>
                                     <div className="md-user-row-body">
                                       <strong>{u.name || "Unknown"}</strong>

@@ -83,6 +83,20 @@
   border-color: rgba(255,255,255,0.5);
 }
 
+.vl-back-link {
+  display: inline-block;
+  margin-bottom: 10px;
+  color: rgba(255,255,255,0.85);
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.vl-back-link:hover {
+  color: #fff;
+}
+
 /* ─── Layout ─── */
 .video-upload-layout {
   display: grid;
@@ -875,4 +889,329 @@
     gap: 12px;
   }
   .view-library-btn { width: 100%; justify-content: center; }
+}
+
+/* ═══════════════════════════════════════════
+   Edit Video Page
+   ═══════════════════════════════════════════ */
+.edit-video-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.edit-center-card {
+  max-width: 700px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ─── Thumbnail Section ─── */
+.edit-thumbnail-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 0;
+}
+
+.edit-thumbnail-preview {
+  width: 100%;
+  max-width: 480px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.edit-thumbnail-preview img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+
+.edit-thumbnail-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #059669;
+  color: #fff;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.edit-thumbnail-upload-btn:hover {
+  background: #047857;
+}
+
+.edit-thumbnail-file-name {
+  font-size: 0.78rem;
+  color: #64748b;
+  text-align: center;
+}
+
+/* ─── Quiz Form Section ─── */
+.edit-quiz-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ─── Options Input Grid (2 columns) ─── */
+.edit-options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.edit-option-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0 12px;
+  transition: border-color 0.2s;
+}
+
+.edit-option-field:focus-within {
+  border-color: #059669;
+}
+
+.edit-option-field label {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.edit-option-field input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 10px 0;
+  font-size: 0.85rem;
+  color: #1e293b;
+  outline: none;
+}
+
+.edit-option-field input::placeholder {
+  color: #94a3b8;
+}
+
+/* ─── Quiz List ─── */
+.edit-quiz-list {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.edit-quiz-list h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.edit-question-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.edit-question-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.edit-question-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #059669;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.edit-question-text {
+  flex: 1;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.5;
+}
+
+.edit-question-remove {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #dc2626;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.edit-question-remove:hover {
+  background: #fee2e2;
+}
+
+.edit-question-btns {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.edit-question-edit {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #059669;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.edit-question-edit:hover {
+  background: #dcfce7;
+}
+
+.edit-quiz-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.edit-cancel-btn {
+  padding: 10px 20px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.edit-cancel-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+/* ─── Options Display (2 columns) ─── */
+.edit-options-display {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding-left: 38px;
+}
+
+.edit-option-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.edit-option-item.correct {
+  background: #dcfce7;
+  border-color: #86efac;
+}
+
+.edit-option-label {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.edit-option-item.correct .edit-option-label {
+  background: #bbf7d0;
+  color: #166534;
+}
+
+.edit-option-text {
+  flex: 1;
+  font-size: 0.8rem;
+  color: #475569;
+  line-height: 1.3;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.edit-option-item.correct .edit-option-text {
+  color: #166534;
+  font-weight: 500;
+}
+
+.edit-correct-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.65rem;
+  background: #059669;
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .edit-center-card {
+    max-width: 100%;
+  }
+  .edit-options-grid {
+    grid-template-columns: 1fr;
+  }
+  .edit-options-display {
+    grid-template-columns: 1fr;
+    padding-left: 0;
+  }
 }

@@ -359,3 +359,31 @@
     flex-direction: column;
   }
 }
+
+@media (max-width: 600px) {
+  .manage-catalog-container {
+    padding: 16px;
+  }
+
+  .catalog-main-title {
+    font-size: 1.5rem;
+  }
+
+  .course-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .btn-action-table-edit,
+  .btn-action-table-delete {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+
+  .selected-course-header h2 {
+    font-size: 20px;
+  }
+
+  .course-summary-grid strong {
+    font-size: 18px;
+  }
+}

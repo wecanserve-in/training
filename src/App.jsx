@@ -20,6 +20,7 @@ import ManageAdmins from "./pages/ManageAdmins";
 import ManageUsers from "./pages/ManageUsers";
 import ManageDepartments from "./pages/ManageDepartments";
 import SuperAdminAnalytics from "./pages/SuperAdminAnalytics";
+import DepartmentAnalyticsPage from "./pages/DepartmentAnalyticsPage";
 
 import AdminLayout from "./components/AdminLayout";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -45,6 +46,7 @@ import AddQuestion from "./pages/AddQuestion";
 import ManageQuestions from "./pages/ManageQuestions";
 import AdminResults from "./pages/AdminResults";
 import EditVideo from "./pages/EditVideo";
+import EditVideoLibrary from "./pages/EditVideoLibrary";
 import EditQuestion from "./pages/EditQuestion";
 
 import UserLayout from "./components/UserLayout";
@@ -79,6 +81,8 @@ function App() {
 
           <Route path="analytics" element={<SuperAdminAnalytics />} />
 
+          <Route path="department-analytics" element={<DepartmentAnalyticsPage />} />
+
           <Route
             path="assignment-analytics"
             element={<DepartmentTrainingAnalytics />}
@@ -98,6 +102,11 @@ function App() {
           <Route
             path="video-library"
             element={<DepartmentVideoLibrary />}
+          />
+
+          <Route
+            path="video-library/edit/:id"
+            element={<EditVideoLibrary />}
           />
 
           <Route path="results" element={<AdminResults />} />
@@ -171,6 +180,8 @@ function App() {
 
           <Route path="analytics" element={<AdminAnalytics />} />
 
+          <Route path="department-analytics" element={<DepartmentAnalyticsPage />} />
+
           <Route
             path="assignment-analytics"
             element={<DepartmentTrainingAnalytics />}
@@ -190,6 +201,11 @@ function App() {
           <Route
             path="video-library"
             element={<DepartmentVideoLibrary />}
+          />
+
+          <Route
+            path="video-library/edit/:id"
+            element={<EditVideoLibrary />}
           />
 
           <Route path="questions" element={<ManageQuestions />} />
@@ -309,6 +325,11 @@ function App() {
           <Route
             path="video-library/upload"
             element={<DepartmentUploadVideo />}
+          />
+
+          <Route
+            path="video-library/edit/:id"
+            element={<EditVideoLibrary />}
           />
 
           <Route

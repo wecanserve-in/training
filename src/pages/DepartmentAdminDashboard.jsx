@@ -23,6 +23,8 @@ import {
   calculateGroupStats,
   calculateZoneStats,
   getUniqueAnalyticsTrainingUsers,
+  flattenAttempts,
+  computeTestPerformance,
 } from "../utils/trainingAnalytics";
 import "../styles/superadmin.css";
 import "../styles/assignedusers.css";
@@ -38,6 +40,7 @@ function DepartmentAdminDashboard() {
 
   const [assignments, setAssignments] = useState({});
   const [completedCourses, setCompletedCourses] = useState({});
+  const [rawAttempts, setRawAttempts] = useState({});
   const [progress, setProgress] = useState({});
   const [videoProgress, setVideoProgress] = useState({});
   const [courseProgress, setCourseProgress] = useState({});
@@ -152,7 +155,7 @@ function DepartmentAdminDashboard() {
 
     const markLoaded = (path) => {
       loadedPaths.add(path);
-      if (loadedPaths.size === 9) {
+      if (loadedPaths.size === 10) {
         setLoading(false);
       }
     };
@@ -179,6 +182,7 @@ function DepartmentAdminDashboard() {
     const unsubOldVideos = watchPath("videos", setOldVideos, true);
     const unsubAssignments = watchPath("userAssignments", setAssignments);
     const unsubCompleted = watchPath("completedCourses", setCompletedCourses);
+    const unsubAttempts = watchPath("attempts", setRawAttempts);
     const unsubProgress = watchPath("progress", setProgress);
     const unsubVideoProgress = watchPath("videoProgress", setVideoProgress);
     const unsubCourseProgress = watchPath("courseProgress", setCourseProgress);
@@ -190,6 +194,7 @@ function DepartmentAdminDashboard() {
       unsubOldVideos();
       unsubAssignments();
       unsubCompleted();
+      unsubAttempts();
       unsubProgress();
       unsubVideoProgress();
       unsubCourseProgress();
@@ -201,21 +206,6 @@ function DepartmentAdminDashboard() {
     currentUser?.departmentName ||
     currentUser?.departmentType ||
     "";
-
-  const deptUsers = useMemo(() => {
-    const userDeptId = String(currentUser?.departmentId || "").trim();
-    const userDept = String(departmentName || "").trim().toLowerCase();
-    return allUsers.filter((user) => {
-      const role = getRole(user);
-      if (isAdminRole(role) || isDepartmentAdminRole(role)) return false;
-      if (!userDeptId && !userDept) return true;
-      const userDeptIdField = String(user.departmentId || "").trim();
-      const userDeptName = String(getDepartmentName(user) || "").trim().toLowerCase();
-      if (userDeptId && userDeptIdField && userDeptIdField === userDeptId) return true;
-      if (userDept && userDeptName && userDeptName === userDept) return true;
-      return false;
-    });
-  }, [allUsers, currentUser, departmentName]);
 
   const deptCourses = useMemo(() => {
     const userDeptId = String(currentUser?.departmentId || "").trim();
@@ -234,6 +224,31 @@ function DepartmentAdminDashboard() {
       })
       .sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
   }, [allCourses, currentUser, departmentName]);
+
+  const deptUsers = useMemo(() => {
+    const userDeptId = String(currentUser?.departmentId || "").trim();
+    const userDept = String(departmentName || "").trim().toLowerCase();
+    const deptCourseIds = new Set(deptCourses.map((c) => c.id));
+    return allUsers.filter((user) => {
+      const role = getRole(user);
+      if (isAdminRole(role) || isDepartmentAdminRole(role)) return false;
+      if (!userDeptId && !userDept) {
+        if (deptCourseIds.size === 0) return true;
+        const userAssignments = mergeUserRecords(assignments, user) || {};
+        return Object.entries(userAssignments).some(
+          ([courseId, assignment]) => deptCourseIds.has(courseId) && isAssignmentActive(assignment)
+        );
+      }
+      const userDeptIdField = String(user.departmentId || "").trim();
+      const userDeptName = String(getDepartmentName(user) || "").trim().toLowerCase();
+      if (userDeptId && userDeptIdField && userDeptIdField === userDeptId) return true;
+      if (userDept && userDeptName && userDeptName === userDept) return true;
+      const userAssignments = mergeUserRecords(assignments, user) || {};
+      return Object.entries(userAssignments).some(
+        ([courseId, assignment]) => deptCourseIds.has(courseId) && isAssignmentActive(assignment)
+      );
+    });
+  }, [allUsers, currentUser, departmentName, deptCourses, assignments]);
 
   const videos = useMemo(() => {
     const map = new Map();
@@ -334,34 +349,6 @@ function DepartmentAdminDashboard() {
   const totalVideosCompleted = useMemo(() => {
     return countCompletedVideos(progress) + countCompletedVideos(videoProgress);
   }, [progress, videoProgress]);
-
-  const averageScore = useMemo(() => {
-    let totalScore = 0;
-    let scoreCount = 0;
-
-    deptUsers.forEach((user) => {
-      const merged = mergeUserRecords(completedCourses, user);
-
-      Object.values(merged).forEach((courseRecord) => {
-        if (!courseRecord || typeof courseRecord !== "object") return;
-
-        const score = Number(
-          courseRecord.percentage ??
-          courseRecord.score ??
-          courseRecord.finalScore ??
-          courseRecord.marksPercentage ??
-          courseRecord.testPercentage
-        );
-
-        if (Number.isFinite(score) && score >= 0) {
-          totalScore += score;
-          scoreCount++;
-        }
-      });
-    });
-
-    return scoreCount > 0 ? Math.round(totalScore / scoreCount) : 0;
-  }, [deptUsers, completedCourses]);
 
   const userNameById = useMemo(() => {
     const entries = allUsers.flatMap((user) => {
@@ -543,6 +530,7 @@ function DepartmentAdminDashboard() {
         activities.push({
           id: `${userId}-${courseId}`,
           userName,
+          userPhoto: user.photoURL || "",
           courseTitle: course ? getCourseTitle(course) : "Course completed",
           time: getTime(record?.completedAt || record?.passedAt || record?.updatedAt || record?.timestamp || record?.createdAt),
         });
@@ -553,61 +541,15 @@ function DepartmentAdminDashboard() {
   }, [deptUsers, completedCourses, deptCourses]);
 
   const testPerformance = useMemo(() => {
-    let totalAttempts = 0;
-    let passedAttempts = 0;
-    let failedAttempts = 0;
-    let scoreTotal = 0;
-    let scoredAttempts = 0;
-
-    deptUsers.forEach((user) => {
-      const merged = mergeUserRecords(completedCourses, user);
-
-      Object.values(merged).forEach((record) => {
-        if (!record || typeof record !== "object") return;
-
-        const hasTestData =
-          record.attemptId ||
-          record.testAttemptId ||
-          record.score !== undefined ||
-          record.percentage !== undefined ||
-          record.finalScore !== undefined ||
-          record.passed !== undefined;
-
-        if (!hasTestData) return;
-
-        totalAttempts += 1;
-
-        const passed =
-          record.passed === true ||
-          record.completed === true ||
-          String(record.status || "").toLowerCase() === "passed";
-
-        if (passed) passedAttempts += 1;
-        else failedAttempts += 1;
-
-        const score = Number(
-          record.percentage ??
-          record.score ??
-          record.finalScore ??
-          record.marksPercentage ??
-          record.testPercentage
-        );
-
-        if (Number.isFinite(score) && score >= 0) {
-          scoreTotal += score;
-          scoredAttempts += 1;
-        }
-      });
-    });
-
-    return {
-      totalAttempts,
-      passedAttempts,
-      failedAttempts,
-      passRate: totalAttempts > 0 ? Math.round((passedAttempts / totalAttempts) * 100) : 0,
-      average: scoredAttempts > 0 ? Math.round(scoreTotal / scoredAttempts) : 0,
-    };
-  }, [deptUsers, completedCourses]);
+    const deptUserIds = new Set(
+      deptUsers.map((u) => String(u?.uid || u?.id || "")).filter(Boolean)
+    );
+    const allAttempts = flattenAttempts(rawAttempts);
+    const deptAttempts = allAttempts.filter((a) =>
+      deptUserIds.has(String(a.userId || ""))
+    );
+    return computeTestPerformance(deptAttempts);
+  }, [deptUsers, rawAttempts]);
 
   if (loading) {
     return (
@@ -715,7 +657,7 @@ function DepartmentAdminDashboard() {
           </div>
           <div className="stat-card-info">
             <span>Avg Score</span>
-            <strong>{averageScore}%</strong>
+            <strong>{testPerformance.average}%</strong>
           </div>
         </Link>
       </section>
@@ -844,7 +786,11 @@ function DepartmentAdminDashboard() {
               recentActivities.map((activity) => (
                 <div className="recent-activity-item" key={activity.id}>
                   <div className="activity-avatar">
-                    {activity.userName.charAt(0).toUpperCase()}
+                    {activity.userPhoto ? (
+                      <img src={activity.userPhoto} alt={activity.userName} className="activity-avatar-img" />
+                    ) : (
+                      activity.userName.charAt(0).toUpperCase()
+                    )}
                   </div>
                   <div className="activity-copy">
                     <h3>{activity.userName}</h3>
@@ -861,35 +807,35 @@ function DepartmentAdminDashboard() {
           <div className="insight-card-head">
             <div>
               <h2>Test Performance</h2>
-              <p>Final test results summary</p>
+              <p>Course test &amp; video quiz results</p>
             </div>
-            <Link to="/department-admin/analytics">Results</Link>
-          </div>
-
-          <div className="test-main-score">
-            <span>Average Score</span>
-            <strong>{testPerformance.average}%</strong>
-            <div className="test-score-track">
-              <span style={{ width: `${testPerformance.average}%` }}></span>
-            </div>
+            <Link to="/department-admin/analytics">View All</Link>
           </div>
 
           <div className="test-mini-grid">
             <div>
-              <span>Total Tests</span>
+              <span>Users Attempted</span>
+              <strong>{testPerformance.uniqueUsers}</strong>
+            </div>
+            <div>
+              <span>Total Attempts</span>
               <strong>{testPerformance.totalAttempts}</strong>
             </div>
             <div>
               <span>Passed</span>
-              <strong>{testPerformance.passedAttempts}</strong>
+              <strong>{testPerformance.passed}</strong>
             </div>
             <div>
               <span>Failed</span>
-              <strong>{testPerformance.failedAttempts}</strong>
+              <strong>{testPerformance.failed}</strong>
             </div>
             <div>
               <span>Pass Rate</span>
               <strong>{testPerformance.passRate}%</strong>
+            </div>
+            <div>
+              <span>Avg Score</span>
+              <strong>{testPerformance.average}%</strong>
             </div>
           </div>
         </div>

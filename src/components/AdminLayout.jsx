@@ -12,6 +12,7 @@ import {
 import "../styles/superadminlayout.css";
 
 import { FaBell, FaComments, FaReply, FaBookOpen, FaVideo, FaClock, FaTimesCircle, FaCheckCircle, FaAward } from "react-icons/fa";
+import ProfileCompletionBadge from "./ProfileCompletionBadge";
 
 function AdminLayout() {
   const navigate = useNavigate();
@@ -148,7 +149,7 @@ function AdminLayout() {
             <FaBell />
             {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
           </button>
-          <button type="button" onClick={() => setMobileOpen(true)}>☰</button>
+          <button type="button" onClick={() => setMobileOpen(true)} aria-label="Open navigation menu">☰</button>
         </div>
       </div>
 
@@ -157,7 +158,7 @@ function AdminLayout() {
       )}
 
       <aside className={`super-sidebar ${mobileOpen ? "sidebar-open" : ""}`}>
-        <button type="button" className="sidebar-close" onClick={closeMobileMenu}>×</button>
+        <button type="button" className="sidebar-close" onClick={closeMobileMenu} aria-label="Close navigation menu">×</button>
 
         <div className="sidebar-top">
           <div className="sidebar-logo-box">
@@ -174,7 +175,13 @@ function AdminLayout() {
         </div>
 
         <div className="sidebar-profile">
-          <div className="profile-circle">{getInitials()}</div>
+          <div className="profile-circle">
+            {userData?.photoURL ? (
+              <img src={userData.photoURL} alt={userData?.name} className="profile-circle-img" />
+            ) : (
+              getInitials()
+            )}
+          </div>
           <div className="profile-text">
             <h3>{userData?.name || "Admin"}</h3>
             <p>{userData?.email || auth.currentUser?.email}</p>
@@ -322,6 +329,7 @@ function AdminLayout() {
         </div>
 
         <Outlet />
+        <ProfileCompletionBadge profileData={userData} profilePath="/admin/profile" />
       </main>
     </div>
   );

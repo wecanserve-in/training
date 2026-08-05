@@ -372,6 +372,33 @@
   font-weight: 600;
 }
 
+/* ─── Card Actions (Edit + Delete) ─── */
+.vl-card-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* ─── Edit Button ─── */
+.vl-edit-btn {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: #059669;
+  transition: all 0.2s;
+}
+
+.vl-edit-btn:hover {
+  background: #dcfce7;
+}
+
 /* ─── Delete Button ─── */
 .vl-delete-btn {
   width: 34px;

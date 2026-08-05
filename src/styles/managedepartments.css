@@ -272,6 +272,13 @@
   font-weight: 700;
   font-size: 0.82rem;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.md-admin-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .md-admin-cell strong {
@@ -546,6 +553,13 @@
   font-weight: 700;
   font-size: 0.75rem;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.md-user-row-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .md-user-row-body {

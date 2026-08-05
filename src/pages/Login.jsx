@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   FaEye,
   FaEyeSlash,
@@ -8,6 +8,7 @@ import {
   FaShieldAlt,
   FaChartLine,
   FaUsers,
+  FaDownload,
 } from "react-icons/fa";
 
 import {
@@ -110,6 +111,64 @@ function Login() {
 
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [showIosHint, setShowIosHint] = useState(false);
+
+  const isIos = /iphone|ipad|ipod/.test(
+    navigator.userAgent.toLowerCase()
+  );
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true;
+
+  useEffect(() => {
+    if (isStandalone) {
+      setIsInstalled(true);
+      return;
+    }
+
+    const handleBeforeInstall = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setIsInstallable(true);
+    };
+
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      setDeferredPrompt(null);
+      setIsInstallable(false);
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstall);
+    window.addEventListener("appinstalled", handleAppInstalled);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+    };
+  }, [isStandalone]);
+
+  const handleInstallClick = async () => {
+    if (isIos) {
+      setShowIosHint((prev) => !prev);
+      return;
+    }
+
+    if (!deferredPrompt) return;
+
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+
+    if (outcome === "accepted") {
+      setIsInstalled(true);
+    }
+
+    setDeferredPrompt(null);
+    setIsInstallable(false);
+  };
 
   const clearMessages = () => {
     setErrorMessage("");
@@ -682,6 +741,28 @@ function Login() {
           </div>
         </div>
       </div>
+
+      {!isInstalled && (isInstallable || isIos) && (
+        <div className="pwa-install-wrapper">
+          <button
+            type="button"
+            className="pwa-install-btn pwa-install-pill"
+            onClick={handleInstallClick}
+            aria-label="Install app"
+          >
+            <FaDownload />
+            <span>Download the Zuvius Learning Portal App</span>
+          </button>
+          {isIos && showIosHint && (
+            <div className="pwa-ios-hint">
+              <span>
+                Tap <strong>Share</strong> then{" "}
+                <strong>Add to Home Screen</strong>
+              </span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

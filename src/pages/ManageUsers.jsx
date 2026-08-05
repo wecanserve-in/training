@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { initializeApp, deleteApp } from "firebase/app";
 import {
   getAuth,
@@ -48,6 +48,14 @@ function ManageUsers() {
     cityArea: "",
     department: "",
   });
+
+  const editFormRef = useRef(null);
+
+  useEffect(() => {
+    if (showForm && editingUserId && editFormRef.current) {
+      editFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [showForm, editingUserId]);
 
   const availableZones = [...new Set(locations.map((loc) => loc.zone))].filter(Boolean);
 
@@ -582,7 +590,7 @@ const filteredUsers = users
 
       {/* Inline Form (Add/Edit) */}
       {showForm && (
-        <div className="mu-form-card">
+        <div className="mu-form-card" ref={editFormRef}>
           <div className="mu-form-header">
             <h2>{editingUserId ? "Edit User" : "Add New User"}</h2>
             <span className="mu-password-pill">Default Password: {DEFAULT_PASSWORD}</span>

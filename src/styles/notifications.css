@@ -343,3 +343,32 @@
     padding: 14px;
   }
 }
+
+@media (max-width: 480px) {
+  .notifications-page {
+    padding: 8px;
+  }
+
+  .notif-header h1 {
+    font-size: 1.1rem;
+  }
+
+  .notif-item {
+    padding: 12px;
+    border-radius: 10px;
+  }
+
+  .notif-icon-wrapper {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  .notif-content h4 {
+    font-size: 0.82rem;
+  }
+
+  .notif-content p {
+    font-size: 0.75rem;
+  }
+}

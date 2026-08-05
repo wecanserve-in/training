@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { get, onValue, ref } from "firebase/database";
 import { auth, database } from "../firebase";
+import { isAssignmentActive } from "../utils/trainingAnalytics";
 import "../styles/departmentmembers.css";
 
 function DepartmentMembers() {
@@ -216,13 +217,35 @@ function DepartmentMembers() {
     "";
 
   const users = useMemo(() => {
+    const userDeptId = String(currentUser?.departmentId || "").trim();
+    const userDept = String(departmentName || "").trim().toLowerCase();
+    const deptCourseIds = new Set(
+      allCourses.filter((course) => {
+        if (!userDeptId && !userDept) return false;
+        const courseDeptId = String(course.departmentId || "").trim();
+        const courseDept = String(getDepartmentName(course) || "").trim().toLowerCase();
+        if (courseDeptId && userDeptId && courseDeptId === userDeptId) return true;
+        if (courseDept && userDept && courseDept === userDept) return true;
+        return false;
+      }).map((c) => c.id)
+    );
     return allUsers.filter((user) => {
       const role = getRole(user);
       if (isAdminRole(role) || isDepartmentAdminRole(role)) return false;
-      if (!departmentName) return true;
-      return sameText(getDepartmentName(user), departmentName);
+      if (!departmentName) {
+        if (deptCourseIds.size === 0) return true;
+        const userAssignments = assignments?.[user.id] || {};
+        return Object.entries(userAssignments).some(
+          ([courseId, assignment]) => deptCourseIds.has(courseId) && isAssignmentActive(assignment)
+        );
+      }
+      if (sameText(getDepartmentName(user), departmentName)) return true;
+      const userAssignments = assignments?.[user.id] || {};
+      return Object.entries(userAssignments).some(
+        ([courseId, assignment]) => deptCourseIds.has(courseId) && isAssignmentActive(assignment)
+      );
     });
-  }, [allUsers, departmentName]);
+  }, [allUsers, departmentName, currentUser, allCourses, assignments]);
 
   const courses = useMemo(() => {
     if (canSeeAll) return [...allCourses].sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
@@ -457,8 +480,19 @@ function DepartmentMembers() {
                     <td className="dm-td-idx">{idx + 1}</td>
                     <td className="dm-td-name">
                       <div className="dm-name-cell">
-                        <div className="dm-mini-avatar">{getInitial(user)}</div>
-                        <strong>{getUserName(user)}</strong>
+                        <div className="dm-mini-avatar">
+                          {user.photoURL ? (
+                            <img src={user.photoURL} alt={getUserName(user)} className="dm-mini-avatar-img" />
+                          ) : (
+                            getInitial(user)
+                          )}
+                        </div>
+                        <div className="dm-name-text">
+                          <strong>{getUserName(user)}</strong>
+                          {getDepartmentName(user) && departmentName && !sameText(getDepartmentName(user), departmentName) && (
+                            <span className="dm-dept-badge">{getDepartmentName(user)}</span>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="dm-td-email">{user.email || "-"}</td>
@@ -495,7 +529,13 @@ function DepartmentMembers() {
             <div className="dm-modal-body">
               {/* Profile Card */}
               <div className="dm-profile-card">
-                <div className="dm-profile-avatar">{getInitial(selectedUser)}</div>
+                <div className="dm-profile-avatar">
+                  {selectedUser.photoURL ? (
+                    <img src={selectedUser.photoURL} alt={getUserName(selectedUser)} className="dm-profile-avatar-img" />
+                  ) : (
+                    getInitial(selectedUser)
+                  )}
+                </div>
                 <div className="dm-profile-info">
                   <h2>{getUserName(selectedUser)}</h2>
                   <p>{selectedUser.email || "-"}</p>

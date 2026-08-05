@@ -297,3 +297,27 @@
     flex-direction: column;
   }
 }
+
+@media (max-width: 380px) {
+  .result-page-container {
+    padding: 12px;
+  }
+
+  .result-shell {
+    padding: 16px 12px;
+    border-radius: 14px;
+  }
+
+  .result-status-text {
+    font-size: 1.1rem;
+  }
+
+  .result-score-circle {
+    width: 70px;
+    height: 70px;
+  }
+
+  .result-score-circle strong {
+    font-size: 1.3rem;
+  }
+}
