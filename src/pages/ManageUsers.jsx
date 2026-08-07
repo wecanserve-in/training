@@ -73,14 +73,17 @@ function ManageUsers() {
   }, []);
 
   const departmentTypes = [
-    "Research & Development",
-    "Sales & Marketing",
-    "Production & Manufacturing",
-    "Quality Assurance & Quality Control",
-    "Regulatory Affairs",
-    "Business Development",
-    "Admin & Operations",
-    "Key Leadership & Corporate Contact",
+    // "Research & Development",
+    // "Sales & Marketing",
+    // "Production & Manufacturing",
+    // "Quality Assurance & Quality Control",
+    // "Regulatory Affairs",
+    // "Business Development",
+    // "Admin & Operations",
+    // "Key Leadership & Corporate Contact",
+
+    "PMT",
+    "Regulatory",
   ];
 
   const fetchMasterData = async () => {

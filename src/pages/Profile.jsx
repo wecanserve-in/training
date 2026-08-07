@@ -6,8 +6,21 @@ import {
 } from "firebase/auth";
 import { auth, database } from "../firebase";
 import { ref, get, update } from "firebase/database";
-import { uploadImageToCloudinary } from "../utils/cloudinaryUpload";
 import "../styles/profile.css";
+
+// --- R2 IMPORT ---
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+
+// --- R2 CLIENT INITIALIZATION ---
+const s3Client = new S3Client({
+  region: "auto",
+  endpoint: `https://${import.meta.env.VITE_R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: import.meta.env.VITE_R2_ACCESS_KEY_ID,
+    secretAccessKey: import.meta.env.VITE_R2_SECRET_ACCESS_KEY,
+  },
+  requestChecksumCalculation: "WHEN_REQUIRED",
+});
 
 const createEmptyChild = () => ({
   name: "",
@@ -113,6 +126,7 @@ function Profile() {
     }
   };
 
+  // --- UPDATED R2 PHOTO UPLOAD ---
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -132,16 +146,38 @@ function Profile() {
       const previewURL = URL.createObjectURL(file);
       setPhotoPreview(previewURL);
 
-      const cloudinaryURL = await uploadImageToCloudinary(file, "profile-photos");
+      const bucketName = import.meta.env.VITE_R2_BUCKET_NAME;
+      const publicDomain = import.meta.env.VITE_R2_PUBLIC_URL;
 
+      if (!bucketName || !publicDomain) {
+        throw new Error("R2 environment variables are missing.");
+      }
+
+      // Generate a unique file name for R2
       const user = auth.currentUser;
+      const fileExtension = file.name.split('.').pop();
+      const uniqueFileName = `${user ? user.uid : Date.now()}-${Date.now()}.${fileExtension}`;
+      const fileKey = `profile-photos/${uniqueFileName}`;
+
+      // Upload directly to Cloudflare R2
+      const command = new PutObjectCommand({
+        Bucket: bucketName,
+        Key: fileKey,
+        Body: file,
+        ContentType: file.type,
+      });
+
+      await s3Client.send(command);
+
+      const r2PhotoURL = `${publicDomain}/${fileKey}`;
+
       if (user) {
         await update(ref(database, `users/${user.uid}`), {
-          photoURL: cloudinaryURL,
+          photoURL: r2PhotoURL,
           updatedAt: new Date().toISOString(),
         });
-        setUserData((prev) => ({ ...prev, photoURL: cloudinaryURL }));
-        setPhotoPreview(cloudinaryURL);
+        setUserData((prev) => ({ ...prev, photoURL: r2PhotoURL }));
+        setPhotoPreview(r2PhotoURL);
       }
     } catch (error) {
       console.error("Photo upload error:", error);

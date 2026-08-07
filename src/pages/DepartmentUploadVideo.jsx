@@ -8,8 +8,23 @@ import { auth, database } from "../firebase";
 import { createNotification } from "../services/doubtService";
 import "../styles/videolibrary.css";
 
+import { generateDefaultThumbnail } from "../utils/generateThumbnail";
 
-const createSafeCloudinarySlug = (value = "") =>
+// --- R2 IMPORT ---
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+
+// --- R2 CLIENT INITIALIZATION ---
+const s3Client = new S3Client({
+  region: "auto",
+  endpoint: `https://${import.meta.env.VITE_R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: import.meta.env.VITE_R2_ACCESS_KEY_ID,
+    secretAccessKey: import.meta.env.VITE_R2_SECRET_ACCESS_KEY,
+  },
+  requestChecksumCalculation: "WHEN_REQUIRED", // <-- Add this line to fix the error
+});
+
+const createSafeSlug = (value = "") =>
   String(value)
     .trim()
     .toLowerCase()
@@ -61,8 +76,8 @@ function DepartmentUploadVideo() {
 
   const isDeptAdmin = String(currentUser?.role || "").toLowerCase().replace(/[\s_-]/g, "") === "departmentadmin";
   const normalizedRole = String(currentUser?.role || "")
-  .toLowerCase()
-  .replace(/[\s_-]/g, "");
+    .toLowerCase()
+    .replace(/[\s_-]/g, "");
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
@@ -151,103 +166,86 @@ function DepartmentUploadVideo() {
     });
   };
 
-  const buildCloudinaryThumbnail = (publicId) => {
-    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-    if (!cloudName || !publicId) return "";
-    return `https://res.cloudinary.com/${cloudName}/video/upload/so_2,w_800,h_450,c_fill,q_auto,f_jpg/${publicId}.jpg`;
-  };
-
-  const uploadFileToCloudinary = async (file, resourceType, baseFolder, departmentName) => {
-    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-
-    if (!cloudName || !uploadPreset) {
-      throw new Error("Cloudinary env variables missing.");
-    }
-
+  // --- NEW R2 UPLOAD FUNCTION ---
+  const uploadFileToR2 = async (file, baseFolder, departmentName) => {
     if (!file) {
       throw new Error("Please select a file before uploading.");
     }
 
-    const safeDepartment =
-      createSafeCloudinarySlug(departmentName) || "general";
+    const bucketName = import.meta.env.VITE_R2_BUCKET_NAME;
+    const publicDomain = import.meta.env.VITE_R2_PUBLIC_URL;
 
-    const safeFolder = `${baseFolder}/${safeDepartment}`;
-
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", uploadPreset);
-    formData.append("folder", safeFolder);
-
-    /*
-      Do not send a custom public_id from the frontend.
-      Cloudinary will generate a valid public ID automatically.
-    */
-
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`,
-      {
-        method: "POST",
-        body: formData,
-      }
-    );
-
-    const responseText = await response.text();
-
-    let data = {};
-
-    try {
-      data = JSON.parse(responseText);
-    } catch {
-      throw new Error("Cloudinary did not return valid JSON.");
+    if (!bucketName || !publicDomain) {
+      throw new Error("R2 environment variables missing.");
     }
 
-    if (!response.ok || !data.secure_url) {
-      throw new Error(
-        data?.error?.message || `Upload failed (${response.status})`
-      );
-    }
+    const safeDepartment = createSafeSlug(departmentName) || "general";
+    
+    // Create a unique file name to prevent overwrites in R2
+    const fileExtension = file.name.split('.').pop();
+    const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
+    const fileKey = `${baseFolder}/${safeDepartment}/${uniqueFileName}`;
 
-    return data;
+    const command = new PutObjectCommand({
+      Bucket: bucketName,
+      Key: fileKey,
+      Body: file,
+      ContentType: file.type,
+    });
+
+    await s3Client.send(command);
+
+    return {
+      secure_url: `${publicDomain}/${fileKey}`,
+      public_id: fileKey
+    };
   };
 
   const uploadAssets = async () => {
     setUploadStatus("Uploading video...");
     setModalMessage("Uploading video...");
 
-    const videoData = await uploadFileToCloudinary(
+    const videoData = await uploadFileToR2(
       videoFile,
-      "video",
       "training-portal/videos",
       department
     );
 
-    let thumbnailUrl = buildCloudinaryThumbnail(videoData.public_id);
-    let thumbnailPublicId = "";
+    let thumbnailUrl = "";
+let thumbnailPublicId = "";
 
-    if (thumbnailFile) {
-      setUploadStatus("Uploading thumbnail...");
-      setModalMessage("Uploading thumbnail...");
-      const thumbnailData = await uploadFileToCloudinary(
-        thumbnailFile,
-        "image",
-        "training-portal/thumbnails",
-        department
-      );
-      thumbnailUrl = thumbnailData.secure_url;
-      thumbnailPublicId = thumbnailData.public_id || "";
-    }
+let thumbnailToUpload = thumbnailFile;
+
+// If no thumbnail selected, generate one
+if (!thumbnailToUpload) {
+  setUploadStatus("Generating thumbnail...");
+  setModalMessage("Generating thumbnail...");
+
+  thumbnailToUpload = await generateDefaultThumbnail(title);
+}
+
+setUploadStatus("Uploading thumbnail...");
+setModalMessage("Uploading thumbnail...");
+
+const thumbnailData = await uploadFileToR2(
+  thumbnailToUpload,
+  "training-portal/thumbnails",
+  department
+);
+
+thumbnailUrl = thumbnailData.secure_url;
+thumbnailPublicId = thumbnailData.public_id || "";
 
     const durationSeconds = await getVideoDuration(videoFile);
 
     return {
-      storageProvider: "cloudinary",
-      provider: "cloudinary",
+      storageProvider: "r2",
+      provider: "cloudflare",
       assetType: "video",
       videoUrl: videoData.secure_url,
       playbackUrl: videoData.secure_url,
       providerPublicId: videoData.public_id || "",
-      cloudinaryPublicId: videoData.public_id || "",
+      cloudinaryPublicId: "", // Nullified since we aren't using Cloudinary
       thumbnailUrl,
       thumbnailProviderPublicId: thumbnailPublicId,
       durationSeconds,
@@ -524,23 +522,23 @@ function DepartmentUploadVideo() {
           <h1>Add Training Video</h1>
           <p>Simple flow: details, filters, files, quiz, then save.</p>
         </div>
-       <Link
-  to={
-    !currentUser
-      ? "#"
-      : normalizedRole === "superadmin"
-      ? "/super-admin/video-library"
-      : normalizedRole === "admin"
-      ? "/admin/video-library"
-      : "/department-admin/video-library"
-  }
-  className="view-library-btn"
-  onClick={(e) => {
-    if (!currentUser) e.preventDefault();
-  }}
->
-  View Library
-</Link>
+        <Link
+          to={
+            !currentUser
+              ? "#"
+              : normalizedRole === "superadmin"
+              ? "/super-admin/video-library"
+              : normalizedRole === "admin"
+              ? "/admin/video-library"
+              : "/department-admin/video-library"
+          }
+          className="view-library-btn"
+          onClick={(e) => {
+            if (!currentUser) e.preventDefault();
+          }}
+        >
+          View Library
+        </Link>
       </div>
 
       <form className="video-upload-layout" onSubmit={saveVideo}>
@@ -645,7 +643,7 @@ function DepartmentUploadVideo() {
             <span>2</span>
             <div>
               <h2>Upload Files</h2>
-              <p>Thumbnail is optional. If skipped, it will be generated from the video.</p>
+              <p>Please manually upload a thumbnail if you require one.</p>
             </div>
           </div>
 
@@ -679,7 +677,7 @@ function DepartmentUploadVideo() {
             <div className="upload-flow-item">
               <div className="upload-flow-content">
                 <h3>Upload Thumbnail (Optional)</h3>
-                <p> System can auto-generate one.</p>
+                <p>Select an image to serve as the cover.</p>
                 <label className="vertical-upload-box">
                   <input
                     ref={thumbnailInputRef}

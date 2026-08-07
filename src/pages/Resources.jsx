@@ -14,8 +14,24 @@ import {
   FaUser,
   FaSearch,
   FaTimes,
+  FaDownload,
+  FaEye,
 } from "react-icons/fa";
 import "../styles/resources.css";
+
+// --- R2 IMPORT ---
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+
+// --- R2 CLIENT INITIALIZATION ---
+const s3Client = new S3Client({
+  region: "auto",
+  endpoint: `https://${import.meta.env.VITE_R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: import.meta.env.VITE_R2_ACCESS_KEY_ID,
+    secretAccessKey: import.meta.env.VITE_R2_SECRET_ACCESS_KEY,
+  },
+  requestChecksumCalculation: "WHEN_REQUIRED",
+});
 
 const FILE_ICONS = {
   pdf: FaFilePdf,
@@ -110,30 +126,35 @@ function Resources() {
 
     setUploading(true);
     try {
-      const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-      const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+      const bucketName = import.meta.env.VITE_R2_BUCKET_NAME;
+      const publicDomain = import.meta.env.VITE_R2_PUBLIC_URL;
 
-      const formData = new FormData();
-      formData.append("file", selectedFile);
-      formData.append("upload_preset", uploadPreset);
-      formData.append("folder", "resources");
-
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error?.message || `Upload failed (${res.status})`);
+      if (!bucketName || !publicDomain) {
+        throw new Error("R2 environment variables are missing.");
       }
 
-      const data = await res.json();
+      // 1. Generate unique file name for R2
+      const fileExtension = selectedFile.name.split('.').pop();
+      const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
+      const fileKey = `resources/${uniqueFileName}`;
 
+      // 2. Upload directly to R2
+      const command = new PutObjectCommand({
+        Bucket: bucketName,
+        Key: fileKey,
+        Body: selectedFile,
+        ContentType: selectedFile.type,
+      });
+
+      await s3Client.send(command);
+
+      const secureUrl = `${publicDomain}/${fileKey}`;
+
+      // 3. Save to Firebase
       const resourceData = {
         title: title.trim(),
         description: description.trim(),
-        fileUrl: data.secure_url,
+        fileUrl: secureUrl,
         fileName: selectedFile.name,
         fileType: getFileType(selectedFile.name),
         fileSize: selectedFile.size,
@@ -167,6 +188,27 @@ function Resources() {
       setResources((prev) => prev.filter((r) => r.id !== resourceId));
     } catch (err) {
       console.error("Delete error:", err);
+    }
+  };
+
+  // Explicit download function that forces the browser to download the file
+  const handleForceDownload = async (url, filename) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error("Error downloading file:", error);
+      // Fallback: Open in new tab if blob fetch fails
+      window.open(url, "_blank");
     }
   };
 
@@ -328,15 +370,20 @@ function Resources() {
 
             return (
               <div className="resource-card" key={resource.id}>
+                {/* 
+                  Removed the <a> tag here. 
+                  Now it is just a static preview <div>. 
+                  Users MUST click the buttons below to interact with the file.
+                */}
                 {isImage ? (
-                  <a href={resource.fileUrl} target="_blank" rel="noopener noreferrer" className="resource-preview">
+                  <div className="resource-preview">
                     <img src={resource.fileUrl} alt={resource.title} />
-                  </a>
+                  </div>
                 ) : (
-                  <a href={resource.fileUrl} target="_blank" rel="noopener noreferrer" className="resource-preview resource-file-preview">
+                  <div className="resource-preview resource-file-preview">
                     <FileIcon className="resource-file-icon" />
                     <span>{(resource.fileName || "").split(".").pop()?.toUpperCase()}</span>
-                  </a>
+                  </div>
                 )}
 
                 <div className="resource-body">
@@ -361,11 +408,35 @@ function Resources() {
                     <small>{formatDate(resource.createdAt)}</small>
                   </div>
 
-                  {canDelete && (
-                    <button className="resource-delete-btn" onClick={() => handleDelete(resource.id)}>
-                      <FaTrash /> Delete
+                  {/* Explicit Action Buttons */}
+                  <div className="resource-actions" style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+                    <button 
+                      className="view-btn" 
+                      onClick={() => window.open(resource.fileUrl, "_blank")}
+                      style={{ flex: 1, padding: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}
+                    >
+                      <FaEye /> View
                     </button>
-                  )}
+                    
+                    <button 
+                      className="download-btn" 
+                      onClick={() => handleForceDownload(resource.fileUrl, resource.fileName)}
+                      style={{ flex: 1, padding: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', backgroundColor: '#059669', color: 'white', border: 'none', borderRadius: '4px' }}
+                    >
+                      <FaDownload /> Download
+                    </button>
+
+                    {canDelete && (
+                      <button 
+                        className="resource-delete-btn" 
+                        onClick={() => handleDelete(resource.id)}
+                        style={{ padding: '8px', cursor: 'pointer', color: 'red', border: '1px solid red', borderRadius: '4px', background: 'transparent' }}
+                      >
+                        <FaTrash />
+                      </button>
+                    )}
+                  </div>
+
                 </div>
               </div>
             );

@@ -6,6 +6,64 @@ import * as XLSX from "xlsx";
 import { auth, database } from "../firebase";
 import "../styles/coursewizard.css";
 
+// --- R2 IMPORT ---
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+
+// --- R2 CLIENT INITIALIZATION (Outside component scope) ---
+const s3Client = new S3Client({
+  region: "auto",
+  endpoint: `https://${import.meta.env.VITE_R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: import.meta.env.VITE_R2_ACCESS_KEY_ID,
+    secretAccessKey: import.meta.env.VITE_R2_SECRET_ACCESS_KEY,
+  },
+  requestChecksumCalculation: "WHEN_REQUIRED",
+});
+
+const createSafeSlug = (value = "") =>
+  String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const uploadFileToR2 = async (file, baseFolder, departmentName) => {
+  if (!file) {
+    throw new Error("Please select a file before uploading.");
+  }
+
+  const bucketName = import.meta.env.VITE_R2_BUCKET_NAME;
+  const publicDomain = import.meta.env.VITE_R2_PUBLIC_URL;
+
+  if (!bucketName || !publicDomain) {
+    throw new Error("R2 environment variables missing.");
+  }
+
+  const safeDepartment = createSafeSlug(departmentName) || "general";
+
+  const fileExtension = file.name.split(".").pop();
+  const uniqueFileName = `${Date.now()}-${Math.random()
+    .toString(36)
+    .substring(7)}.${fileExtension}`;
+
+  const fileKey = `${baseFolder}/${safeDepartment}/${uniqueFileName}`;
+
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: fileKey,
+    Body: file,
+    ContentType: file.type,
+  });
+
+  await s3Client.send(command);
+
+  return {
+    secure_url: `${publicDomain}/${fileKey}`,
+    public_id: fileKey,
+  };
+};
+
 function AddCourse() {
   const navigate = useNavigate();
 
@@ -57,7 +115,13 @@ function AddCourse() {
 
   const checkIsDeptAdmin = (user) => {
     const r = String(user?.role || "").trim().toLowerCase();
-    return r === "departmentadmin" || r === "department admin" || r === "department_admin" || r === "deptadmin" || r === "dept admin";
+    return (
+      r === "departmentadmin" ||
+      r === "department admin" ||
+      r === "department_admin" ||
+      r === "deptadmin" ||
+      r === "dept admin"
+    );
   };
 
   const isDeptAdmin = checkIsDeptAdmin(currentUser);
@@ -152,36 +216,6 @@ function AddCourse() {
     setVideoLibrary(filtered);
   };
 
-  const uploadImageToCloudinary = async (file) => {
-    if (!file) return "";
-
-    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-
-    if (!cloudName || !uploadPreset) {
-      throw new Error("Cloudinary env variables missing.");
-    }
-
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", uploadPreset);
-    const safeFolder = (department || "General").replace(/[^a-zA-Z0-9_-]/g, "-");
-    formData.append("folder", `training-portal/course-thumbnails/${safeFolder}`);
-
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-      { method: "POST", body: formData }
-    );
-
-    const data = await response.json();
-
-    if (!response.ok || !data.secure_url) {
-      throw new Error(data?.error?.message || "Thumbnail upload failed");
-    }
-
-    return data.secure_url;
-  };
-
   const organOptions = useMemo(() => {
     return [
       ...new Set(videoLibrary.map((v) => v.metadata?.organName).filter(Boolean)),
@@ -197,9 +231,17 @@ function AddCourse() {
       const typeSpecific = v.metadata?.typeSpecific || "";
 
       const text = [
-        v.title, v.description, organName, videoType, genericName, typeSpecific,
+        v.title,
+        v.description,
+        organName,
+        videoType,
+        genericName,
+        typeSpecific,
         ...(v.tags || []),
-      ].filter(Boolean).join(" ").toLowerCase();
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
 
       return (
         text.includes(search) &&
@@ -399,7 +441,13 @@ function AddCourse() {
       setUploadStatus("Saving course...");
 
       const thumbUrl = thumbnailFile
-        ? await uploadImageToCloudinary(thumbnailFile)
+        ? (
+            await uploadFileToR2(
+              thumbnailFile,
+              "training-portal/course-thumbnails",
+              department
+            )
+          ).secure_url
         : "";
 
       const finalThumbnail =

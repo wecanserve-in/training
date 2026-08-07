@@ -3,8 +3,58 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { get, ref, remove, set, update } from "firebase/database";
 import { auth, database } from "../firebase";
-import { uploadImageToCloudinary } from "../utils/cloudinaryUpload";
 import "../styles/videolibrary.css";
+
+// --- R2 IMPORT ---
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+
+// --- R2 CLIENT INITIALIZATION ---
+const s3Client = new S3Client({
+  region: "auto",
+  endpoint: `https://${import.meta.env.VITE_R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: import.meta.env.VITE_R2_ACCESS_KEY_ID,
+    secretAccessKey: import.meta.env.VITE_R2_SECRET_ACCESS_KEY,
+  },
+  requestChecksumCalculation: "WHEN_REQUIRED",
+});
+
+const createSafeSlug = (value = "") =>
+  String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const uploadFileToR2 = async (file, baseFolder, departmentName = "general") => {
+  if (!file) {
+    throw new Error("Please select a file before uploading.");
+  }
+
+  const bucketName = import.meta.env.VITE_R2_BUCKET_NAME;
+  const publicDomain = import.meta.env.VITE_R2_PUBLIC_URL;
+
+  if (!bucketName || !publicDomain) {
+    throw new Error("R2 environment variables missing.");
+  }
+
+  const safeDepartment = createSafeSlug(departmentName) || "general";
+  const fileExtension = file.name.split(".").pop();
+  const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
+  const fileKey = `${baseFolder}/${safeDepartment}/${uniqueFileName}`;
+
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: fileKey,
+    Body: file,
+    ContentType: file.type,
+  });
+
+  await s3Client.send(command);
+
+  return `${publicDomain}/${fileKey}`;
+};
 
 function EditVideoLibrary() {
   const { id } = useParams();
@@ -237,7 +287,11 @@ function EditVideoLibrary() {
 
       let thumbnailUrl = existingThumbnailUrl;
       if (thumbnailFile) {
-        thumbnailUrl = await uploadImageToCloudinary(thumbnailFile, "training-portal/thumbnails");
+        thumbnailUrl = await uploadFileToR2(
+          thumbnailFile,
+          "training-portal/thumbnails",
+          videoData?.department || "general"
+        );
       }
 
       await update(ref(database, `videoLibrary/${id}`), {

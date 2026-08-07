@@ -14,6 +14,55 @@ import useBasePath from "../hooks/useBasePath";
 import { createNotification } from "../services/doubtService";
 import "../styles/editcourse.css";
 
+// --- R2 IMPORT ---
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+
+// --- R2 CLIENT INITIALIZATION (Outside component scope) ---
+const s3Client = new S3Client({
+  region: "auto",
+  endpoint: `https://${import.meta.env.VITE_R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: import.meta.env.VITE_R2_ACCESS_KEY_ID,
+    secretAccessKey: import.meta.env.VITE_R2_SECRET_ACCESS_KEY,
+  },
+  requestChecksumCalculation: "WHEN_REQUIRED",
+});
+
+const createSafeSlug = (value = "") =>
+  String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const uploadFileToR2 = async (file, baseFolder = "lms/thumbnails", departmentName = "general") => {
+  if (!file) return "";
+
+  const bucketName = import.meta.env.VITE_R2_BUCKET_NAME;
+  const publicDomain = import.meta.env.VITE_R2_PUBLIC_URL;
+
+  if (!bucketName || !publicDomain) {
+    throw new Error("Cloudflare R2 environment variables are missing.");
+  }
+
+  const safeDepartment = createSafeSlug(departmentName) || "general";
+  const fileExtension = file.name.split(".").pop();
+  const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
+  const fileKey = `${baseFolder}/${safeDepartment}/${uniqueFileName}`;
+
+  const command = new PutObjectCommand({
+    Bucket: bucketName,
+    Key: fileKey,
+    Body: file,
+    ContentType: file.type,
+  });
+
+  await s3Client.send(command);
+
+  return `${publicDomain}/${fileKey}`;
+};
+
 /* ======================================================
    HELPERS
 ====================================================== */
@@ -101,10 +150,6 @@ const normalizeCorrectAnswer = (
     questionData.answers ||
     questionData.choices;
 
-  /*
-   * Handle options like:
-   * [{ text: "A", isCorrect: false }, ...]
-   */
   if (Array.isArray(rawOptions)) {
     const correctObjectIndex = rawOptions.findIndex(
       (option) =>
@@ -120,9 +165,6 @@ const normalizeCorrectAnswer = (
     }
   }
 
-  /*
-   * Prefer explicit index fields.
-   */
   const explicitIndex =
     questionData.correctOptionIndex ??
     questionData.correctAnswerIndex ??
@@ -154,9 +196,6 @@ const normalizeCorrectAnswer = (
     questionData.correctAnswerText ??
     0;
 
-  /*
-   * Numeric answer/index.
-   */
   if (typeof possibleCorrectAnswer === "number") {
     return Math.max(
       0,
@@ -171,9 +210,6 @@ const normalizeCorrectAnswer = (
     possibleCorrectAnswer ?? ""
   ).trim();
 
-  /*
-   * Numeric string such as "0", "1", "2".
-   */
   if (/^\d+$/.test(answerValue)) {
     const parsedIndex = Number(answerValue);
 
@@ -186,9 +222,6 @@ const normalizeCorrectAnswer = (
     );
   }
 
-  /*
-   * Letter such as A, B, C, D.
-   */
   if (/^[a-z]$/i.test(answerValue)) {
     const letterIndex =
       answerValue.toUpperCase().charCodeAt(0) - 65;
@@ -201,9 +234,6 @@ const normalizeCorrectAnswer = (
     }
   }
 
-  /*
-   * Correct answer stored as actual option text.
-   */
   const matchingIndex = normalizedOptions.findIndex(
     (option) =>
       String(option).trim().toLowerCase() ===
@@ -288,15 +318,6 @@ const normalizeQuestions = (questionsData) => {
     );
 };
 
-/*
- * Old Firebase values might contain:
- * 20 = 20 minutes
- * 1200 = 20 minutes stored in seconds
- *
- * The learner QuizPage expects quizDuration/testDuration
- * in seconds, so this converts saved values back to minutes
- * for the edit input.
- */
 const normalizeDurationToMinutes = (value) => {
   const numericValue = Number(value);
 
@@ -304,9 +325,6 @@ const normalizeDurationToMinutes = (value) => {
     return 20;
   }
 
-  /*
-   * More than 300 is almost certainly seconds.
-   */
   if (numericValue > 300) {
     return Math.max(1, Math.round(numericValue / 60));
   }
@@ -332,14 +350,9 @@ function EditCourse() {
   const [title, setTitle] = useState("");
   const [overview, setOverview] = useState("");
 
-  const [thumbnailFile, setThumbnailFile] =
-    useState(null);
-
-  const [thumbnailPreview, setThumbnailPreview] =
-    useState("");
-
-  const [existingThumbnail, setExistingThumbnail] =
-    useState("");
+  const [thumbnailFile, setThumbnailFile] = useState(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState("");
+  const [existingThumbnail, setExistingThumbnail] = useState("");
 
   const [courseVideos, setCourseVideos] = useState([]);
   const [videoLibrary, setVideoLibrary] = useState([]);
@@ -347,29 +360,16 @@ function EditCourse() {
   const [videoSearch, setVideoSearch] = useState("");
   const [filterType, setFilterType] = useState("");
 
-  const [showAddVideos, setShowAddVideos] =
-    useState(false);
-
-  const [originalVideoIds, setOriginalVideoIds] =
-    useState([]);
+  const [showAddVideos, setShowAddVideos] = useState(false);
+  const [originalVideoIds, setOriginalVideoIds] = useState([]);
 
   const [dragIndex, setDragIndex] = useState(null);
+  const [dragOverIndex, setDragOverIndex] = useState(null);
 
-  const [dragOverIndex, setDragOverIndex] =
-    useState(null);
-
-  /*
-   * Quiz duration is maintained in minutes in UI.
-   */
   const [quizDuration, setQuizDuration] = useState(20);
-
-  const [passingPercentage, setPassingPercentage] =
-    useState(70);
-
+  const [passingPercentage, setPassingPercentage] = useState(70);
   const [quizQuestions, setQuizQuestions] = useState([]);
-
-  const [originalQuizSnapshot, setOriginalQuizSnapshot] =
-    useState("");
+  const [originalQuizSnapshot, setOriginalQuizSnapshot] = useState("");
 
   const checkIsDeptAdmin = (user) =>
     normalizeRole(user?.role) === "departmentadmin";
@@ -417,9 +417,7 @@ function EditCourse() {
           };
 
           if (!checkCanEdit(userData)) {
-            alert(
-              "You don't have permission to edit courses."
-            );
+            alert("You don't have permission to edit courses.");
             navigate(-1);
             return;
           }
@@ -454,10 +452,7 @@ function EditCourse() {
     };
   }, [thumbnailPreview]);
 
-  const loadCourse = async (
-    currentCourseId,
-    userData
-  ) => {
+  const loadCourse = async (currentCourseId, userData) => {
     const courseSnapshot = await get(
       ref(database, `courses/${currentCourseId}`)
     );
@@ -471,26 +466,12 @@ function EditCourse() {
     const courseData = courseSnapshot.val();
     const role = normalizeRole(userData.role);
 
-    const isCreator =
-      courseData.createdBy === userData.id;
+    const isCreator = courseData.createdBy === userData.id;
+    const isAdmin = ["superadmin", "admin"].includes(role);
+    const isDepartmentAdmin = role === "departmentadmin";
 
-    const isAdmin = [
-      "superadmin",
-      "admin",
-    ].includes(role);
-
-    const isDepartmentAdmin =
-      role === "departmentadmin";
-
-    if (
-      !isCreator &&
-      !isAdmin &&
-      !isDepartmentAdmin
-    ) {
-      alert(
-        "You don't have permission to edit this course."
-      );
-
+    if (!isCreator && !isAdmin && !isDepartmentAdmin) {
+      alert("You don't have permission to edit this course.");
       navigate(-1);
       return;
     }
@@ -510,16 +491,11 @@ function EditCourse() {
     );
 
     const videosSnapshot = await get(
-      ref(
-        database,
-        `courseVideos/${currentCourseId}`
-      )
+      ref(database, `courseVideos/${currentCourseId}`)
     );
 
     if (videosSnapshot.exists()) {
-      const videos = Object.entries(
-        videosSnapshot.val()
-      )
+      const videos = Object.entries(videosSnapshot.val())
         .map(([videoId, video]) => ({
           id: videoId,
           ...(video || {}),
@@ -531,29 +507,16 @@ function EditCourse() {
         );
 
       setCourseVideos(videos);
-
-      setOriginalVideoIds(
-        videos.map((video) => video.id)
-      );
+      setOriginalVideoIds(videos.map((video) => video.id));
     } else {
       setCourseVideos([]);
       setOriginalVideoIds([]);
     }
 
-    await loadCourseQuiz(
-      currentCourseId,
-      courseData
-    );
+    await loadCourseQuiz(currentCourseId, courseData);
   };
 
-  const loadCourseQuiz = async (
-    currentCourseId,
-    courseData
-  ) => {
-    /*
-     * questions/{courseId} is the actual path used
-     * by your QuizPage for the final course quiz.
-     */
+  const loadCourseQuiz = async (currentCourseId, courseData) => {
     const [
       questionsSnapshot,
       courseQuizSnapshot,
@@ -561,72 +524,30 @@ function EditCourse() {
       quizzesSnapshot,
       courseTestsSnapshot,
     ] = await Promise.all([
-      get(
-        ref(
-          database,
-          `questions/${currentCourseId}`
-        )
-      ),
-
-      get(
-        ref(
-          database,
-          `courseQuizzes/${currentCourseId}`
-        )
-      ),
-
-      get(
-        ref(
-          database,
-          `courseQuiz/${currentCourseId}`
-        )
-      ),
-
-      get(
-        ref(
-          database,
-          `quizzes/${currentCourseId}`
-        )
-      ),
-
-      get(
-        ref(
-          database,
-          `courseTests/${currentCourseId}`
-        )
-      ),
+      get(ref(database, `questions/${currentCourseId}`)),
+      get(ref(database, `courseQuizzes/${currentCourseId}`)),
+      get(ref(database, `courseQuiz/${currentCourseId}`)),
+      get(ref(database, `quizzes/${currentCourseId}`)),
+      get(ref(database, `courseTests/${currentCourseId}`)),
     ]);
 
     let questionsData = null;
     let quizSettingsData = null;
 
-    /*
-     * Questions must prefer questions/{courseId},
-     * because that is what learner QuizPage loads.
-     */
     if (questionsSnapshot.exists()) {
       questionsData = questionsSnapshot.val();
     }
 
-    /*
-     * Quiz settings can be loaded from canonical
-     * or older quiz nodes.
-     */
     if (courseQuizSnapshot.exists()) {
       quizSettingsData = courseQuizSnapshot.val();
     } else if (legacyCourseQuizSnapshot.exists()) {
-      quizSettingsData =
-        legacyCourseQuizSnapshot.val();
+      quizSettingsData = legacyCourseQuizSnapshot.val();
     } else if (quizzesSnapshot.exists()) {
       quizSettingsData = quizzesSnapshot.val();
     } else if (courseTestsSnapshot.exists()) {
-      quizSettingsData =
-        courseTestsSnapshot.val();
+      quizSettingsData = courseTestsSnapshot.val();
     }
 
-    /*
-     * Fallback question source.
-     */
     if (!questionsData) {
       questionsData =
         quizSettingsData?.questions ||
@@ -639,16 +560,9 @@ function EditCourse() {
         null;
     }
 
-    const normalizedQuestions =
-      normalizeQuestions(questionsData);
+    const normalizedQuestions = normalizeQuestions(questionsData);
 
-    /*
-     * Prefer explicit minute field first.
-     * quizDuration/testDuration are stored as seconds
-     * by the updated save function.
-     */
     let durationMinutes;
-
     const explicitMinutes = Number(
       quizSettingsData?.quizDurationMinutes ??
         quizSettingsData?.durationMinutes ??
@@ -656,10 +570,7 @@ function EditCourse() {
         courseData.durationMinutes
     );
 
-    if (
-      Number.isFinite(explicitMinutes) &&
-      explicitMinutes > 0
-    ) {
+    if (Number.isFinite(explicitMinutes) && explicitMinutes > 0) {
       durationMinutes = explicitMinutes;
     } else {
       const rawDuration =
@@ -671,8 +582,7 @@ function EditCourse() {
         courseData.timeLimit ??
         1200;
 
-      durationMinutes =
-        normalizeDurationToMinutes(rawDuration);
+      durationMinutes = normalizeDurationToMinutes(rawDuration);
     }
 
     const passing = Number(
@@ -685,136 +595,65 @@ function EditCourse() {
         70
     );
 
-    const safeDurationMinutes = Math.max(
-      1,
-      Number(durationMinutes) || 20
-    );
-
+    const safeDurationMinutes = Math.max(1, Number(durationMinutes) || 20);
     const safePassingPercentage = Math.min(
       100,
       Math.max(1, Number(passing) || 70)
     );
 
     setQuizDuration(safeDurationMinutes);
-
-    setPassingPercentage(
-      safePassingPercentage
-    );
-
+    setPassingPercentage(safePassingPercentage);
     setQuizQuestions(normalizedQuestions);
 
     setOriginalQuizSnapshot(
       JSON.stringify({
         durationMinutes: safeDurationMinutes,
-        passingPercentage:
-          safePassingPercentage,
+        passingPercentage: safePassingPercentage,
         questions: normalizedQuestions,
       })
     );
   };
 
   const loadVideoLibrary = async (userData) => {
-    const librarySnapshot = await get(
-      ref(database, "videoLibrary")
-    );
+    const librarySnapshot = await get(ref(database, "videoLibrary"));
 
     if (!librarySnapshot.exists()) {
       setVideoLibrary([]);
       return;
     }
 
-    const libraryVideos = Object.entries(
-      librarySnapshot.val()
-    ).map(([videoId, video]) => ({
-      id: videoId,
-      ...(video || {}),
-    }));
+    const libraryVideos = Object.entries(librarySnapshot.val()).map(
+      ([videoId, video]) => ({
+        id: videoId,
+        ...(video || {}),
+      })
+    );
 
     let filteredVideos = libraryVideos;
 
     if (checkIsDeptAdmin(userData)) {
       filteredVideos = libraryVideos.filter(
         (video) =>
-          video.department ===
-            userData.department ||
-          video.departmentType ===
-            userData.departmentType ||
+          video.department === userData.department ||
+          video.departmentType === userData.departmentType ||
           (userData.departmentId &&
-            video.departmentId ===
-              userData.departmentId) ||
+            video.departmentId === userData.departmentId) ||
           video.createdBy === userData.id
       );
     }
 
     filteredVideos.sort(
       (firstVideo, secondVideo) =>
-        new Date(
-          secondVideo.createdAt || 0
-        ).getTime() -
-        new Date(
-          firstVideo.createdAt || 0
-        ).getTime()
+        new Date(secondVideo.createdAt || 0).getTime() -
+        new Date(firstVideo.createdAt || 0).getTime()
     );
 
     setVideoLibrary(filteredVideos);
   };
 
   /* ======================================================
-     THUMBNAIL
+     THUMBNAIL HANDLERS
   ====================================================== */
-
-  const uploadImageToCloudinary = async (file) => {
-    if (!file) return "";
-
-    const cloudName =
-      import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-
-    const uploadPreset =
-      import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-
-    if (!cloudName || !uploadPreset) {
-      throw new Error(
-        "Cloudinary environment variables are missing."
-      );
-    }
-
-    const formData = new FormData();
-
-    formData.append("file", file);
-
-    formData.append(
-      "upload_preset",
-      uploadPreset
-    );
-
-    const safeFolder = String(
-      currentUser?.department || "General"
-    ).replace(/[^a-zA-Z0-9_-]/g, "-");
-
-    formData.append(
-      "folder",
-      `lms/${safeFolder}`
-    );
-
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-      {
-        method: "POST",
-        body: formData,
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(
-        "Thumbnail upload failed."
-      );
-    }
-
-    const uploadedData =
-      await response.json();
-
-    return uploadedData.secure_url || "";
-  };
 
   const handleThumbChange = (event) => {
     const file = event.target.files?.[0];
@@ -823,7 +662,6 @@ function EditCourse() {
 
     if (!file.type.startsWith("image/")) {
       alert("Please select an image file.");
-
       event.target.value = "";
       return;
     }
@@ -833,10 +671,7 @@ function EditCourse() {
     }
 
     setThumbnailFile(file);
-
-    setThumbnailPreview(
-      URL.createObjectURL(file)
-    );
+    setThumbnailPreview(URL.createObjectURL(file));
   };
 
   const removeThumb = () => {
@@ -859,8 +694,7 @@ function EditCourse() {
 
   const addVideoToCourse = (video) => {
     const alreadyAdded = courseVideos.some(
-      (courseVideo) =>
-        courseVideo.id === video.id
+      (courseVideo) => courseVideo.id === video.id
     );
 
     if (alreadyAdded) return;
@@ -888,31 +722,19 @@ function EditCourse() {
   };
 
   const moveVideo = (fromIndex, toIndex) => {
-    if (
-      toIndex < 0 ||
-      toIndex >= courseVideos.length
-    ) {
+    if (toIndex < 0 || toIndex >= courseVideos.length) {
       return;
     }
 
     setCourseVideos((previousVideos) => {
       const updatedVideos = [...previousVideos];
+      const [movedVideo] = updatedVideos.splice(fromIndex, 1);
+      updatedVideos.splice(toIndex, 0, movedVideo);
 
-      const [movedVideo] =
-        updatedVideos.splice(fromIndex, 1);
-
-      updatedVideos.splice(
-        toIndex,
-        0,
-        movedVideo
-      );
-
-      return updatedVideos.map(
-        (video, index) => ({
-          ...video,
-          order: index + 1,
-        })
-      );
+      return updatedVideos.map((video, index) => ({
+        ...video,
+        order: index + 1,
+      }));
     });
   };
 
@@ -931,10 +753,7 @@ function EditCourse() {
   };
 
   const handleDrop = (index) => {
-    if (
-      dragIndex !== null &&
-      dragIndex !== index
-    ) {
+    if (dragIndex !== null && dragIndex !== index) {
       moveVideo(dragIndex, index);
     }
 
@@ -954,25 +773,15 @@ function EditCourse() {
   };
 
   const removeQuizQuestion = (questionId) => {
-    const shouldRemove = window.confirm(
-      "Remove this quiz question?"
-    );
-
+    const shouldRemove = window.confirm("Remove this quiz question?");
     if (!shouldRemove) return;
 
     setQuizQuestions((previousQuestions) =>
-      previousQuestions.filter(
-        (question) =>
-          question.id !== questionId
-      )
+      previousQuestions.filter((question) => question.id !== questionId)
     );
   };
 
-  const updateQuizQuestion = (
-    questionId,
-    field,
-    value
-  ) => {
+  const updateQuizQuestion = (questionId, field, value) => {
     setQuizQuestions((previousQuestions) =>
       previousQuestions.map((question) =>
         question.id === questionId
@@ -985,21 +794,14 @@ function EditCourse() {
     );
   };
 
-  const updateQuizOption = (
-    questionId,
-    optionIndex,
-    value
-  ) => {
+  const updateQuizOption = (questionId, optionIndex, value) => {
     setQuizQuestions((previousQuestions) =>
       previousQuestions.map((question) => {
         if (question.id !== questionId) {
           return question;
         }
 
-        const updatedOptions = [
-          ...question.options,
-        ];
-
+        const updatedOptions = [...question.options];
         updatedOptions[optionIndex] = value;
 
         return {
@@ -1016,20 +818,14 @@ function EditCourse() {
         question.id === questionId
           ? {
               ...question,
-              options: [
-                ...question.options,
-                "",
-              ],
+              options: [...question.options, ""],
             }
           : question
       )
     );
   };
 
-  const removeOptionFromQuestion = (
-    questionId,
-    optionIndex
-  ) => {
+  const removeOptionFromQuestion = (questionId, optionIndex) => {
     setQuizQuestions((previousQuestions) =>
       previousQuestions.map((question) => {
         if (question.id !== questionId) {
@@ -1037,71 +833,40 @@ function EditCourse() {
         }
 
         if (question.options.length <= 2) {
-          alert(
-            "Every question must have at least two options."
-          );
-
+          alert("Every question must have at least two options.");
           return question;
         }
 
-        const updatedOptions =
-          question.options.filter(
-            (_, currentIndex) =>
-              currentIndex !== optionIndex
-          );
+        const updatedOptions = question.options.filter(
+          (_, currentIndex) => currentIndex !== optionIndex
+        );
 
-        let updatedCorrectAnswer =
-          Number(question.correctAnswer) || 0;
+        let updatedCorrectAnswer = Number(question.correctAnswer) || 0;
 
-        if (
-          optionIndex ===
-          Number(question.correctAnswer)
-        ) {
+        if (optionIndex === Number(question.correctAnswer)) {
           updatedCorrectAnswer = 0;
-        } else if (
-          optionIndex <
-          Number(question.correctAnswer)
-        ) {
+        } else if (optionIndex < Number(question.correctAnswer)) {
           updatedCorrectAnswer -= 1;
         }
 
         return {
           ...question,
           options: updatedOptions,
-          correctAnswer:
-            updatedCorrectAnswer,
+          correctAnswer: updatedCorrectAnswer,
         };
       })
     );
   };
 
-  const moveQuizQuestion = (
-    fromIndex,
-    toIndex
-  ) => {
-    if (
-      toIndex < 0 ||
-      toIndex >= quizQuestions.length
-    ) {
+  const moveQuizQuestion = (fromIndex, toIndex) => {
+    if (toIndex < 0 || toIndex >= quizQuestions.length) {
       return;
     }
 
     setQuizQuestions((previousQuestions) => {
-      const updatedQuestions = [
-        ...previousQuestions,
-      ];
-
-      const [movedQuestion] =
-        updatedQuestions.splice(
-          fromIndex,
-          1
-        );
-
-      updatedQuestions.splice(
-        toIndex,
-        0,
-        movedQuestion
-      );
+      const updatedQuestions = [...previousQuestions];
+      const [movedQuestion] = updatedQuestions.splice(fromIndex, 1);
+      updatedQuestions.splice(toIndex, 0, movedQuestion);
 
       return updatedQuestions;
     });
@@ -1114,8 +879,7 @@ function EditCourse() {
   const filteredAvailable = useMemo(() => {
     return videoLibrary.filter((video) => {
       const alreadyAdded = courseVideos.some(
-        (courseVideo) =>
-          courseVideo.id === video.id
+        (courseVideo) => courseVideo.id === video.id
       );
 
       if (alreadyAdded) return false;
@@ -1132,32 +896,18 @@ function EditCourse() {
           .join(" ")
           .toLowerCase();
 
-        if (
-          !searchableText.includes(
-            videoSearch
-              .trim()
-              .toLowerCase()
-          )
-        ) {
+        if (!searchableText.includes(videoSearch.trim().toLowerCase())) {
           return false;
         }
       }
 
-      if (
-        filterType &&
-        video.metadata?.videoType !== filterType
-      ) {
+      if (filterType && video.metadata?.videoType !== filterType) {
         return false;
       }
 
       return true;
     });
-  }, [
-    videoLibrary,
-    courseVideos,
-    videoSearch,
-    filterType,
-  ]);
+  }, [videoLibrary, courseVideos, videoSearch, filterType]);
 
   /* ======================================================
      VALIDATION
@@ -1165,121 +915,61 @@ function EditCourse() {
 
   const validateQuiz = () => {
     if (quizQuestions.length === 0) {
-      /*
-       * Quiz is allowed to be empty.
-       * QuizPage automatically generates certificate
-       * when no questions exist.
-       */
       return true;
     }
 
-    const durationMinutes = Number(
-      quizDuration
-    );
+    const durationMinutes = Number(quizDuration);
 
-    if (
-      !Number.isFinite(durationMinutes) ||
-      durationMinutes < 1
-    ) {
-      alert(
-        "Quiz duration must be at least 1 minute."
-      );
-
+    if (!Number.isFinite(durationMinutes) || durationMinutes < 1) {
+      alert("Quiz duration must be at least 1 minute.");
       return false;
     }
 
-    const passing = Number(
-      passingPercentage
-    );
+    const passing = Number(passingPercentage);
 
-    if (
-      !Number.isFinite(passing) ||
-      passing < 1 ||
-      passing > 100
-    ) {
-      alert(
-        "Passing percentage must be between 1 and 100."
-      );
-
+    if (!Number.isFinite(passing) || passing < 1 || passing > 100) {
+      alert("Passing percentage must be between 1 and 100.");
       return false;
     }
 
-    for (
-      let questionIndex = 0;
-      questionIndex < quizQuestions.length;
-      questionIndex += 1
-    ) {
-      const question =
-        quizQuestions[questionIndex];
+    for (let questionIndex = 0; questionIndex < quizQuestions.length; questionIndex++) {
+      const question = quizQuestions[questionIndex];
 
       if (!String(question.question).trim()) {
-        alert(
-          `Enter question ${questionIndex + 1}.`
-        );
-
+        alert(`Enter question ${questionIndex + 1}.`);
         return false;
       }
 
-      if (
-        !Array.isArray(question.options) ||
-        question.options.length < 2
-      ) {
-        alert(
-          `Question ${
-            questionIndex + 1
-          } must have at least two options.`
-        );
-
+      if (!Array.isArray(question.options) || question.options.length < 2) {
+        alert(`Question ${questionIndex + 1} must have at least two options.`);
         return false;
       }
 
-      const hasEmptyOption =
-        question.options.some(
-          (option) =>
-            !String(option).trim()
-        );
+      const hasEmptyOption = question.options.some(
+        (option) => !String(option).trim()
+      );
 
       if (hasEmptyOption) {
-        alert(
-          `Fill all options for question ${
-            questionIndex + 1
-          }.`
-        );
-
+        alert(`Fill all options for question ${questionIndex + 1}.`);
         return false;
       }
 
-      const correctAnswerIndex = Number(
-        question.correctAnswer
-      );
+      const correctAnswerIndex = Number(question.correctAnswer);
 
       if (
         !Number.isInteger(correctAnswerIndex) ||
         correctAnswerIndex < 0 ||
-        correctAnswerIndex >=
-          question.options.length
+        correctAnswerIndex >= question.options.length
       ) {
-        alert(
-          `Select the correct answer for question ${
-            questionIndex + 1
-          }.`
-        );
-
+        alert(`Select the correct answer for question ${questionIndex + 1}.`);
         return false;
       }
 
       if (
-        !Number.isFinite(
-          Number(question.marks)
-        ) ||
+        !Number.isFinite(Number(question.marks)) ||
         Number(question.marks) < 1
       ) {
-        alert(
-          `Marks for question ${
-            questionIndex + 1
-          } must be at least 1.`
-        );
-
+        alert(`Marks for question ${questionIndex + 1} must be at least 1.`);
         return false;
       }
     }
@@ -1292,98 +982,63 @@ function EditCourse() {
   ====================================================== */
 
   const resetAssignedUsersProgress = async () => {
-  const assignmentsSnapshot = await get(
-    ref(database, "userAssignments")
-  );
-
-  if (!assignmentsSnapshot.exists()) {
-    return;
-  }
-
-  const allAssignments =
-    assignmentsSnapshot.val();
-
-  const progressUpdates = {};
-
-  for (const [userId, userCourses] of Object.entries(
-    allAssignments
-  )) {
-    const assignment =
-      userCourses?.[courseId];
-
-    const isAssigned =
-      assignment === true ||
-      assignment?.assigned === true ||
-      Boolean(assignment);
-
-    if (!isAssigned) {
-      continue;
-    }
-
-    /*
-     * Only reset the course-completed flag so progress
-     * shows the new content as unwatched.
-     * Preserve courseTestPassed, scores, and
-     * completedCourses — the user already earned the
-     * certificate and should not re-take the exam.
-     */
-    progressUpdates[
-      `courseProgress/${userId}/${courseId}/completed`
-    ] = false;
-
-    /*
-     * Read existing attempts and remove only final attempts.
-     * Practice attempts must remain because QuizPage checks them.
-     */
-    const attemptsSnapshot = await get(
-      ref(
-        database,
-        `quizAttempts/${userId}/${courseId}`
-      )
+    const assignmentsSnapshot = await get(
+      ref(database, "userAssignments")
     );
 
-    if (attemptsSnapshot.exists()) {
-      const attempts =
-        attemptsSnapshot.val() || {};
+    if (!assignmentsSnapshot.exists()) {
+      return;
+    }
 
-      Object.entries(attempts).forEach(
-        ([attemptId, attempt]) => {
-          const quizType = String(
-            attempt?.quizType || ""
-          )
+    const allAssignments = assignmentsSnapshot.val();
+    const progressUpdates = {};
+
+    for (const [userId, userCourses] of Object.entries(allAssignments)) {
+      const assignment = userCourses?.[courseId];
+      const isAssigned =
+        assignment === true ||
+        assignment?.assigned === true ||
+        Boolean(assignment);
+
+      if (!isAssigned) {
+        continue;
+      }
+
+      progressUpdates[`courseProgress/${userId}/${courseId}/completed`] = false;
+
+      const attemptsSnapshot = await get(
+        ref(database, `quizAttempts/${userId}/${courseId}`)
+      );
+
+      if (attemptsSnapshot.exists()) {
+        const attempts = attemptsSnapshot.val() || {};
+
+        Object.entries(attempts).forEach(([attemptId, attempt]) => {
+          const quizType = String(attempt?.quizType || "")
             .trim()
             .toLowerCase();
 
           const isPracticeAttempt =
-            quizType === "practice" ||
-            Boolean(attempt?.videoId);
+            quizType === "practice" || Boolean(attempt?.videoId);
 
           const isFinalAttempt =
             quizType === "final" ||
-            (!isPracticeAttempt &&
-              String(attemptId).startsWith(
-                "final_"
-              ));
+            (!isPracticeAttempt && String(attemptId).startsWith("final_"));
 
           if (isFinalAttempt) {
             progressUpdates[
               `quizAttempts/${userId}/${courseId}/${attemptId}`
             ] = null;
           }
-        }
-      );
+        });
+      }
     }
-  }
 
-  if (
-    Object.keys(progressUpdates).length > 0
-  ) {
-    await update(
-      ref(database),
-      progressUpdates
-    );
-  }
-};
+    if (Object.keys(progressUpdates).length > 0) {
+      await update(ref(database), progressUpdates);
+    }
+  };
+
   /* ======================================================
      SAVE
   ====================================================== */
@@ -1395,10 +1050,7 @@ function EditCourse() {
     }
 
     if (courseVideos.length === 0) {
-      alert(
-        "Add at least one video to the course."
-      );
-
+      alert("Add at least one video to the course.");
       return;
     }
 
@@ -1409,452 +1061,211 @@ function EditCourse() {
     setSaving(true);
 
     try {
-      let thumbnailUrl =
-        existingThumbnail;
+      let thumbnailUrl = existingThumbnail;
 
       if (thumbnailFile) {
-        thumbnailUrl =
-          await uploadImageToCloudinary(
-            thumbnailFile
-          );
+        thumbnailUrl = await uploadFileToR2(
+          thumbnailFile,
+          "lms/thumbnails",
+          currentUser?.department || "General"
+        );
       }
 
       const durationInMinutes = Math.max(
         1,
         Number(quizDuration) || 20
       );
-
-      /*
-       * QuizPage uses testDuration/quizDuration directly
-       * as seconds.
-       */
-      const durationInSeconds =
-        durationInMinutes * 60;
+      const durationInSeconds = durationInMinutes * 60;
 
       const safePassingPercentage = Math.min(
         100,
-        Math.max(
-          1,
-          Number(passingPercentage) || 70
-        )
+        Math.max(1, Number(passingPercentage) || 70)
       );
 
-      const sanitizedQuizQuestions =
-        quizQuestions.map(
-          (question, index) => {
-            const cleanOptions =
-              question.options.map((option) =>
-                String(option).trim()
-              );
+      const sanitizedQuizQuestions = quizQuestions.map(
+        (question, index) => {
+          const cleanOptions = question.options.map((option) =>
+            String(option).trim()
+          );
 
-            const correctAnswerIndex = Math.max(
-              0,
-              Math.min(
-                Number(question.correctAnswer) || 0,
-                cleanOptions.length - 1
-              )
-            );
+          const correctAnswerIndex = Math.max(
+            0,
+            Math.min(
+              Number(question.correctAnswer) || 0,
+              cleanOptions.length - 1
+            )
+          );
 
-            const correctAnswerText =
-              cleanOptions[correctAnswerIndex] || "";
+          const correctAnswerText = cleanOptions[correctAnswerIndex] || "";
+          const correctAnswerLetter = String.fromCharCode(65 + correctAnswerIndex);
 
-            const correctAnswerLetter =
-              String.fromCharCode(
-                65 + correctAnswerIndex
-              );
+          return {
+            id: question.id,
+            question: String(question.question).trim(),
+            questionText: String(question.question).trim(),
+            options: cleanOptions,
+            correctOptionIndex: correctAnswerIndex,
+            correctAnswerIndex: correctAnswerIndex,
+            correctIndex: correctAnswerIndex,
+            correctOption: correctAnswerLetter,
+            correctAnswer: correctAnswerText,
+            correctAnswerText: correctAnswerText,
+            answer: correctAnswerText,
+            marks: Math.max(1, Number(question.marks) || 1),
+            explanation: String(question.explanation || "").trim(),
+            order: index + 1,
+          };
+        }
+      );
 
-            return {
-              id: question.id,
+      const questionsObject = sanitizedQuizQuestions.reduce(
+        (questionResult, question) => {
+          questionResult[question.id] = {
+            id: question.id,
+            question: question.question,
+            questionText: question.questionText,
+            options: question.options,
+            correctOptionIndex: question.correctOptionIndex,
+            correctAnswerIndex: question.correctAnswerIndex,
+            correctIndex: question.correctIndex,
+            correctOption: question.correctOption,
+            correctAnswer: question.correctAnswer,
+            correctAnswerText: question.correctAnswerText,
+            answer: question.answer,
+            marks: question.marks,
+            explanation: question.explanation,
+            order: question.order,
+          };
 
-              question:
-                String(question.question).trim(),
+          return questionResult;
+        },
+        {}
+      );
 
-              questionText:
-                String(question.question).trim(),
-
-              options: cleanOptions,
-
-              /*
-               * QuizPage-compatible formats
-               */
-              correctOptionIndex:
-                correctAnswerIndex,
-
-              correctAnswerIndex:
-                correctAnswerIndex,
-
-              correctIndex:
-                correctAnswerIndex,
-
-              /*
-               * QuizPage checks correctOption against A/B/C/D.
-               */
-              correctOption:
-                correctAnswerLetter,
-
-              /*
-               * QuizPage finally compares correctAnswer
-               * with selected option text.
-               */
-              correctAnswer:
-                correctAnswerText,
-
-              correctAnswerText:
-                correctAnswerText,
-
-              answer:
-                correctAnswerText,
-
-              marks: Math.max(
-                1,
-                Number(question.marks) || 1
-              ),
-
-              explanation: String(
-                question.explanation || ""
-              ).trim(),
-
-              order: index + 1,
-            };
-          }
-        );
-
-      const questionsObject =
-        sanitizedQuizQuestions.reduce(
-          (
-            questionResult,
-            question
-          ) => {
-            questionResult[question.id] = {
-              id: question.id,
-
-              question: question.question,
-
-              questionText:
-                question.questionText,
-
-              options: question.options,
-
-              correctOptionIndex:
-                question.correctOptionIndex,
-
-              correctAnswerIndex:
-                question.correctAnswerIndex,
-
-              correctIndex:
-                question.correctIndex,
-
-              correctOption:
-                question.correctOption,
-
-              correctAnswer:
-                question.correctAnswer,
-
-              correctAnswerText:
-                question.correctAnswerText,
-
-              answer: question.answer,
-
-              marks: question.marks,
-
-              explanation:
-                question.explanation,
-
-              order: question.order,
-            };
-
-            return questionResult;
-          },
-          {}
-        );
-
-      const totalMarks =
-        sanitizedQuizQuestions.reduce(
-          (sum, question) =>
-            sum + Number(question.marks || 1),
-          0
-        );
+      const totalMarks = sanitizedQuizQuestions.reduce(
+        (sum, question) => sum + Number(question.marks || 1),
+        0
+      );
 
       const quizPayload = {
         courseId,
         courseTitle: title.trim(),
-
-        enabled:
-          sanitizedQuizQuestions.length > 0,
-
-        quizEnabled:
-          sanitizedQuizQuestions.length > 0,
-
-        hasQuiz:
-          sanitizedQuizQuestions.length > 0,
-
-        /*
-         * Minute fields for edit/admin pages.
-         */
+        enabled: sanitizedQuizQuestions.length > 0,
+        quizEnabled: sanitizedQuizQuestions.length > 0,
+        hasQuiz: sanitizedQuizQuestions.length > 0,
         durationMinutes: durationInMinutes,
-        quizDurationMinutes:
-          durationInMinutes,
-
-        /*
-         * Second fields used by learner QuizPage.
-         */
+        quizDurationMinutes: durationInMinutes,
         quizDuration: durationInSeconds,
         testDuration: durationInSeconds,
         timeLimit: durationInSeconds,
         durationSeconds: durationInSeconds,
-        quizDurationSeconds:
-          durationInSeconds,
-        timeLimitSeconds:
-          durationInSeconds,
-
-        passingPercentage:
-          safePassingPercentage,
-
-        passPercentage:
-          safePassingPercentage,
-
-        passingScore:
-          safePassingPercentage,
-
-        totalQuestions:
-          sanitizedQuizQuestions.length,
-
-        totalQuizQuestions:
-          sanitizedQuizQuestions.length,
-
+        quizDurationSeconds: durationInSeconds,
+        timeLimitSeconds: durationInSeconds,
+        passingPercentage: safePassingPercentage,
+        passPercentage: safePassingPercentage,
+        passingScore: safePassingPercentage,
+        totalQuestions: sanitizedQuizQuestions.length,
+        totalQuizQuestions: sanitizedQuizQuestions.length,
         totalMarks,
-
         questions: questionsObject,
-
-        updatedAt:
-          new Date().toISOString(),
-
+        updatedAt: new Date().toISOString(),
         updatedBy: currentUser.id,
       };
 
-      const currentVideoIds =
-        courseVideos.map((video) => video.id);
+      const currentVideoIds = courseVideos.map((video) => video.id);
 
       const videosChanged =
         JSON.stringify(originalVideoIds) !==
         JSON.stringify(currentVideoIds);
 
       const currentQuizSnapshot = JSON.stringify({
-  durationMinutes: durationInMinutes,
-  passingPercentage: safePassingPercentage,
+        durationMinutes: durationInMinutes,
+        passingPercentage: safePassingPercentage,
+        questions: sanitizedQuizQuestions.map((question) => ({
+          id: question.id,
+          question: question.question,
+          options: question.options,
+          correctAnswerIndex: question.correctAnswerIndex,
+          correctOption: question.correctOption,
+          correctAnswer: question.correctAnswer,
+          marks: question.marks,
+          explanation: question.explanation,
+          order: question.order,
+        })),
+      });
 
-  questions: sanitizedQuizQuestions.map(
-    (question) => ({
-      id: question.id,
-      question: question.question,
-      options: question.options,
-      correctAnswerIndex:
-        question.correctAnswerIndex,
-      correctOption:
-        question.correctOption,
-      correctAnswer:
-        question.correctAnswer,
-      marks: question.marks,
-      explanation:
-        question.explanation,
-      order: question.order,
-    })
-  ),
-});
-      const quizChanged =
-        originalQuizSnapshot !==
-        currentQuizSnapshot;
+      const quizChanged = originalQuizSnapshot !== currentQuizSnapshot;
 
-      /*
-       * Update course details and timer fields.
-       */
-      await update(
-        ref(database, `courses/${courseId}`),
-        {
-          title: title.trim(),
+      await update(ref(database, `courses/${courseId}`), {
+        title: title.trim(),
+        description: overview.trim(),
+        overview: overview.trim(),
+        courseThumbnail: thumbnailUrl,
+        thumbnailUrl,
+        totalVideos: courseVideos.length,
+        videoIds: currentVideoIds,
+        quizEnabled: sanitizedQuizQuestions.length > 0,
+        hasQuiz: sanitizedQuizQuestions.length > 0,
+        durationMinutes: durationInMinutes,
+        quizDurationMinutes: durationInMinutes,
+        quizDuration: durationInSeconds,
+        testDuration: durationInSeconds,
+        timeLimit: durationInSeconds,
+        durationSeconds: durationInSeconds,
+        quizDurationSeconds: durationInSeconds,
+        timeLimitSeconds: durationInSeconds,
+        passingPercentage: safePassingPercentage,
+        passPercentage: safePassingPercentage,
+        passingScore: safePassingPercentage,
+        totalQuizQuestions: sanitizedQuizQuestions.length,
+        totalQuestions: sanitizedQuizQuestions.length,
+        totalQuizMarks: totalMarks,
+        updatedAt: new Date().toISOString(),
+        updatedBy: currentUser.id,
+      });
 
-          description: overview.trim(),
-
-          overview: overview.trim(),
-
-          courseThumbnail: thumbnailUrl,
-
-          thumbnailUrl,
-
-          totalVideos:
-            courseVideos.length,
-
-          videoIds: currentVideoIds,
-
-          quizEnabled:
-            sanitizedQuizQuestions.length > 0,
-
-          hasQuiz:
-            sanitizedQuizQuestions.length > 0,
-
-          /*
-           * Minutes for edit UI.
-           */
-          durationMinutes:
-            durationInMinutes,
-
-          quizDurationMinutes:
-            durationInMinutes,
-
-          /*
-           * Seconds for QuizPage timer.
-           */
-          quizDuration:
-            durationInSeconds,
-
-          testDuration:
-            durationInSeconds,
-
-          timeLimit:
-            durationInSeconds,
-
-          durationSeconds:
-            durationInSeconds,
-
-          quizDurationSeconds:
-            durationInSeconds,
-
-          timeLimitSeconds:
-            durationInSeconds,
-
-          passingPercentage:
-            safePassingPercentage,
-
-          passPercentage:
-            safePassingPercentage,
-
-          passingScore:
-            safePassingPercentage,
-
-          totalQuizQuestions:
-            sanitizedQuizQuestions.length,
-
-          totalQuestions:
-            sanitizedQuizQuestions.length,
-
-          totalQuizMarks: totalMarks,
-
-          updatedAt:
-            new Date().toISOString(),
-
-          updatedBy: currentUser.id,
-        }
-      );
-
-      /*
-       * Replace course video mappings.
-       */
-      await remove(
-        ref(
-          database,
-          `courseVideos/${courseId}`
-        )
-      );
+      await remove(ref(database, `courseVideos/${courseId}`));
 
       const videoUpdates = {};
+      courseVideos.forEach((video, index) => {
+        videoUpdates[`courseVideos/${courseId}/${video.id}`] = {
+          ...video,
+          id: video.id,
+          videoId: video.videoId || video.id,
+          courseId,
+          courseTitle: title.trim(),
+          order: index + 1,
+          addedAt: video.addedAt || new Date().toISOString(),
+        };
+      });
 
-      courseVideos.forEach(
-        (video, index) => {
-          videoUpdates[
-            `courseVideos/${courseId}/${video.id}`
-          ] = {
-            ...video,
-
-            id: video.id,
-
-            videoId:
-              video.videoId || video.id,
-
-            courseId,
-
-            courseTitle:
-              title.trim(),
-
-            order: index + 1,
-
-            addedAt:
-              video.addedAt ||
-              new Date().toISOString(),
-          };
-        }
-      );
-
-      if (
-        Object.keys(videoUpdates).length > 0
-      ) {
-        await update(
-          ref(database),
-          videoUpdates
-        );
+      if (Object.keys(videoUpdates).length > 0) {
+        await update(ref(database), videoUpdates);
       }
 
-      /*
-       * Save complete quiz metadata.
-       */
-      await set(
-        ref(
-          database,
-          `courseQuizzes/${courseId}`
-        ),
-        quizPayload
-      );
+      await set(ref(database, `courseQuizzes/${courseId}`), quizPayload);
+      await set(ref(database, `questions/${courseId}`), questionsObject);
 
-      /*
-       * Most important:
-       * QuizPage reads questions/{courseId}.
-       */
-      await set(
-        ref(
-          database,
-          `questions/${courseId}`
-        ),
-        questionsObject
+      const newlyAddedVideoIds = currentVideoIds.filter(
+        (videoId) => !originalVideoIds.includes(videoId)
       );
-
-      const newlyAddedVideoIds =
-        currentVideoIds.filter(
-          (videoId) =>
-            !originalVideoIds.includes(videoId)
-        );
 
       if (videosChanged || quizChanged) {
-        await set(
-          ref(
-            database,
-            `courseContentUpdates/${courseId}`
-          ),
-          {
-            lastUpdatedAt:
-              new Date().toISOString(),
-
-            updatedBy: currentUser.id,
-
-            updateType:
-              videosChanged && quizChanged
-                ? "videos_and_quiz"
-                : videosChanged
-                  ? "videos"
-                  : "quiz",
-
-            newVideoIds:
-              newlyAddedVideoIds,
-
-            videosChanged,
-
-            quizChanged,
-
-            quizDurationMinutes:
-              durationInMinutes,
-
-            quizDurationSeconds:
-              durationInSeconds,
-          }
-        );
+        await set(ref(database, `courseContentUpdates/${courseId}`), {
+          lastUpdatedAt: new Date().toISOString(),
+          updatedBy: currentUser.id,
+          updateType:
+            videosChanged && quizChanged
+              ? "videos_and_quiz"
+              : videosChanged
+                ? "videos"
+                : "quiz",
+          newVideoIds: newlyAddedVideoIds,
+          videosChanged,
+          quizChanged,
+          quizDurationMinutes: durationInMinutes,
+          quizDurationSeconds: durationInSeconds,
+        });
 
         await resetAssignedUsersProgress();
 
@@ -1911,13 +1322,8 @@ function EditCourse() {
         }
       }
 
-      setOriginalVideoIds(
-        currentVideoIds
-      );
-
-      setOriginalQuizSnapshot(
-        currentQuizSnapshot
-      );
+      setOriginalVideoIds(currentVideoIds);
+      setOriginalQuizSnapshot(currentQuizSnapshot);
 
       alert(
         "Course, videos, quiz answers and quiz time updated successfully."
@@ -1925,10 +1331,7 @@ function EditCourse() {
 
       navigate(`${basePath}/courses`);
     } catch (error) {
-      console.error(
-        "Course update error:",
-        error
-      );
+      console.error("Course update error:", error);
 
       alert(
         error?.message ||
@@ -1948,13 +1351,8 @@ function EditCourse() {
 
     if (!numericSeconds) return "";
 
-    const minutes = Math.floor(
-      numericSeconds / 60
-    );
-
-    const remainingSeconds = Math.floor(
-      numericSeconds % 60
-    );
+    const minutes = Math.floor(numericSeconds / 60);
+    const remainingSeconds = Math.floor(numericSeconds % 60);
 
     return `${minutes}:${remainingSeconds
       .toString()
@@ -1982,9 +1380,7 @@ function EditCourse() {
   if (loading) {
     return (
       <div className="ec-page">
-        <div className="ec-loading">
-          Loading course...
-        </div>
+        <div className="ec-loading">Loading course...</div>
       </div>
     );
   }
@@ -1999,19 +1395,14 @@ function EditCourse() {
         <button
           type="button"
           className="ec-back-btn"
-          onClick={() =>
-            navigate(`${basePath}/courses`)
-          }
+          onClick={() => navigate(`${basePath}/courses`)}
         >
           ← Back to Courses
         </button>
 
         <div className="ec-topbar-title">
           <h1>Edit Course</h1>
-
-          <p>
-            Edit course details, videos and final quiz.
-          </p>
+          <p>Edit course details, videos and final quiz.</p>
         </div>
 
         <button
@@ -2020,9 +1411,7 @@ function EditCourse() {
           onClick={handleSave}
           disabled={saving}
         >
-          {saving
-            ? "Saving..."
-            : "Save Changes"}
+          {saving ? "Saving..." : "Save Changes"}
         </button>
       </div>
 
@@ -2031,68 +1420,44 @@ function EditCourse() {
           {/* Course details */}
           <section className="ec-card">
             <div className="ec-section-heading">
-              <span className="ec-section-number">
-                1
-              </span>
-
+              <span className="ec-section-number">1</span>
               <div>
                 <h2>Course Details</h2>
-
-                <p>
-                  Edit title, description and thumbnail.
-                </p>
+                <p>Edit title, description and thumbnail.</p>
               </div>
             </div>
 
             <div className="ec-field">
-              <label htmlFor="course-title">
-                Course Title
-              </label>
-
+              <label htmlFor="course-title">Course Title</label>
               <input
                 id="course-title"
                 type="text"
                 value={title}
-                onChange={(event) =>
-                  setTitle(event.target.value)
-                }
+                onChange={(event) => setTitle(event.target.value)}
                 placeholder="Enter course title"
               />
             </div>
 
             <div className="ec-field">
-              <label htmlFor="course-overview">
-                Description
-              </label>
-
+              <label htmlFor="course-overview">Description</label>
               <textarea
                 id="course-overview"
                 rows={5}
                 value={overview}
-                onChange={(event) =>
-                  setOverview(
-                    event.target.value
-                  )
-                }
+                onChange={(event) => setOverview(event.target.value)}
                 placeholder="Enter course description"
               />
             </div>
 
             <div className="ec-field">
               <label>Thumbnail</label>
-
               <div className="ec-thumb-area">
-                {thumbnailPreview ||
-                existingThumbnail ? (
+                {thumbnailPreview || existingThumbnail ? (
                   <div className="ec-thumb-preview">
                     <img
-                      src={
-                        thumbnailPreview ||
-                        existingThumbnail
-                      }
+                      src={thumbnailPreview || existingThumbnail}
                       alt="Course thumbnail"
                     />
-
                     <button
                       type="button"
                       className="ec-thumb-remove"
@@ -2106,9 +1471,7 @@ function EditCourse() {
                   <button
                     type="button"
                     className="ec-thumb-upload"
-                    onClick={() =>
-                      thumbInputRef.current?.click()
-                    }
+                    onClick={() => thumbInputRef.current?.click()}
                   >
                     + Upload Thumbnail
                   </button>
@@ -2129,19 +1492,12 @@ function EditCourse() {
           <section className="ec-card">
             <div className="ec-card-header">
               <div className="ec-section-heading">
-                <span className="ec-section-number">
-                  2
-                </span>
-
+                <span className="ec-section-number">2</span>
                 <div>
                   <h2>Course Videos</h2>
-
                   <p>
                     {courseVideos.length} video
-                    {courseVideos.length !== 1
-                      ? "s"
-                      : ""}{" "}
-                    • Drag or use arrows to reorder
+                    {courseVideos.length !== 1 ? "s" : ""} • Drag or use arrows to reorder
                   </p>
                 </div>
               </div>
@@ -2149,164 +1505,92 @@ function EditCourse() {
               <button
                 type="button"
                 className="ec-add-videos-btn"
-                onClick={() =>
-                  setShowAddVideos(
-                    (previous) => !previous
-                  )
-                }
+                onClick={() => setShowAddVideos((previous) => !previous)}
               >
-                {showAddVideos
-                  ? "Close Library"
-                  : "+ Add Videos"}
+                {showAddVideos ? "Close Library" : "+ Add Videos"}
               </button>
             </div>
 
             {courseVideos.length === 0 ? (
               <div className="ec-empty">
-                <p>
-                  No videos in this course yet.
-                </p>
-
+                <p>No videos in this course yet.</p>
                 <button
                   type="button"
-                  onClick={() =>
-                    setShowAddVideos(true)
-                  }
+                  onClick={() => setShowAddVideos(true)}
                 >
                   Add Videos
                 </button>
               </div>
             ) : (
               <div className="ec-video-list">
-                {courseVideos.map(
-                  (video, index) => (
-                    <div
-                      key={video.id}
-                      className={[
-                        "ec-video-row",
-                        dragIndex === index
-                          ? "dragging"
-                          : "",
-                        dragOverIndex === index
-                          ? "drag-over"
-                          : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                      draggable
-                      onDragStart={() =>
-                        handleDragStart(index)
-                      }
-                      onDragOver={(event) =>
-                        handleDragOver(
-                          event,
-                          index
-                        )
-                      }
-                      onDragEnd={handleDragEnd}
-                      onDrop={() =>
-                        handleDrop(index)
-                      }
-                    >
-                      <span className="ec-video-grip">
-                        ⠿
-                      </span>
+                {courseVideos.map((video, index) => (
+                  <div
+                    key={video.id}
+                    className={[
+                      "ec-video-row",
+                      dragIndex === index ? "dragging" : "",
+                      dragOverIndex === index ? "drag-over" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    draggable
+                    onDragStart={() => handleDragStart(index)}
+                    onDragOver={(event) => handleDragOver(event, index)}
+                    onDragEnd={handleDragEnd}
+                    onDrop={() => handleDrop(index)}
+                  >
+                    <span className="ec-video-grip">⠿</span>
+                    <span className="ec-video-idx">{index + 1}</span>
 
-                      <span className="ec-video-idx">
-                        {index + 1}
-                      </span>
-
-                      <div className="ec-video-thumb">
-                        {video.thumbnailUrl ? (
-                          <img
-                            src={
-                              video.thumbnailUrl
-                            }
-                            alt=""
-                          />
-                        ) : (
-                          <span>
-                            {(
-                              video.title || "V"
-                            )[0]}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="ec-video-info">
-                        <h4>
-                          {video.title ||
-                            video.videoTitle ||
-                            "Untitled"}
-                        </h4>
-
-                        <span>
-                          {video.metadata
-                            ?.organName || ""}
-
-                          {video.metadata
-                            ?.videoType
-                            ? ` • ${video.metadata.videoType}`
-                            : ""}
-
-                          {video.durationSeconds
-                            ? ` • ${formatDuration(
-                                video.durationSeconds
-                              )}`
-                            : ""}
-                        </span>
-                      </div>
-
-                      <div className="ec-video-actions">
-                        <button
-                          type="button"
-                          className="ec-move-btn"
-                          onClick={() =>
-                            moveVideo(
-                              index,
-                              index - 1
-                            )
-                          }
-                          disabled={index === 0}
-                          title="Move up"
-                        >
-                          ↑
-                        </button>
-
-                        <button
-                          type="button"
-                          className="ec-move-btn"
-                          onClick={() =>
-                            moveVideo(
-                              index,
-                              index + 1
-                            )
-                          }
-                          disabled={
-                            index ===
-                            courseVideos.length - 1
-                          }
-                          title="Move down"
-                        >
-                          ↓
-                        </button>
-
-                        <button
-                          type="button"
-                          className="ec-remove-btn"
-                          onClick={() =>
-                            removeVideoFromCourse(
-                              video.id
-                            )
-                          }
-                          title="Remove video"
-                        >
-                          ✕
-                        </button>
-                      </div>
+                    <div className="ec-video-thumb">
+                      {video.thumbnailUrl ? (
+                        <img src={video.thumbnailUrl} alt="" />
+                      ) : (
+                        <span>{(video.title || "V")[0]}</span>
+                      )}
                     </div>
-                  )
-                )}
+
+                    <div className="ec-video-info">
+                      <h4>{video.title || video.videoTitle || "Untitled"}</h4>
+                      <span>
+                        {video.metadata?.organName || ""}
+                        {video.metadata?.videoType ? ` • ${video.metadata.videoType}` : ""}
+                        {video.durationSeconds ? ` • ${formatDuration(video.durationSeconds)}` : ""}
+                      </span>
+                    </div>
+
+                    <div className="ec-video-actions">
+                      <button
+                        type="button"
+                        className="ec-move-btn"
+                        onClick={() => moveVideo(index, index - 1)}
+                        disabled={index === 0}
+                        title="Move up"
+                      >
+                        ↑
+                      </button>
+
+                      <button
+                        type="button"
+                        className="ec-move-btn"
+                        onClick={() => moveVideo(index, index + 1)}
+                        disabled={index === courseVideos.length - 1}
+                        title="Move down"
+                      >
+                        ↓
+                      </button>
+
+                      <button
+                        type="button"
+                        className="ec-remove-btn"
+                        onClick={() => removeVideoFromCourse(video.id)}
+                        title="Remove video"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </section>
@@ -2315,16 +1599,11 @@ function EditCourse() {
           <section className="ec-card ec-quiz-section">
             <div className="ec-card-header">
               <div className="ec-section-heading">
-                <span className="ec-section-number">
-                  3
-                </span>
-
+                <span className="ec-section-number">3</span>
                 <div>
                   <h2>Final Course Quiz</h2>
-
                   <p>
-                    Edit quiz time, passing score,
-                    questions, options and correct answers.
+                    Edit quiz time, passing score, questions, options and correct answers.
                   </p>
                 </div>
               </div>
@@ -2333,10 +1612,7 @@ function EditCourse() {
             <div className="ec-quiz-body">
               <div className="ec-quiz-settings">
                 <div className="ec-field">
-                  <label htmlFor="quiz-duration">
-                    Quiz Duration
-                  </label>
-
+                  <label htmlFor="quiz-duration">Quiz Duration</label>
                   <div className="ec-input-suffix">
                     <input
                       id="quiz-duration"
@@ -2344,22 +1620,14 @@ function EditCourse() {
                       min="1"
                       max="300"
                       value={quizDuration}
-                      onChange={(event) =>
-                        setQuizDuration(
-                          event.target.value
-                        )
-                      }
+                      onChange={(event) => setQuizDuration(event.target.value)}
                     />
-
                     <span>minutes</span>
                   </div>
                 </div>
 
                 <div className="ec-field">
-                  <label htmlFor="passing-percentage">
-                    Passing Percentage
-                  </label>
-
+                  <label htmlFor="passing-percentage">Passing Percentage</label>
                   <div className="ec-input-suffix">
                     <input
                       id="passing-percentage"
@@ -2367,13 +1635,8 @@ function EditCourse() {
                       min="1"
                       max="100"
                       value={passingPercentage}
-                      onChange={(event) =>
-                        setPassingPercentage(
-                          event.target.value
-                        )
-                      }
+                      onChange={(event) => setPassingPercentage(event.target.value)}
                     />
-
                     <span>%</span>
                   </div>
                 </div>
@@ -2381,18 +1644,11 @@ function EditCourse() {
                 <div className="ec-quiz-summary">
                   <span>
                     Questions
-
-                    <strong>
-                      {quizQuestions.length}
-                    </strong>
+                    <strong>{quizQuestions.length}</strong>
                   </span>
-
                   <span>
                     Total Marks
-
-                    <strong>
-                      {totalQuizMarks}
-                    </strong>
+                    <strong>{totalQuizMarks}</strong>
                   </span>
                 </div>
               </div>
@@ -2400,11 +1656,7 @@ function EditCourse() {
               <div className="ec-quiz-toolbar">
                 <div>
                   <h3>Quiz Questions</h3>
-
-                  <p>
-                    Select the radio button beside the
-                    correct answer.
-                  </p>
+                  <p>Select the radio button beside the correct answer.</p>
                 </div>
 
                 <button
@@ -2418,261 +1670,184 @@ function EditCourse() {
 
               {quizQuestions.length === 0 ? (
                 <div className="ec-empty ec-quiz-empty">
-                  <p>
-                    No quiz questions have been added.
-                  </p>
-
-                  <button
-                    type="button"
-                    onClick={addQuizQuestion}
-                  >
+                  <p>No quiz questions have been added.</p>
+                  <button type="button" onClick={addQuizQuestion}>
                     Add First Question
                   </button>
                 </div>
               ) : (
                 <div className="ec-question-list">
-                  {quizQuestions.map(
-                    (question, questionIndex) => (
-                      <article
-                        className="ec-question-card"
-                        key={question.id}
-                      >
-                        <div className="ec-question-header">
-                          <div>
-                            <span className="ec-question-number">
-                              Question{" "}
-                              {questionIndex + 1}
-                            </span>
-
-                            <span className="ec-question-marks-label">
-                              {question.marks || 1} mark
-                              {Number(
-                                question.marks
-                              ) !== 1
-                                ? "s"
-                                : ""}
-                            </span>
-                          </div>
-
-                          <div className="ec-question-actions">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                moveQuizQuestion(
-                                  questionIndex,
-                                  questionIndex - 1
-                                )
-                              }
-                              disabled={
-                                questionIndex === 0
-                              }
-                              title="Move question up"
-                            >
-                              ↑
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                moveQuizQuestion(
-                                  questionIndex,
-                                  questionIndex + 1
-                                )
-                              }
-                              disabled={
-                                questionIndex ===
-                                quizQuestions.length -
-                                  1
-                              }
-                              title="Move question down"
-                            >
-                              ↓
-                            </button>
-
-                            <button
-                              type="button"
-                              className="ec-delete-question"
-                              onClick={() =>
-                                removeQuizQuestion(
-                                  question.id
-                                )
-                              }
-                            >
-                              Remove
-                            </button>
-                          </div>
+                  {quizQuestions.map((question, questionIndex) => (
+                    <article className="ec-question-card" key={question.id}>
+                      <div className="ec-question-header">
+                        <div>
+                          <span className="ec-question-number">
+                            Question {questionIndex + 1}
+                          </span>
+                          <span className="ec-question-marks-label">
+                            {question.marks || 1} mark
+                            {Number(question.marks) !== 1 ? "s" : ""}
+                          </span>
                         </div>
 
-                        <div className="ec-field">
-                          <label>
-                            Question Text
-                          </label>
+                        <div className="ec-question-actions">
+                          <button
+                            type="button"
+                            onClick={() => moveQuizQuestion(questionIndex, questionIndex - 1)}
+                            disabled={questionIndex === 0}
+                            title="Move question up"
+                          >
+                            ↑
+                          </button>
 
-                          <textarea
-                            rows={3}
-                            value={
-                              question.question
-                            }
-                            onChange={(event) =>
-                              updateQuizQuestion(
-                                question.id,
-                                "question",
-                                event.target.value
-                              )
-                            }
-                            placeholder="Enter the quiz question"
-                          />
+                          <button
+                            type="button"
+                            onClick={() => moveQuizQuestion(questionIndex, questionIndex + 1)}
+                            disabled={questionIndex === quizQuestions.length - 1}
+                            title="Move question down"
+                          >
+                            ↓
+                          </button>
+
+                          <button
+                            type="button"
+                            className="ec-delete-question"
+                            onClick={() => removeQuizQuestion(question.id)}
+                          >
+                            Remove
+                          </button>
                         </div>
+                      </div>
 
-                        <div className="ec-question-options">
-                          <div className="ec-options-heading">
-                            <label>
-                              Answer Options
-                            </label>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                addOptionToQuestion(
-                                  question.id
-                                )
-                              }
-                            >
-                              + Add Option
-                            </button>
-                          </div>
-
-                          {question.options.map(
-                            (
-                              option,
-                              optionIndex
-                            ) => (
-                              <div
-                                className={[
-                                  "ec-option-row",
-                                  Number(
-                                    question.correctAnswer
-                                  ) === optionIndex
-                                    ? "is-correct"
-                                    : "",
-                                ]
-                                  .filter(Boolean)
-                                  .join(" ")}
-                                key={`${question.id}-option-${optionIndex}`}
-                              >
-                                <label className="ec-correct-radio">
-                                  <input
-                                    type="radio"
-                                    name={`correct-${question.id}`}
-                                    checked={
-                                      Number(
-                                        question.correctAnswer
-                                      ) ===
-                                      optionIndex
-                                    }
-                                    onChange={() =>
-                                      updateQuizQuestion(
-                                        question.id,
-                                        "correctAnswer",
-                                        optionIndex
-                                      )
-                                    }
-                                  />
-
-                                  <span>
-                                    {String.fromCharCode(
-                                      65 +
-                                        optionIndex
-                                    )}
-                                  </span>
-                                </label>
-
-                                <input
-                                  type="text"
-                                  value={option}
-                                  onChange={(event) =>
-                                    updateQuizOption(
-                                      question.id,
-                                      optionIndex,
-                                      event.target.value
-                                    )
-                                  }
-                                  placeholder={`Option ${String.fromCharCode(
-                                    65 + optionIndex
-                                  )}`}
-                                />
-
-                                <button
-                                  type="button"
-                                  className="ec-remove-option"
-                                  onClick={() =>
-                                    removeOptionFromQuestion(
-                                      question.id,
-                                      optionIndex
-                                    )
-                                  }
-                                  disabled={
-                                    question.options
-                                      .length <= 2
-                                  }
-                                  title="Remove option"
-                                >
-                                  ✕
-                                </button>
-                              </div>
+                      <div className="ec-field">
+                        <label>Question Text</label>
+                        <textarea
+                          rows={3}
+                          value={question.question}
+                          onChange={(event) =>
+                            updateQuizQuestion(
+                              question.id,
+                              "question",
+                              event.target.value
                             )
-                          )}
+                          }
+                          placeholder="Enter the quiz question"
+                        />
+                      </div>
+
+                      <div className="ec-question-options">
+                        <div className="ec-options-heading">
+                          <label>Answer Options</label>
+                          <button
+                            type="button"
+                            onClick={() => addOptionToQuestion(question.id)}
+                          >
+                            + Add Option
+                          </button>
                         </div>
 
-                        <div className="ec-question-bottom-grid">
-                          <div className="ec-field">
-                            <label>Marks</label>
-
-                            <input
-                              type="number"
-                              min="1"
-                              max="100"
-                              value={
-                                question.marks
-                              }
-                              onChange={(event) =>
-                                updateQuizQuestion(
-                                  question.id,
-                                  "marks",
-                                  event.target.value
-                                )
-                              }
-                            />
-                          </div>
-
-                          <div className="ec-field">
-                            <label>
-                              Explanation
-
-                              <span className="ec-optional">
-                                Optional
+                        {question.options.map((option, optionIndex) => (
+                          <div
+                            className={[
+                              "ec-option-row",
+                              Number(question.correctAnswer) === optionIndex
+                                ? "is-correct"
+                                : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                            key={`${question.id}-option-${optionIndex}`}
+                          >
+                            <label className="ec-correct-radio">
+                              <input
+                                type="radio"
+                                name={`correct-${question.id}`}
+                                checked={
+                                  Number(question.correctAnswer) === optionIndex
+                                }
+                                onChange={() =>
+                                  updateQuizQuestion(
+                                    question.id,
+                                    "correctAnswer",
+                                    optionIndex
+                                  )
+                                }
+                              />
+                              <span>
+                                {String.fromCharCode(65 + optionIndex)}
                               </span>
                             </label>
 
                             <input
                               type="text"
-                              value={
-                                question.explanation
-                              }
+                              value={option}
                               onChange={(event) =>
-                                updateQuizQuestion(
+                                updateQuizOption(
                                   question.id,
-                                  "explanation",
+                                  optionIndex,
                                   event.target.value
                                 )
                               }
-                              placeholder="Explain the correct answer"
+                              placeholder={`Option ${String.fromCharCode(65 + optionIndex)}`}
                             />
+
+                            <button
+                              type="button"
+                              className="ec-remove-option"
+                              onClick={() =>
+                                removeOptionFromQuestion(
+                                  question.id,
+                                  optionIndex
+                                )
+                              }
+                              disabled={question.options.length <= 2}
+                              title="Remove option"
+                            >
+                              ✕
+                            </button>
                           </div>
+                        ))}
+                      </div>
+
+                      <div className="ec-question-bottom-grid">
+                        <div className="ec-field">
+                          <label>Marks</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={question.marks}
+                            onChange={(event) =>
+                              updateQuizQuestion(
+                                question.id,
+                                "marks",
+                                event.target.value
+                              )
+                            }
+                          />
                         </div>
-                      </article>
-                    )
-                  )}
+
+                        <div className="ec-field">
+                          <label>
+                            Explanation
+                            <span className="ec-optional">Optional</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={question.explanation}
+                            onChange={(event) =>
+                              updateQuizQuestion(
+                                question.id,
+                                "explanation",
+                                event.target.value
+                              )
+                            }
+                            placeholder="Explain the correct answer"
+                          />
+                        </div>
+                      </div>
+                    </article>
+                  ))}
                 </div>
               )}
 
@@ -2694,17 +1869,12 @@ function EditCourse() {
               <div className="ec-sidebar-heading">
                 <div>
                   <h2>Video Library</h2>
-
-                  <p>
-                    Select videos to add to this course.
-                  </p>
+                  <p>Select videos to add to this course.</p>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() =>
-                    setShowAddVideos(false)
-                  }
+                  onClick={() => setShowAddVideos(false)}
                   className="ec-sidebar-close"
                 >
                   ×
@@ -2715,42 +1885,20 @@ function EditCourse() {
                 type="text"
                 placeholder="Search videos..."
                 value={videoSearch}
-                onChange={(event) =>
-                  setVideoSearch(
-                    event.target.value
-                  )
-                }
+                onChange={(event) => setVideoSearch(event.target.value)}
                 className="ec-search"
               />
 
               <select
                 value={filterType}
-                onChange={(event) =>
-                  setFilterType(
-                    event.target.value
-                  )
-                }
+                onChange={(event) => setFilterType(event.target.value)}
                 className="ec-filter"
               >
-                <option value="">
-                  All Types
-                </option>
-
-                <option value="Anatomy">
-                  Anatomy
-                </option>
-
-                <option value="Therapy">
-                  Therapy
-                </option>
-
-                <option value="Product">
-                  Product
-                </option>
-
-                <option value="Other">
-                  Other
-                </option>
+                <option value="">All Types</option>
+                <option value="Anatomy">Anatomy</option>
+                <option value="Therapy">Therapy</option>
+                <option value="Product">Product</option>
+                <option value="Other">Other</option>
               </select>
 
               <p className="ec-lib-count">
@@ -2763,54 +1911,30 @@ function EditCourse() {
                     type="button"
                     key={video.id}
                     className="ec-lib-card"
-                    onClick={() =>
-                      addVideoToCourse(video)
-                    }
+                    onClick={() => addVideoToCourse(video)}
                   >
                     <div className="ec-lib-thumb">
                       {video.thumbnailUrl ? (
-                        <img
-                          src={
-                            video.thumbnailUrl
-                          }
-                          alt=""
-                        />
+                        <img src={video.thumbnailUrl} alt="" />
                       ) : (
-                        <span>
-                          {(
-                            video.title || "V"
-                          )[0]}
-                        </span>
+                        <span>{(video.title || "V")[0]}</span>
                       )}
                     </div>
 
                     <div className="ec-lib-info">
-                      <h4>
-                        {video.title ||
-                          "Untitled"}
-                      </h4>
-
+                      <h4>{video.title || "Untitled"}</h4>
                       <span>
-                        {video.metadata
-                          ?.organName || ""}
-
-                        {video.metadata
-                          ?.videoType
-                          ? ` • ${video.metadata.videoType}`
-                          : ""}
+                        {video.metadata?.organName || ""}
+                        {video.metadata?.videoType ? ` • ${video.metadata.videoType}` : ""}
                       </span>
                     </div>
 
-                    <span className="ec-lib-add">
-                      +
-                    </span>
+                    <span className="ec-lib-add">+</span>
                   </button>
                 ))}
 
                 {filteredAvailable.length === 0 && (
-                  <p className="ec-lib-empty">
-                    No more videos available.
-                  </p>
+                  <p className="ec-lib-empty">No more videos available.</p>
                 )}
               </div>
             </div>

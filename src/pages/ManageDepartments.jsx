@@ -4,14 +4,8 @@ import { database } from "../firebase";
 import "../styles/managedepartments.css";
 
 const departmentTypes = [
-  "Research & Development",
-  "Sales & Marketing",
-  "Production & Manufacturing",
-  "Quality Assurance & Quality Control",
-  "Regulatory Affairs",
-  "Business Development",
-  "Admin & Operations",
-  "Key Leadership & Corporate Contact",
+ "PMT",
+    "Regulatory",
 ];
 
 function ManageDepartments() {
