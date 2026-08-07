@@ -337,6 +337,8 @@ function Profile() {
         ...cleanData,
       }));
 
+      window.dispatchEvent(new CustomEvent("profile-updated", { detail: cleanData }));
+
       alert("Profile updated successfully");
     } catch (error) {
       console.error("Profile update error:", error);

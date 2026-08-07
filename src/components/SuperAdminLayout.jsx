@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase";
@@ -16,6 +16,7 @@ import ProfileCompletionBadge from "./ProfileCompletionBadge";
 
 function SuperAdminLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const notifDropdownRef = useRef(null);
 
   const [openTraining, setOpenTraining] = useState(false);
@@ -77,6 +78,14 @@ function SuperAdminLayout() {
     });
     return () => unsub();
   }, [userData?.id]);
+
+  useEffect(() => {
+    const handleProfileUpdated = (e) => {
+      setUserData((prev) => ({ ...prev, ...e.detail }));
+    };
+    window.addEventListener("profile-updated", handleProfileUpdated);
+    return () => window.removeEventListener("profile-updated", handleProfileUpdated);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -333,7 +342,9 @@ function SuperAdminLayout() {
         </div>
 
         <Outlet />
-        <ProfileCompletionBadge profileData={userData} profilePath="/super-admin/profile" />
+        {!location.pathname.includes("/video/") && (
+          <ProfileCompletionBadge profileData={userData} profilePath="/super-admin/profile" />
+        )}
       </main>
     </div>
   );

@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase";
@@ -16,6 +16,7 @@ import ProfileCompletionBadge from "./ProfileCompletionBadge";
 
 function DepartmentAdminLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const notifDropdownRef = useRef(null);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -52,6 +53,14 @@ function DepartmentAdminLayout() {
     });
     return () => unsub();
   }, [profile?.id]);
+
+  useEffect(() => {
+    const handleProfileUpdated = (e) => {
+      setProfile((prev) => ({ ...prev, ...e.detail }));
+    };
+    window.addEventListener("profile-updated", handleProfileUpdated);
+    return () => window.removeEventListener("profile-updated", handleProfileUpdated);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -316,7 +325,9 @@ function DepartmentAdminLayout() {
         </div>
 
         <Outlet />
-        <ProfileCompletionBadge profileData={profile} profilePath="/department-admin/profile" />
+        {!location.pathname.includes("/video/") && (
+          <ProfileCompletionBadge profileData={profile} profilePath="/department-admin/profile" />
+        )}
       </main>
     </div>
   );

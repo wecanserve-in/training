@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase";
 import { loadUserProfile } from "../lib/userAccess";
@@ -15,6 +15,7 @@ import "../styles/userLayout.css";
 
 function UserLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const notifDropdownRef = useRef(null);
 
@@ -61,6 +62,14 @@ function UserLayout() {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const handleProfileUpdated = (e) => {
+      setUserData((prev) => ({ ...prev, ...e.detail }));
+    };
+    window.addEventListener("profile-updated", handleProfileUpdated);
+    return () => window.removeEventListener("profile-updated", handleProfileUpdated);
   }, []);
 
   const toggleNotifDropdown = () => {
@@ -320,7 +329,9 @@ function UserLayout() {
         </div>
 
         <Outlet />
-        <ProfileCompletionBadge profileData={userData} profilePath="/profile" />
+        {!location.pathname.includes("/video/") && (
+          <ProfileCompletionBadge profileData={userData} profilePath="/profile" />
+        )}
       </main>
     </div>
   );
