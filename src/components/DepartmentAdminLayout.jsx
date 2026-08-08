@@ -174,7 +174,7 @@ function DepartmentAdminLayout() {
           </button>
         </div>
 
-        <div className="dept-sidebar-profile">
+        <div className="dept-sidebar-profile" onClick={() => navigate("profile")} style={{ cursor: "pointer" }}>
           <div className="dept-profile-circle">
             {profile?.photoURL ? (
               <img src={profile.photoURL} alt={profile?.name} className="dept-profile-circle-img" />

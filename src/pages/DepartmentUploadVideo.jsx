@@ -65,6 +65,7 @@ function DepartmentUploadVideo() {
   const [successMessage, setSuccessMessage] = useState("");
 
   const [modalMessage, setModalMessage] = useState("Preparing upload...");
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const [videoDragOver, setVideoDragOver] = useState(false);
   const [thumbnailDragOver, setThumbnailDragOver] = useState(false);
@@ -166,8 +167,8 @@ function DepartmentUploadVideo() {
     });
   };
 
-  // --- NEW R2 UPLOAD FUNCTION ---
-  const uploadFileToR2 = async (file, baseFolder, departmentName) => {
+  // --- R2 UPLOAD (PutObjectCommand + simulated progress) ---
+  const uploadFileToR2 = async (file, baseFolder, departmentName, onProgress) => {
     if (!file) {
       throw new Error("Please select a file before uploading.");
     }
@@ -180,61 +181,87 @@ function DepartmentUploadVideo() {
     }
 
     const safeDepartment = createSafeSlug(departmentName) || "general";
-    
-    // Create a unique file name to prevent overwrites in R2
+
     const fileExtension = file.name.split('.').pop();
     const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
     const fileKey = `${baseFolder}/${safeDepartment}/${uniqueFileName}`;
 
-    const command = new PutObjectCommand({
-      Bucket: bucketName,
-      Key: fileKey,
-      Body: file,
-      ContentType: file.type,
-    });
+    // Simulated progress: ramps up steadily, caps at 90% until upload completes
+    let pct = 0;
+    const sizeMB = (file.size || 0) / (1024 * 1024);
+    const intervalMs = Math.max(200, Math.min(800, Math.round(sizeMB * 15)));
+    const timer = setInterval(() => {
+      if (pct < 90) {
+        pct += 1;
+        if (onProgress) onProgress(pct);
+      }
+    }, intervalMs);
 
-    await s3Client.send(command);
+    try {
+      const command = new PutObjectCommand({
+        Bucket: bucketName,
+        Key: fileKey,
+        Body: file,
+        ContentType: file.type,
+      });
+
+      await s3Client.send(command);
+    } finally {
+      clearInterval(timer);
+    }
+
+    if (onProgress) onProgress(100);
 
     return {
       secure_url: `${publicDomain}/${fileKey}`,
-      public_id: fileKey
+      public_id: fileKey,
     };
   };
 
   const uploadAssets = async () => {
     setUploadStatus("Uploading video...");
     setModalMessage("Uploading video...");
+    setUploadProgress(0);
 
     const videoData = await uploadFileToR2(
       videoFile,
       "training-portal/videos",
-      department
+      department,
+      (pct) => {
+        setUploadProgress(pct);
+        setModalMessage(`Uploading video... ${pct}%`);
+      }
     );
 
     let thumbnailUrl = "";
-let thumbnailPublicId = "";
+    let thumbnailPublicId = "";
 
-let thumbnailToUpload = thumbnailFile;
+    let thumbnailToUpload = thumbnailFile;
 
-// If no thumbnail selected, generate one
-if (!thumbnailToUpload) {
-  setUploadStatus("Generating thumbnail...");
-  setModalMessage("Generating thumbnail...");
+    if (!thumbnailToUpload) {
+      setUploadStatus("Generating thumbnail...");
+      setModalMessage("Generating thumbnail...");
+      setUploadProgress(0);
 
-  thumbnailToUpload = await generateDefaultThumbnail(title);
-}
+      thumbnailToUpload = await generateDefaultThumbnail(title);
+    }
 
-setUploadStatus("Uploading thumbnail...");
-setModalMessage("Uploading thumbnail...");
+    setUploadStatus("Uploading thumbnail...");
+    setModalMessage("Uploading thumbnail...");
+    setUploadProgress(0);
 
-const thumbnailData = await uploadFileToR2(
-  thumbnailToUpload,
-  "training-portal/thumbnails",
-  department
-);
+    const thumbnailData = await uploadFileToR2(
+      thumbnailToUpload,
+      "training-portal/thumbnails",
+      department,
+      (pct) => {
+        setUploadProgress(pct);
+        setModalMessage(`Uploading thumbnail... ${pct}%`);
+      }
+    );
 
-thumbnailUrl = thumbnailData.secure_url;
-thumbnailPublicId = thumbnailData.public_id || "";
+    thumbnailUrl = thumbnailData.secure_url;
+    thumbnailPublicId = thumbnailData.public_id || "";
 
     const durationSeconds = await getVideoDuration(videoFile);
 
@@ -363,6 +390,7 @@ thumbnailPublicId = thumbnailData.public_id || "";
       setShowUploadModal(true);
       setUploadStatus("Preparing upload...");
       setModalMessage("Preparing upload...");
+      setUploadProgress(0);
 
       const uploaded = await uploadAssets();
 
@@ -811,6 +839,17 @@ thumbnailPublicId = thumbnailData.public_id || "";
             <div className="circle-loader"></div>
             <h3>Uploading Training Video</h3>
             <p>{modalMessage}</p>
+            {uploadProgress > 0 && (
+              <div className="upload-progress-wrapper">
+                <div className="upload-progress-track">
+                  <div
+                    className="upload-progress-fill"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+                <span className="upload-progress-pct">{uploadProgress}%</span>
+              </div>
+            )}
           </div>
         </div>
       )}

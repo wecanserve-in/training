@@ -183,7 +183,7 @@ function AdminLayout() {
           </button>
         </div>
 
-        <div className="sidebar-profile">
+        <div className="sidebar-profile" onClick={() => navigate("profile")} style={{ cursor: "pointer" }}>
           <div className="profile-circle">
             {userData?.photoURL ? (
               <img src={userData.photoURL} alt={userData?.name} className="profile-circle-img" />

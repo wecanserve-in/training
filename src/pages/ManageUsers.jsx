@@ -26,6 +26,14 @@ function ManageUsers() {
   const [isDesignationModalOpen, setIsDesignationModalOpen] = useState(false);
   const [designations, setDesignations] = useState([]);
   const [newDesignation, setNewDesignation] = useState("");
+  const [departmentList, setDepartmentList] = useState([]);
+  const [showCreateDeptModal, setShowCreateDeptModal] = useState(false);
+  const [newDeptName, setNewDeptName] = useState("");
+  const [isCreatingDept, setIsCreatingDept] = useState(false);
+
+  const [showCreateDesigModal, setShowCreateDesigModal] = useState(false);
+  const [newDesigName, setNewDesigName] = useState("");
+  const [isCreatingDesig, setIsCreatingDesig] = useState(false);
 
   const [uploadModal, setUploadModal] = useState({
     open: false,
@@ -70,21 +78,73 @@ function ManageUsers() {
   useEffect(() => {
     fetchMasterData();
     fetchUsers();
+    fetchDepartments();
   }, []);
 
-  const departmentTypes = [
-    // "Research & Development",
-    // "Sales & Marketing",
-    // "Production & Manufacturing",
-    // "Quality Assurance & Quality Control",
-    // "Regulatory Affairs",
-    // "Business Development",
-    // "Admin & Operations",
-    // "Key Leadership & Corporate Contact",
+  const fetchDepartments = async () => {
+    const snap = await get(ref(database, "departments"));
+    if (snap.exists()) {
+      const data = snap.val();
+      const list = Object.entries(data).map(([id, item]) => item.departmentName).filter(Boolean);
+      setDepartmentList([...new Set(list)].sort());
+    }
+  };
 
-    "PMT",
-    "Regulatory",
-  ];
+  const handleCreateDept = async () => {
+    const name = newDeptName.trim();
+    if (!name) {
+      alert("Please enter a department name.");
+      return;
+    }
+    if (departmentList.some((d) => d.toLowerCase() === name.toLowerCase())) {
+      alert("A department with this name already exists.");
+      return;
+    }
+    try {
+      setIsCreatingDept(true);
+      const deptRef = push(ref(database, "departments"));
+      await set(deptRef, {
+        departmentName: name,
+        departmentType: name,
+        createdAt: new Date().toISOString(),
+      });
+      setDepartmentList((prev) => [...new Set([...prev, name])].sort());
+      setForm((prev) => ({ ...prev, department: name }));
+      setNewDeptName("");
+      setShowCreateDeptModal(false);
+    } catch (error) {
+      console.error("Create department error:", error);
+      alert("Something went wrong while creating department.");
+    } finally {
+      setIsCreatingDept(false);
+    }
+  };
+
+  const handleCreateDesig = async () => {
+    const name = newDesigName.trim();
+    if (!name) {
+      alert("Please enter a designation name.");
+      return;
+    }
+    if (designations.some((d) => (d.name || "").toLowerCase() === name.toLowerCase())) {
+      alert("A designation with this name already exists.");
+      return;
+    }
+    try {
+      setIsCreatingDesig(true);
+      const desigRef = push(ref(database, "master/designations"));
+      await set(desigRef, { name });
+      setDesignations((prev) => [...prev, { id: desigRef.key, name }]);
+      setForm((prev) => ({ ...prev, designation: name }));
+      setNewDesigName("");
+      setShowCreateDesigModal(false);
+    } catch (error) {
+      console.error("Create designation error:", error);
+      alert("Something went wrong while creating designation.");
+    } finally {
+      setIsCreatingDesig(false);
+    }
+  };
 
   const fetchMasterData = async () => {
     const snap = await get(ref(database, "master/designations"));
@@ -601,9 +661,16 @@ const filteredUsers = users
           <form onSubmit={editingUserId ? updateExistingUser : createSingleUser} className="mu-form-grid">
             <input placeholder="Full Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
             <input placeholder="Email Address" type="email" value={form.email} disabled={!!editingUserId} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
-            <select className="nice-select" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} required>
+            <select className="nice-select" value={form.designation} onChange={(e) => {
+              if (e.target.value === "__create_desig__") {
+                setShowCreateDesigModal(true);
+              } else {
+                setForm({ ...form, designation: e.target.value });
+              }
+            }} required>
               <option value="" disabled>Select Designation</option>
               {designations.map((item) => (<option key={item.id} value={item.name}>{item.name}</option>))}
+              <option value="__create_desig__">+ Create Designation</option>
             </select>
             <select className="nice-select" value={form.seniority} onChange={(e) => setForm({ ...form, seniority: e.target.value })} required>
               <option value="" disabled>Select Seniority</option>
@@ -611,9 +678,16 @@ const filteredUsers = users
               <option value="junior">Junior</option>
               <option value="intern">Intern</option>
             </select>
-            <select className="nice-select" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} required>
+            <select className="nice-select" value={form.department} onChange={(e) => {
+              if (e.target.value === "__create_dept__") {
+                setShowCreateDeptModal(true);
+              } else {
+                setForm({ ...form, department: e.target.value });
+              }
+            }} required>
               <option value="" disabled>Select Department</option>
-              {departmentTypes.map((dept) => (<option key={dept} value={dept}>{dept}</option>))}
+              {departmentList.map((dept) => (<option key={dept} value={dept}>{dept}</option>))}
+              <option value="__create_dept__">+ Create Department</option>
             </select>
             <select className="nice-select" value={form.zone} onChange={(e) => setForm({ ...form, zone: e.target.value, state: "", cityArea: "" })} required>
               <option value="" disabled>1. Select Zone</option>
@@ -751,6 +825,56 @@ const filteredUsers = users
             {uploadModal.status === "done" && (
               <button className="mu-btn mu-btn-primary w-100 mt-3" onClick={() => setUploadModal({ ...uploadModal, open: false })}>Done</button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Create Department Modal */}
+      {showCreateDeptModal && (
+        <div className="modal-overlay" onClick={() => { setShowCreateDeptModal(false); setNewDeptName(""); }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Create New Department</h2>
+              <button className="close-btn" onClick={() => { setShowCreateDeptModal(false); setNewDeptName(""); }}>×</button>
+            </div>
+            <div className="designation-input-row">
+              <input
+                type="text"
+                placeholder="e.g. Finance, HR, Operations..."
+                value={newDeptName}
+                onChange={(e) => setNewDeptName(e.target.value)}
+                autoFocus
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleCreateDept(); } }}
+              />
+              <button className="mu-btn mu-btn-primary" onClick={handleCreateDept} disabled={isCreatingDept}>
+                {isCreatingDept ? "Creating..." : "Create"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Designation Modal */}
+      {showCreateDesigModal && (
+        <div className="modal-overlay" onClick={() => { setShowCreateDesigModal(false); setNewDesigName(""); }}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Create New Designation</h2>
+              <button className="close-btn" onClick={() => { setShowCreateDesigModal(false); setNewDesigName(""); }}>×</button>
+            </div>
+            <div className="designation-input-row">
+              <input
+                type="text"
+                placeholder="e.g. Manager, Analyst, Engineer..."
+                value={newDesigName}
+                onChange={(e) => setNewDesigName(e.target.value)}
+                autoFocus
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleCreateDesig(); } }}
+              />
+              <button className="mu-btn mu-btn-primary" onClick={handleCreateDesig} disabled={isCreatingDesig}>
+                {isCreatingDesig ? "Creating..." : "Create"}
+              </button>
+            </div>
           </div>
         </div>
       )}

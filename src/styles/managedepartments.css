@@ -87,6 +87,12 @@
   flex-wrap: wrap;
 }
 
+.md-action-bar-btns {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .md-search-box {
   display: flex;
   align-items: center;
@@ -155,6 +161,17 @@
 
 .md-btn-cancel:hover {
   background: #e2e8f0;
+}
+
+.md-btn-create {
+  background: #fff;
+  color: #059669;
+  border: 1px solid #d1fae5;
+}
+
+.md-btn-create:hover {
+  background: #f0fdf4;
+  border-color: #059669;
 }
 
 /* ─── Table Card ─── */

@@ -644,7 +644,43 @@ const zoneStats = useMemo(() => {
       });
     });
 
-    return Object.values(deptMap)
+    const deptList = objectToArray(departments);
+    deptList.forEach((dept) => {
+      const deptId = dept.id;
+      const deptName = dept.departmentName || "Unnamed Department";
+      const existingKey = Object.keys(deptMap).find(
+        (k) => deptMap[k].department.toLowerCase() === deptName.toLowerCase()
+      );
+      if (existingKey) {
+        deptMap[existingKey].departmentId = deptMap[existingKey].departmentId || deptId;
+      } else {
+        deptMap[deptId || `name:${deptName.toLowerCase()}`] = {
+          department: deptName,
+          departmentId: deptId,
+          users: 0,
+          assigned: 0,
+          completed: 0,
+        };
+      }
+    });
+
+    const mergedByName = {};
+    Object.values(deptMap).forEach((item) => {
+      if (item.department === "Not Assigned") return;
+      const key = item.department.toLowerCase();
+      if (!mergedByName[key]) {
+        mergedByName[key] = { ...item };
+      } else {
+        mergedByName[key].users += item.users;
+        mergedByName[key].assigned += item.assigned;
+        mergedByName[key].completed += item.completed;
+        if (!mergedByName[key].departmentId && item.departmentId) {
+          mergedByName[key].departmentId = item.departmentId;
+        }
+      }
+    });
+
+    return Object.values(mergedByName)
       .map((item) => ({
         ...item,
         rate:
@@ -658,7 +694,7 @@ const zoneStats = useMemo(() => {
           b.users - a.users ||
           a.department.localeCompare(b.department)
       );
-  }, [trainingUserList, activeCourses, assignments, completedCourses, departmentNameById]);
+  }, [trainingUserList, activeCourses, assignments, completedCourses, departmentNameById, departments]);
 
   const recentActivities = useMemo(() => {
     const activities = [];
@@ -1069,42 +1105,42 @@ const zoneStats = useMemo(() => {
           </div>
         </div>
 
-        <div className="dash-card compact-insight-card test-performance-card">
+        <Link to="/super-admin/results" className="dash-card compact-insight-card test-performance-card" style={{ textDecoration: "none", color: "inherit" }}>
           <div className="insight-card-head">
             <div>
               <h2>Test Performance</h2>
               <p>Course test &amp; video quiz results</p>
             </div>
-            <Link to="/super-admin/results">View All</Link>
+            <span>View All</span>
           </div>
 
           <div className="test-mini-grid">
-            <div>
+            <div className="tm-blue">
               <span>Users Attempted</span>
               <strong>{testPerformance.uniqueUsers}</strong>
             </div>
-            <div>
+            <div className="tm-violet">
               <span>Total Attempts</span>
               <strong>{testPerformance.totalAttempts}</strong>
             </div>
-            <div>
+            <div className="tm-green">
               <span>Passed</span>
               <strong>{testPerformance.passed}</strong>
             </div>
-            <div>
+            <div className="tm-red">
               <span>Failed</span>
               <strong>{testPerformance.failed}</strong>
             </div>
-            <div>
+            <div className="tm-amber">
               <span>Pass Rate</span>
               <strong>{testPerformance.passRate}%</strong>
             </div>
-            <div>
+            <div className="tm-teal">
               <span>Avg Score</span>
               <strong>{testPerformance.average}%</strong>
             </div>
           </div>
-        </div>
+        </Link>
       </section>
 
 

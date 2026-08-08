@@ -1,292 +1,286 @@
-# Zuvius Training Portal Version 2
+# Zuvius Learning Portal
 
-A modern Learning Management System (LMS) built for Zuvius Lifesciences to deliver employee training, assessments, certification, and progress tracking.
+A modern Learning Management System (LMS) built for **Zuvius Lifesciences** to deliver employee training, assessments, certification, and progress tracking.
+
+**Live:** [https://learnings.zuviuslifesciences.in/](https://learnings.zuviuslifesciences.in/)
 
 ---
 
-## Overview
+## About
 
-The Zuvius Training Portal enables employees to access training modules, watch instructional videos, complete assessments, and earn certificates upon successful completion.
+The Zuvius Learning Portal enables employees to access training modules, watch instructional videos, complete assessments, and earn certificates upon successful completion.
 
 Administrators can manage training content, upload courses, create assessments manually or through Excel imports, monitor employee performance, and track certification statistics through a centralized dashboard.
 
 ---
 
-## Key Features
+## Features
 
 ### Employee Portal
 
-* Secure Authentication
-* Training Dashboard
-* Video-Based Learning Modules
-* Progress Tracking
-* Resume Video Playback
-* Assessment System
-* Result History
-* Certificate Generation
-* Training Completion Tracking
-* Responsive Mobile-Friendly Interface
+- Secure Authentication with role-based access
+- Training Dashboard with progress overview
+- Video-Based Learning Modules with resume playback
+- Progress Tracking across courses
+- Assessment System with timer and one-time attempts
+- Result History and performance analytics
+- Certificate Generation and download
+- Responsive Mobile-Friendly Interface
+- PWA Installable App
 
 ### Smart Video Tracking
 
-* Tracks actual watch progress
-* Prevents quiz unlocking through video skipping
-* Saves progress automatically
-* Resumes playback from the last watched position
-* Tracks completion percentage
+- Tracks actual watch progress in real-time
+- Prevents quiz unlocking through video skipping
+- Saves progress automatically
+- Resumes playback from the last watched position
+- Tracks completion percentage per video
 
 ### Assessment Engine
 
-* Multiple Choice Questions
-* Configurable Passing Scores
-* Timer-Based Assessments
-* One-Time Quiz Attempts
-* Automatic Scoring
-* Instant Result Generation
+- Multiple Choice Questions
+- Configurable Passing Scores
+- Timer-Based Assessments
+- One-Time Quiz Attempts
+- Automatic Scoring and Instant Results
 
 ### Certificate Management
 
-* Automatic Certificate Generation
-* Downloadable Certificates
-* Performance Records
-* Completion Verification
+- Automatic Certificate Generation on course completion
+- Downloadable PDF Certificates
+- Performance Records
+- Completion Verification
 
 ### Admin Portal
 
-* Dashboard Analytics
-* User Management Statistics
-* Training Management
-* Question Bank Management
-* Assessment Monitoring
-* Results Tracking
+- Dashboard Analytics with department-wise and zone-wise stats
+- User Management (Add, Edit, Delete, Bulk Upload via Excel)
+- Course Management with video assignments
+- Question Bank Management (Manual + Bulk Excel Import)
+- Assessment Monitoring
+- Department Admin Assignment
+- Training Assignment to users or departments
 
-### Question Management
+### Department Admin Portal
 
-#### Manual Question Creation
-
-Create questions individually through the admin panel.
-
-#### Bulk Excel Upload
-
-Import multiple questions using Excel templates.
-
-Supported fields:
-
-* Question
-* Option A
-* Option B
-* Option C
-* Option D
-* Correct Answer
-
-#### Template Download
-
-Administrators can download a predefined Excel template for bulk uploads.
-
-### Video Management
-
-* Create Training Courses
-* Manage Video Catalog
-* Configure Passing Scores
-* Configure Assessment Duration
-* Track Course Completion
+- Department-scoped dashboard
+- View and manage department members
+- Track department training progress
+- Assign courses to department users
 
 ---
 
-## Technology Stack
+## Tech Stack
 
-### Frontend
-
-* React.js
-* React Router
-* CSS3
-* React Icons
-
-### Backend
-
-* Firebase Authentication
-* Firebase Realtime Database
-
-### Additional Libraries
-
-* XLSX (Excel Import)
-* FileSaver
-* React Router DOM
+| Layer | Technology |
+|---|---|
+| Frontend | React 18, React Router v7, Vite |
+| Styling | CSS3 |
+| Backend | Firebase Authentication, Firebase Realtime Database |
+| Storage | AWS S3 (video/file uploads) |
+| PDF | jsPDF, html2canvas |
+| Excel | SheetJS (xlsx) |
+| PWA | Service Worker, Manifest |
+| Deployment | Vercel |
 
 ---
 
 ## Project Structure
 
-```text
+```
 src/
+├── components/          # Layout wrappers, auth guards, sidebar menus
+│   ├── SuperAdminLayout.jsx
+│   ├── AdminLayout.jsx
+│   ├── DepartmentAdminLayout.jsx
+│   ├── UserLayout.jsx
+│   ├── ProtectedRoute.jsx
+│   └── RoleRoute.jsx
 │
-├── pages/
+├── pages/               # All page-level components
 │   ├── Login.jsx
-│   ├── Register.jsx
 │   ├── Dashboard.jsx
+│   ├── SuperAdminDashboard.jsx
+│   ├── AdminDashboard.jsx
+│   ├── DepartmentAdminDashboard.jsx
+│   ├── ManageUsers.jsx
+│   ├── ManageAdmins.jsx
+│   ├── ManageDepartments.jsx
+│   ├── AddCourse.jsx
+│   ├── EditCourse.jsx
 │   ├── VideoPage.jsx
 │   ├── QuizPage.jsx
 │   ├── ResultPage.jsx
-│   ├── MyResults.jsx
-│   ├── CertificatePage.jsx
-│   │
-│   ├── AdminDashboard.jsx
-│   ├── AddVideo.jsx
-│   ├── AddQuestion.jsx
-│   ├── ManageVideos.jsx
-│   └── ManageQuestions.jsx
+│   ├── Certificates.jsx
+│   ├── Profile.jsx
+│   └── ...
 │
-├── styles/
-│
-├── firebase.js
-│
-└── App.jsx
+├── services/            # Firebase path helpers, deletion service
+├── utils/               # Training analytics helpers
+├── lib/                 # User access & role logic
+├── hooks/               # Custom React hooks
+├── data/                # Master data (locations)
+├── styles/              # Component-specific CSS files
+├── firebase.js          # Firebase initialization
+└── App.jsx              # Route definitions
 ```
 
 ---
 
-## Installation
+## Getting Started
 
-Clone the repository:
+### Prerequisites
+
+- Node.js 18+
+- npm or yarn
+- Firebase project with Authentication and Realtime Database enabled
+
+### Installation
 
 ```bash
-git clone <repository-url>
-```
-
-Install dependencies:
-
-```bash
+git clone https://github.com/AnandDangiWecanserve/lms-portal-final.git
+cd lms-portal-final
 npm install
 ```
 
-Start development server:
+### Environment Setup
+
+Create a `.env` file in the root directory:
+
+```bash
+cp .env.example .env
+```
+
+Fill in your Firebase configuration:
+
+```
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_DATABASE_URL=https://your_project.firebaseio.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+VITE_DEFAULT_PASSWORD=portal@123
+```
+
+### Development
 
 ```bash
 npm run dev
 ```
 
-Build production version:
+### Production Build
 
 ```bash
 npm run build
 ```
 
----
-
-## Firebase Configuration
-
-Create a Firebase project and configure:
-
-Create a local environment file from the template and fill in the Firebase values before running the app.
+### Preview Production Build
 
 ```bash
-cp .env.example .env.local
+npm run preview
 ```
 
-Required variables:
+---
 
-* `VITE_FIREBASE_API_KEY`
-* `VITE_FIREBASE_AUTH_DOMAIN`
-* `VITE_FIREBASE_DATABASE_URL`
-* `VITE_FIREBASE_PROJECT_ID`
-* `VITE_FIREBASE_STORAGE_BUCKET`
-* `VITE_FIREBASE_MESSAGING_SENDER_ID`
-* `VITE_FIREBASE_APP_ID`
-* `VITE_FIREBASE_MEASUREMENT_ID`
+## Firebase Setup
 
 ### Authentication
 
-Enable:
+Enable **Email/Password** authentication in your Firebase console.
 
-* Email/Password Authentication
+### Realtime Database Structure
 
-### Realtime Database
-
-Required collections:
-
-```text
+```
 users/
-videos/
-questions/
-attempts/
-progress/
+  └── {uid}/
+      ├── name, email, role, department, zone, state, ...
+
+departments/
+  └── {deptId}/
+      ├── departmentName, departmentAdminId, ...
+
+courses/
+  └── {courseId}/
+      ├── title, status, departmentId, ...
+
+userAssignments/
+  └── {uid}/
+      └── {courseId}/ { assigned: true, assignedAt: ... }
+
+courseProgress/
+  └── {uid}/
+      └── {courseId}/ { progressPercentage, completed, ... }
+
+videoProgress/
+  └── {uid}/
+      └── {courseId}/
+          └── {videoId}/ { progressPercentage, completed, ... }
+
 completedCourses/
+  └── {uid}/
+      └── {courseId}/ { completed: true, completedAt: ... }
+
+attempts/
+  └── {uid}/
+      └── {courseId}/
+          └── {attemptId}/ { score, passed, ... }
+
+certificates/
+  └── {uid}/
+      └── {courseId}/ { certificateUrl, ... }
 ```
 
-The Cloud Function for deleting users now requires a Firebase ID token in the `Authorization: Bearer <token>` header and only allows requests from a `superAdmin` account.
+### User Roles
 
----
-
-## Video Storage
-
-Training videos are stored inside:
-
-```text
-public/videos/
-```
-
-Example:
-
-```text
-public/videos/
-├── onboarding.mp4
-├── safety-training.mp4
-├── compliance-training.mp4
-```
+| Role | Access |
+|---|---|
+| `superAdmin` | Full platform access, manage all users, departments, courses |
+| `admin` | Manage users, courses, view analytics |
+| `departmentAdmin` | Department-scoped user and course management |
+| `user` | Access assigned courses, take assessments, view certificates |
 
 ---
 
 ## User Workflow
 
-1. Login
-2. View Available Courses
-3. Watch Training Video
-4. Complete Required Watch Time
-5. Unlock Assessment
-6. Attempt Quiz
-7. Receive Result
-8. Download Certificate (if passed)
+1. Login with credentials
+2. View assigned courses on dashboard
+3. Watch training videos (progress saved automatically)
+4. Complete required watch time to unlock assessment
+5. Attempt the quiz (one-time, timed)
+6. View results instantly
+7. Download certificate on passing
 
 ---
 
 ## Admin Workflow
 
-1. Login as Administrator
-2. Create Training Courses
-3. Upload Video References
-4. Add Questions Manually
-5. Import Questions via Excel
-6. Monitor Results
-7. Track Certification Statistics
+1. Login as Admin / Super Admin
+2. Create and manage departments
+3. Assign Department Admins
+4. Create training courses
+5. Upload video content
+6. Add questions manually or via Excel bulk import
+7. Assign courses to users or departments
+8. Monitor results and certification statistics
 
 ---
 
-## Security Features
+## PWA Support
 
-* Authentication Protected Routes
-* Admin Access Controls
-* One-Time Quiz Attempts
-* Video Completion Validation
-* Progress Persistence
-* Secure Certificate Generation
+The portal is installable as a Progressive Web App:
+
+- **Android:** Tap "Install" when prompted or use the download button
+- **iOS:** Tap Share → Add to Home Screen
 
 ---
 
-## SEO
+## License
 
-The portal includes:
-
-* Custom Favicon
-* Meta Tags
-* Open Graph Metadata
-* Mobile Optimization
+This project is proprietary and confidential. Built exclusively for **Zuvius Lifesciences**.
 
 ---
 
-## Developed For
-
-**Zuvius Lifesciences**
-
-Employee Learning & Assessment Platform
-
-Built to streamline training delivery, assessment management, and certification workflows across the organization.
+**Developed by Anand Dangi (Wecanserve)**

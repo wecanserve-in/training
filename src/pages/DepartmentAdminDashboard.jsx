@@ -803,42 +803,42 @@ function DepartmentAdminDashboard() {
           </div>
         </div>
 
-        <div className="dash-card compact-insight-card test-performance-card">
+        <Link to="/department-admin/analytics" className="dash-card compact-insight-card test-performance-card" style={{ textDecoration: "none", color: "inherit" }}>
           <div className="insight-card-head">
             <div>
               <h2>Test Performance</h2>
               <p>Course test &amp; video quiz results</p>
             </div>
-            <Link to="/department-admin/analytics">View All</Link>
+            <span>View All</span>
           </div>
 
           <div className="test-mini-grid">
-            <div>
+            <div className="tm-blue">
               <span>Users Attempted</span>
               <strong>{testPerformance.uniqueUsers}</strong>
             </div>
-            <div>
+            <div className="tm-violet">
               <span>Total Attempts</span>
               <strong>{testPerformance.totalAttempts}</strong>
             </div>
-            <div>
+            <div className="tm-green">
               <span>Passed</span>
               <strong>{testPerformance.passed}</strong>
             </div>
-            <div>
+            <div className="tm-red">
               <span>Failed</span>
               <strong>{testPerformance.failed}</strong>
             </div>
-            <div>
+            <div className="tm-amber">
               <span>Pass Rate</span>
               <strong>{testPerformance.passRate}%</strong>
             </div>
-            <div>
+            <div className="tm-teal">
               <span>Avg Score</span>
               <strong>{testPerformance.average}%</strong>
             </div>
           </div>
-        </div>
+        </Link>
       </section>
 
       <section className="dash-card latest-course-section">

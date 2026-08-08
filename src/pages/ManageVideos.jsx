@@ -56,7 +56,7 @@ function ManageVideos() {
           </p>
         </div>
 
-        <Link to="/admin/add-video" className="btn-catalog-create-new">
+        <Link to="/department-admin/video-library/upload" className="btn-catalog-create-new">
           + Add New Video Course
         </Link>
       </div>

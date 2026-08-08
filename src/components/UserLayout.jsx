@@ -213,7 +213,7 @@ function UserLayout() {
           </button>
         </div>
 
-        <div className="learner-sidebar-profile">
+        <div className="learner-sidebar-profile" onClick={() => navigate("/profile")} style={{ cursor: "pointer" }}>
           <div className="learner-profile-circle">
             {userData?.photoURL ? (
               <img src={userData.photoURL} alt={displayName} className="learner-profile-circle-img" />

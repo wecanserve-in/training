@@ -969,13 +969,13 @@ body {
   transform: translateY(0) scale(0.97);
 }
 
-.pwa-install-pill {
+.pwa-install-btn.pwa-install-pill {
   width: auto;
   height: auto;
   border-radius: 50px;
-  padding: 8px 16px;
-  gap: 8px;
-  font-size: 12px;
+  padding: 12px 24px;
+  gap: 10px;
+  font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -1017,31 +1017,80 @@ body {
 }
 
 @media (max-width: 600px) {
-  .pwa-install-wrapper {
-    bottom: 16px;
+  .page-logo {
+    position: absolute;
+    top: 14px;
     right: 16px;
+    z-index: 100;
   }
 
-  .pwa-install-btn {
-    width: 44px;
-    height: 44px;
+  .page-logo img {
+    width: 120px;
+  }
+
+  .pwa-install-wrapper {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0 14px calc(env(safe-area-inset-bottom, 12px) + 12px);
+    pointer-events: none;
+  }
+
+  .pwa-install-wrapper > * {
+    pointer-events: auto;
+  }
+
+  .pwa-install-btn.pwa-install-pill {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    height: 50px;
+    padding: 0 20px;
+    border: none;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #059669, #047857);
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(5, 150, 105, 0.45), 0 0 0 1px rgba(255,255,255,0.1) inset;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .pwa-install-btn.pwa-install-pill:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 24px rgba(5, 150, 105, 0.55);
+  }
+
+  .pwa-install-btn.pwa-install-pill:active {
+    transform: translateY(0) scale(0.98);
+  }
+
+  .pwa-install-btn.pwa-install-pill svg {
     font-size: 16px;
+    flex-shrink: 0;
   }
 
-  .pwa-install-pill {
-    width: auto;
-    height: auto;
-    padding: 7px 12px;
-    gap: 6px;
-    font-size: 11px;
-  }
-
-  .pwa-install-pill span {
-    display: none;
+  .pwa-install-btn.pwa-install-pill span {
+    display: inline;
   }
 
   .pwa-ios-hint {
-    width: 200px;
-    font-size: 11px;
+    position: fixed;
+    bottom: calc(env(safe-area-inset-bottom, 12px) + 74px);
+    left: 14px;
+    right: 14px;
+    width: auto;
+    font-size: 12px;
+    text-align: center;
   }
 }

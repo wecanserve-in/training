@@ -3,11 +3,6 @@ import { ref, get, push, set, remove, update } from "firebase/database";
 import { database } from "../firebase";
 import "../styles/managedepartments.css";
 
-const departmentTypes = [
- "PMT",
-    "Regulatory",
-];
-
 function ManageDepartments() {
   const [departments, setDepartments] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
@@ -21,6 +16,10 @@ function ManageDepartments() {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newDeptName, setNewDeptName] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
@@ -44,6 +43,17 @@ function ManageDepartments() {
         .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
     );
   };
+
+  const availableMembers = useMemo(() => {
+    return members.filter((member) => {
+      if (member.role === "user") return true;
+      if (member.role === "departmentAdmin") {
+        const memberDept = departments.find((d) => d.departmentAdminId === member.id);
+        return memberDept && editingDepartment && memberDept.id === editingDepartment.id;
+      }
+      return false;
+    });
+  }, [members, departments, editingDepartment]);
 
   const deptUsersMap = useMemo(() => {
     const map = {};
@@ -72,6 +82,43 @@ function ManageDepartments() {
     setShowAssignModal(false);
   };
 
+  const resetCreateForm = () => {
+    setNewDeptName("");
+    setShowCreateModal(false);
+  };
+
+  const createDepartment = async (e) => {
+    e.preventDefault();
+    const name = newDeptName.trim();
+    if (!name) {
+      alert("Please enter a department name.");
+      return;
+    }
+    const exists = departments.some(
+      (d) => (d.departmentName || "").toLowerCase() === name.toLowerCase()
+    );
+    if (exists) {
+      alert("A department with this name already exists.");
+      return;
+    }
+    try {
+      setIsCreating(true);
+      const deptRef = push(ref(database, "departments"));
+      await set(deptRef, {
+        departmentName: name,
+        departmentType: name,
+        createdAt: new Date().toISOString(),
+      });
+      resetCreateForm();
+      await loadData();
+    } catch (error) {
+      console.error("Create department error:", error);
+      alert("Something went wrong while creating department.");
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   const openAssignModal = (dept = null) => {
     resetAssignForm();
     if (dept) {
@@ -97,8 +144,15 @@ function ManageDepartments() {
     const admin = members.find((m) => m.id === selectedMember);
     if (!admin) { alert("Invalid selection"); return; }
 
+    if (admin.role === "departmentAdmin") {
+      const adminDept = departments.find((d) => d.departmentAdminId === admin.id);
+      if (adminDept && (!editingDepartment || adminDept.id !== editingDepartment.id)) {
+        alert(`${admin.name} is already assigned as Department Admin for "${adminDept.departmentName}". Remove them from that department first.`);
+        return;
+      }
+    }
+
     const existingDept = departments.find((d) => d.departmentName === selectedDepartment);
-    const deptType = departmentTypes.find((t) => t === selectedDepartment) || "";
 
     try {
       setIsSaving(true);
@@ -123,7 +177,7 @@ function ManageDepartments() {
         const deptRef = push(ref(database, "departments"));
         await set(deptRef, {
           departmentName: selectedDepartment,
-          departmentType: deptType,
+          departmentType: selectedDepartment,
           departmentAdminId: admin.id,
           departmentAdminName: admin.name || "",
           departmentAdminEmail: admin.email || "",
@@ -138,7 +192,7 @@ function ManageDepartments() {
         role: "departmentAdmin",
         departmentId: existingDept?.id || "",
         department: selectedDepartment,
-        departmentType: deptType,
+        departmentType: selectedDepartment,
       });
 
       resetAssignForm();
@@ -211,10 +265,16 @@ function ManageDepartments() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
           <input type="text" placeholder="Search departments, admins..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-        <button className="md-btn md-btn-primary" onClick={() => openAssignModal()}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          Assign Admin
-        </button>
+        <div className="md-action-bar-btns">
+          <button className="md-btn md-btn-primary" onClick={() => openAssignModal()}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Assign Admin
+          </button>
+          <button className="md-btn md-btn-create" onClick={() => setShowCreateModal(true)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Create Department
+          </button>
+        </div>
       </div>
 
       {/* Table */}
@@ -359,8 +419,8 @@ function ManageDepartments() {
                   disabled={!!editingDepartment}
                 >
                   <option value="">Select Department</option>
-                  {departmentTypes.map((type) => (
-                    <option key={type} value={type}>{type}</option>
+                  {departments.map((dept) => (
+                    <option key={dept.id} value={dept.departmentName}>{dept.departmentName}</option>
                   ))}
                 </select>
               </div>
@@ -369,7 +429,7 @@ function ManageDepartments() {
                 <label>Department Admin</label>
                 <select className="nice-select" value={selectedMember} onChange={(e) => setSelectedMember(e.target.value)} required>
                   <option value="">Select Department Admin</option>
-                  {members.map((member) => (
+                  {availableMembers.map((member) => (
                     <option key={member.id} value={member.id}>
                       {member.name}{member.designation ? ` - ${member.designation}` : ""}
                     </option>
@@ -381,6 +441,42 @@ function ManageDepartments() {
                 <button type="button" className="md-btn md-btn-cancel" onClick={resetAssignForm}>Cancel</button>
                 <button type="submit" className="md-btn md-btn-primary" disabled={isSaving}>
                   {isSaving ? "Saving..." : editingDepartment ? "Update Admin" : "Assign Admin"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Department Modal */}
+      {showCreateModal && (
+        <div className="modal-overlay" onClick={resetCreateForm}>
+          <div className="modal-content md-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="md-modal-head">
+              <div>
+                <h2>Create New Department</h2>
+                <p>Enter a name for the new department.</p>
+              </div>
+              <button className="close-btn" onClick={resetCreateForm}>×</button>
+            </div>
+
+            <form className="md-form" onSubmit={createDepartment}>
+              <div className="md-form-group">
+                <label>Department Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Finance, HR, Operations..."
+                  value={newDeptName}
+                  onChange={(e) => setNewDeptName(e.target.value)}
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div className="md-modal-actions">
+                <button type="button" className="md-btn md-btn-cancel" onClick={resetCreateForm}>Cancel</button>
+                <button type="submit" className="md-btn md-btn-primary" disabled={isCreating}>
+                  {isCreating ? "Creating..." : "Create Department"}
                 </button>
               </div>
             </form>
