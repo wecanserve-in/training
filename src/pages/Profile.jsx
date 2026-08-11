@@ -723,14 +723,14 @@ function Profile() {
             </div>
 
             <div className="profile-form profile-two-column-form">
-              <div className="profile-row">
+              {/* <div className="profile-row">
                 <label>Native Place</label>
                 <input
                   value={profileForm.nativePlace}
                   onChange={(e) => handleProfileChange("nativePlace", e.target.value)}
                   placeholder="Enter native place"
                 />
-              </div>
+              </div> */}
 
               <div className="profile-row">
                 <label>Emergency Contact</label>
