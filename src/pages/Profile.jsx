@@ -40,7 +40,7 @@ function Profile() {
     spouseName: "",
     numberOfKids: 0,
     kids: [],
-    nativePlace: "",
+    // nativePlace: "",
     residentialAddress: "",
     emergencyContact: "",
   });
@@ -110,7 +110,7 @@ function Profile() {
             "",
           numberOfKids,
           kids: normalizedKids,
-          nativePlace: data.nativePlace || "",
+          // nativePlace: data.nativePlace || "",
           residentialAddress:
             data.residentialAddress ||
             data.address ||
@@ -309,10 +309,10 @@ function Profile() {
         }
       }
 
-      if (!profileForm.nativePlace.trim()) {
-        alert("Native place is required");
-        return;
-      }
+      // if (!profileForm.nativePlace.trim()) {
+      //   alert("Native place is required");
+      //   return;
+      // }
 
       if (!profileForm.residentialAddress.trim()) {
         alert("Residential address is required");
@@ -342,7 +342,7 @@ function Profile() {
             : "",
         numberOfKids: Number(profileForm.numberOfKids || 0),
         kids: cleanKids,
-        nativePlace: profileForm.nativePlace.trim(),
+        // nativePlace: profileForm.nativePlace.trim(),
         residentialAddress: profileForm.residentialAddress.trim(),
         address: profileForm.residentialAddress.trim(),
         emergencyContact: profileForm.emergencyContact.trim(),
@@ -459,7 +459,7 @@ function Profile() {
     profileForm.dob,
     profileForm.gender,
     profileForm.maritalStatus,
-    profileForm.nativePlace,
+    // profileForm.nativePlace,
     profileForm.residentialAddress,
     profileForm.emergencyContact,
   ];

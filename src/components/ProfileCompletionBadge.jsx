@@ -14,7 +14,7 @@ function ProfileCompletionBadge({ profileData, profilePath = "/profile" }) {
       profileData.dob,
       profileData.gender,
       profileData.maritalStatus,
-      profileData.nativePlace,
+      // profileData.nativePlace,
       profileData.residentialAddress,
       profileData.emergencyContact,
     ];
