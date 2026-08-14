@@ -171,7 +171,28 @@ function CourseOverview() {
   const deleteCourse = async () => {
     const confirmDelete = window.confirm("Are you sure you want to delete this course?");
     if (!confirmDelete) return;
-    await remove(ref(database, `courses/${course.id}`));
+    
+    const userId = currentUser?.uid;
+    
+    await Promise.all([
+      remove(ref(database, `courses/${course.id}`)),
+      remove(ref(database, `userAssignments/${userId}/${course.id}`)),
+    ]);
+    
+    if (userId) {
+      await Promise.all([
+        remove(ref(database, `courseProgress/${userId}/${course.id}`)),
+        remove(ref(database, `completedCourses/${userId}/${course.id}`)),
+      ]);
+      
+      if (course.videoIds && course.videoIds.length > 0) {
+        const videoProgressPromises = course.videoIds.map((videoId) =>
+          remove(ref(database, `videoProgress/${userId}/${course.id}/${videoId}`))
+        );
+        await Promise.all(videoProgressPromises);
+      }
+    }
+    
     navigate(`${basePath}/courses`);
   };
 

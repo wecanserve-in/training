@@ -384,46 +384,57 @@ function DepartmentAnalytics() {
   };
 
   const courseStats = useMemo(() => {
-    return courses.map((course) => {
-      let assigned = 0;
-      let completed = 0;
-      let inProgress = 0;
-      let notStarted = 0;
+  return courses.map((course) => {
+    let assigned = 0;
+    let completed = 0;
+    let inProgress = 0;
+    let notStarted = 0;
 
-      users.forEach((user) => {
-        const status = getCourseStatusForUser(
-          user,
-          course.id
-        );
+    users.forEach((user) => {
+      const userAssignments =
+        mergeUserRecords(assignments, user) || {};
 
-        if (status === "notAssigned") return;
+      const assignment =
+        userAssignments[course.id];
 
-        assigned++;
+      // Count ONLY an actually active assignment
+      if (!isAssignmentActive(assignment)) {
+        return;
+      }
 
-        if (status === "completed") completed++;
+      assigned++;
 
-        if (status === "inProgress") inProgress++;
+      const status = getCourseStatusForUser(
+        user,
+        course.id
+      );
 
-        if (status === "notStarted") notStarted++;
-      });
-
-      return {
-        ...course,
-        assigned,
-        completed,
-        inProgress,
-        notStarted,
-      };
+      if (status === "completed") {
+        completed++;
+      } else if (status === "inProgress") {
+        inProgress++;
+      } else {
+        notStarted++;
+      }
     });
-  }, [
-    courses,
-    users,
-    assignments,
-    completedCourses,
-    progress,
-    courseProgress,
-    videoProgress,
-  ]);
+
+    return {
+      ...course,
+      assigned,
+      completed,
+      inProgress,
+      notStarted,
+    };
+  });
+}, [
+  courses,
+  users,
+  assignments,
+  completedCourses,
+  progress,
+  courseProgress,
+  videoProgress,
+]);
 
   const selectedCourse = courseStats.find(
     (course) => course.id === selectedCourseId

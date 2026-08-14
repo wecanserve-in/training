@@ -80,7 +80,29 @@ function DepartmentCourses() {
   const deleteCourse = async (courseId) => {
     const confirmDelete = window.confirm("Are you sure you want to delete this course?");
     if (!confirmDelete) return;
-    await remove(ref(database, `courses/${courseId}`));
+    
+    const userId = currentUser?.uid;
+    const course = courses.find((c) => c.id === courseId);
+    
+    await Promise.all([
+      remove(ref(database, `courses/${courseId}`)),
+      remove(ref(database, `userAssignments/${userId}/${courseId}`)),
+    ]);
+    
+    if (userId && course) {
+      await Promise.all([
+        remove(ref(database, `courseProgress/${userId}/${courseId}`)),
+        remove(ref(database, `completedCourses/${userId}/${courseId}`)),
+      ]);
+      
+      if (course.videoIds && course.videoIds.length > 0) {
+        const videoProgressPromises = course.videoIds.map((videoId) =>
+          remove(ref(database, `videoProgress/${userId}/${courseId}/${videoId}`))
+        );
+        await Promise.all(videoProgressPromises);
+      }
+    }
+    
     fetchData(currentUser);
   };
 

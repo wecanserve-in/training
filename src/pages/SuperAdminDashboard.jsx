@@ -464,15 +464,92 @@ const totalCertificates = useMemo(() => {
   }, [platformUsers]);
 
 const zoneStats = useMemo(() => {
-  return calculateZoneStats({
-    users: getUniqueAnalyticsTrainingUsers(platformUsers),
-    assignments,
-    completedCourses,
-    courseProgress,
-    videoProgress,
-  });
-}, [platformUsers, assignments, completedCourses, courseProgress, videoProgress]);
+  const zoneMap = {};
 
+  const users = getUniqueAnalyticsTrainingUsers(platformUsers);
+
+  users.forEach((user) => {
+    const zone = String(
+      user?.zone ||
+      user?.Zone ||
+      user?.zoneName ||
+      ""
+    ).trim();
+
+    if (!zone) return;
+
+    if (!zoneMap[zone]) {
+      zoneMap[zone] = {
+        zone,
+        userCount: 0,
+        assigned: 0,
+        completed: 0,
+      };
+    }
+
+    zoneMap[zone].userCount += 1;
+
+    // Use ONLY currently active courses
+    activeCourses.forEach((course) => {
+      const byUid = assignments[user.uid] || {};
+      const byId =
+        user.id !== user.uid
+          ? assignments[user.id] || {}
+          : {};
+
+      const mergedAssignments = {
+        ...byId,
+        ...byUid,
+      };
+
+      const assignment = mergedAssignments[course.id];
+
+      if (!isAssignmentActive(assignment)) return;
+
+      zoneMap[zone].assigned += 1;
+
+      const completedByUid =
+        completedCourses[user.uid] || {};
+
+      const completedById =
+        user.id !== user.uid
+          ? completedCourses[user.id] || {}
+          : {};
+
+      const mergedCompleted = {
+        ...completedById,
+        ...completedByUid,
+      };
+
+      const completedRecord =
+        mergedCompleted[course.id];
+
+      if (
+        completedRecord === true ||
+        completedRecord?.completed === true ||
+        completedRecord?.passed === true ||
+        completedRecord?.isCompleted === true
+      ) {
+        zoneMap[zone].completed += 1;
+      }
+    });
+  });
+
+  return Object.values(zoneMap).map((item) => ({
+    ...item,
+    percentage:
+      item.assigned > 0
+        ? Math.round(
+            (item.completed / item.assigned) * 100
+          )
+        : 0,
+  }));
+}, [
+  platformUsers,
+  activeCourses,
+  assignments,
+  completedCourses,
+]);
 
   const latestCourses = useMemo(() => {
     return [...courseStats]
@@ -812,13 +889,13 @@ const zoneStats = useMemo(() => {
               </div>
             </Link>
             <Link to="/super-admin/analytics" className="hero-stat" style={{ textDecoration: "none", color: "inherit" }}>
-              <div className="hero-stat-icon" style={{ background: "#dcfce7", color: "#16a34a" }}>
+              {/* <div className="hero-stat-icon" style={{ background: "#dcfce7", color: "#16a34a" }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-              </div>
-              <div>
+              </div> */}
+              {/* <div>
                 <strong>{completionRate}%</strong>
                 <span>Completion</span>
-              </div>
+              </div> */}
             </Link>
           </div>
         </div>

@@ -86,14 +86,17 @@ function DepartmentAdminDashboard() {
     );
   };
 
+  const getDepartmentLabel = (item, currentDeptName) => {
+    const deptName = getDepartmentName(item);
+    if (!deptName) return "Unassigned";
+    if (deptName.toLowerCase() === currentDeptName?.toLowerCase()) return deptName;
+    return `${deptName} (${currentDeptName || "Other"})`;
+  };
+
   const getCourseTitle = (course) => {
-    return (
-      course?.title ||
-      course?.courseTitle ||
-      course?.courseName ||
-      course?.name ||
-      "Untitled Course"
-    );
+    const title = course?.title || course?.courseTitle || course?.courseName || course?.name || "Untitled Course";
+    const deptLabel = course._departmentLabel && course._departmentLabel !== title ? ` (${course._departmentLabel})` : "";
+    return title + deptLabel;
   };
 
   const getCourseThumbnail = (course) => {
@@ -243,11 +246,15 @@ function DepartmentAdminDashboard() {
       const userDeptName = String(getDepartmentName(user) || "").trim().toLowerCase();
       if (userDeptId && userDeptIdField && userDeptIdField === userDeptId) return true;
       if (userDept && userDeptName && userDeptName === userDept) return true;
+      // Show users from other departments who have assignments to dept courses
       const userAssignments = mergeUserRecords(assignments, user) || {};
       return Object.entries(userAssignments).some(
         ([courseId, assignment]) => deptCourseIds.has(courseId) && isAssignmentActive(assignment)
       );
-    });
+    }).map((user) => ({
+      ...user,
+      _departmentLabel: getDepartmentLabel(user, departmentName),
+    }));
   }, [allUsers, currentUser, departmentName, deptCourses, assignments]);
 
   const videos = useMemo(() => {
@@ -316,7 +323,17 @@ function DepartmentAdminDashboard() {
 
       const rate = assigned > 0 ? Math.round((completed / assigned) * 100) : 0;
 
-      return { ...course, title: getCourseTitle(course), assigned, completed, inProgress, notStarted, pending: inProgress + notStarted, rate };
+      return {
+        ...course,
+        title: getCourseTitle(course),
+        assigned,
+        completed,
+        inProgress,
+        notStarted,
+        pending: inProgress + notStarted,
+        rate,
+        _departmentLabel: getDepartmentLabel(course, departmentName),
+      };
     });
   }, [deptCourses, deptUsers, assignments, completedCourses, progress, videoProgress, courseProgress]);
 
@@ -449,15 +466,60 @@ function DepartmentAdminDashboard() {
 
   const getStatusLabel = (s) => s === "completed" ? "Completed" : s === "inProgress" ? "In Progress" : "Not Started";
 
-  const zoneStats = useMemo(() => {
-    return calculateZoneStats({
-      users: getUniqueAnalyticsTrainingUsers(deptUsers),
-      assignments,
-      completedCourses,
-      courseProgress,
-      videoProgress,
+ const zoneStats = useMemo(() => {
+  const zoneMap = {};
+
+  const users = getUniqueAnalyticsTrainingUsers(deptUsers);
+
+  users.forEach((user) => {
+    const zone = getUserZoneField(user);
+
+    if (!zone) return;
+
+    if (!zoneMap[zone]) {
+      zoneMap[zone] = {
+        zone,
+        userCount: 0,
+        assigned: 0,
+        completed: 0,
+      };
+    }
+
+    zoneMap[zone].userCount += 1;
+
+    // Only count assignments for courses belonging to this department
+    deptCourses.forEach((course) => {
+      const status = getCourseStatusForUser(
+        user.id || user.uid,
+        course.id
+      );
+
+      if (status === "notAssigned") return;
+
+      zoneMap[zone].assigned += 1;
+
+      if (status === "completed") {
+        zoneMap[zone].completed += 1;
+      }
     });
-  }, [deptUsers, assignments, completedCourses, courseProgress, videoProgress]);
+  });
+
+  return Object.values(zoneMap).map((item) => ({
+    ...item,
+    percentage:
+      item.assigned > 0
+        ? Math.round((item.completed / item.assigned) * 100)
+        : 0,
+  }));
+}, [
+  deptUsers,
+  deptCourses,
+  assignments,
+  completedCourses,
+  progress,
+  courseProgress,
+  videoProgress,
+]);
 
   const topPerformers = useMemo(() => {
     return deptUsers
@@ -473,6 +535,7 @@ function DepartmentAdminDashboard() {
         return {
           id: user.id || user.uid,
           name: user.name || user.fullName || user.displayName || user.email || "Unknown",
+          _departmentLabel: user._departmentLabel,
           email: user.email || "",
           zone: getUserZoneField(user) || "-",
           assigned,
@@ -485,33 +548,72 @@ function DepartmentAdminDashboard() {
       .slice(0, 5);
   }, [deptUsers, deptCourses, assignments, completedCourses, progress, videoProgress, courseProgress]);
 
-  const userProgressRows = useMemo(() => {
-    return deptUsers
-      .map((user) => {
-        let assigned = 0, completed = 0, inProgress = 0, notStarted = 0;
-        deptCourses.forEach((course) => {
-          const status = getCourseStatusForUser(user.id || user.uid, course.id);
-          if (status === "notAssigned") return;
-          assigned++;
-          if (status === "completed") completed++;
-          if (status === "inProgress") inProgress++;
-          if (status === "notStarted") notStarted++;
-        });
-        const rate = assigned > 0 ? Math.round((completed / assigned) * 100) : 0;
-        return {
-          id: user.id || user.uid,
-          name: user.name || user.fullName || "Unnamed User",
-          email: user.email || "-",
-          zone: getUserZoneField(user) || "-",
-          designation: user.designation || "-",
-          assigned, completed, inProgress, notStarted,
-          pending: inProgress + notStarted,
-          rate,
-        };
-      })
-      .filter((user) => user.assigned > 0)
-      .sort((a, b) => b.rate - a.rate || b.completed - a.completed);
-  }, [deptUsers, deptCourses, assignments, completedCourses, progress, videoProgress, courseProgress]);
+ const userProgressRows = useMemo(() => {
+  return deptUsers
+    .map((user) => {
+      let assigned = 0;
+      let completed = 0;
+      let inProgress = 0;
+      let notStarted = 0;
+
+      deptCourses.forEach((course) => {
+        const status = getCourseStatusForUser(
+          user.id || user.uid,
+          course.id
+        );
+
+        if (status === "notAssigned") return;
+
+        assigned++;
+
+        if (status === "completed") completed++;
+        if (status === "inProgress") inProgress++;
+        if (status === "notStarted") notStarted++;
+      });
+
+      const rate =
+        assigned > 0
+          ? Math.round((completed / assigned) * 100)
+          : 0;
+
+      return {
+        id: user.id || user.uid,
+        name:
+          user.name ||
+          user.fullName ||
+          user.displayName ||
+          "Unnamed User",
+        email: user.email || "-",
+        zone: getUserZoneField(user) || "-",
+        designation: user.designation || "-",
+        assigned,
+        completed,
+        inProgress,
+        notStarted,
+        pending: inProgress + notStarted,
+        rate,
+        createdAt:
+          user.createdAt ||
+          user.createdOn ||
+          user.dateCreated ||
+          user.updatedAt ||
+          0,
+      };
+    })
+    .filter((user) => user.assigned > 0)
+    .sort((a, b) => {
+      return getTime(b.createdAt) - getTime(a.createdAt);
+    })
+    .slice(0, 6);
+}, [
+  deptUsers,
+  deptCourses,
+  assignments,
+  completedCourses,
+  progress,
+  videoProgress,
+  courseProgress,
+]);
 
   const recentActivities = useMemo(() => {
     const activities = [];
@@ -594,13 +696,13 @@ function DepartmentAdminDashboard() {
               </div>
             </Link>
             <Link to="/department-admin/analytics" className="hero-stat" style={{ textDecoration: "none", color: "inherit" }}>
-              <div className="hero-stat-icon" style={{ background: "#dcfce7", color: "#16a34a" }}>
+              {/* <div className="hero-stat-icon" style={{ background: "#dcfce7", color: "#16a34a" }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
               </div>
               <div>
                 <strong>{completionRate}%</strong>
                 <span>Completion</span>
-              </div>
+              </div> */}
             </Link>
           </div>
         </div>
@@ -611,7 +713,7 @@ function DepartmentAdminDashboard() {
       </section>
 
       <section className="dash-stat-cards">
-        <Link to="/department-admin/analytics" className="stat-card stat-courses" style={{ textDecoration: "none" }}>
+        {/* <Link to="/department-admin/analytics" className="stat-card stat-courses" style={{ textDecoration: "none" }}>
           <div className="stat-card-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
           </div>
@@ -619,7 +721,7 @@ function DepartmentAdminDashboard() {
             <span>Total Assigned</span>
             <strong>{totalAssigned}</strong>
           </div>
-        </Link>
+        </Link> */}
 
         <Link to="/department-admin/analytics" className="stat-card stat-completed" style={{ textDecoration: "none" }}>
           <div className="stat-card-icon">
@@ -660,6 +762,16 @@ function DepartmentAdminDashboard() {
             <strong>{testPerformance.average}%</strong>
           </div>
         </Link>
+           <Link to="/department-admin/analytics" className="stat-card stat-courses" style={{ textDecoration: "none" }}>
+          <div className="stat-card-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+          </div>
+          <div className="stat-card-info">
+            <span>Total Assigned</span>
+            <strong>{totalAssigned}</strong>
+          </div>
+        </Link>
+
       </section>
 
       <section className="dashboard-overview-row">
@@ -679,8 +791,8 @@ function DepartmentAdminDashboard() {
                 <div className="department-progress-row" key={user.id}>
                   <div className="department-progress-top">
                     <div>
-                      <h3>{user.name}</h3>
-                      <span>{user.zone || "-"} &bull; {user.assigned} assigned &bull; {user.completed} done</span>
+<h3>{user.name}{user._departmentLabel && <span className="dept-label-small"> ({user._departmentLabel})</span>}</h3>
+                        <span>{user.zone || "-"} &bull; {user.assigned} assigned &bull; {user.completed} done</span>
                     </div>
                     <strong>{user.rate}%</strong>
                   </div>
@@ -952,7 +1064,9 @@ function DepartmentAdminDashboard() {
                     ) : filteredUsers.map((u, idx) => (
                       <tr key={u.id || u.uid || idx} className="au-table-row-enter" style={{ animationDelay: `${idx * 30}ms` }}>
                         <td className="au-td-idx">{idx + 1}</td>
-                        <td className="au-td-name"><strong>{u.name || "-"}</strong></td>
+                        <td className="au-td-name"><strong>{u.name || "-"}</strong>
+                          {u._departmentLabel && <span className="au-dept-label">{u._departmentLabel}</span>}
+                        </td>
                         <td className="au-td-email">{u.email || "-"}</td>
                         <td>{u.designation || "-"}</td>
                         <td>

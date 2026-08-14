@@ -266,6 +266,84 @@ function DepartmentMembers() {
       .sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
   }, [allCourses, canSeeAll, currentUser, departmentName]);
 
+
+  const getVisibleCourseEntries = (user) => {
+  if (!user?.id) return [];
+
+  const userDeptId = String(
+    user?.departmentId || ""
+  ).trim();
+
+  const userDept = normalize(
+    getDepartmentName(user)
+  );
+
+  const adminDeptId = String(
+    currentUser?.departmentId || ""
+  ).trim();
+
+  const adminDept = normalize(
+    departmentName
+  );
+
+  const isOwnDepartmentUser =
+    (userDeptId && adminDeptId && userDeptId === adminDeptId) ||
+    (userDept && adminDept && userDept === adminDept);
+
+  const userAssignments =
+    assignments?.[user.id] || {};
+
+  return Object.entries(userAssignments)
+    .filter(([, assignment]) =>
+      isAssignmentActive(assignment)
+    )
+    .map(([courseId, assignment]) => {
+      const course = allCourses.find(
+        (c) => String(c.id) === String(courseId)
+      );
+
+      if (!course) return null;
+
+      // Own department user:
+      // show ALL courses assigned to them,
+      // including courses from other departments.
+      if (isOwnDepartmentUser) {
+        return {
+          course,
+          assignment,
+        };
+      }
+
+      // Other department user:
+      // show only courses belonging to this admin's department.
+      const courseDeptId = String(
+        course?.departmentId || ""
+      ).trim();
+
+      const courseDept = normalize(
+        getDepartmentName(course)
+      );
+
+      const belongsToAdminDepartment =
+        (courseDeptId &&
+          adminDeptId &&
+          courseDeptId === adminDeptId) ||
+        (courseDept &&
+          adminDept &&
+          courseDept === adminDept);
+
+      if (!belongsToAdminDepartment) {
+        return null;
+      }
+
+      return {
+        course,
+        assignment,
+      };
+    })
+    .filter(Boolean);
+};
+
   const courseVideosMap = useMemo(() => {
     const map = {};
     const mergedVideos = [...videoLibrary, ...oldVideos];
@@ -381,52 +459,128 @@ function DepartmentMembers() {
   }, [users, search]);
 
   const memberStats = useMemo(() => {
-    const map = {};
-    users.forEach((user) => {
-      let assigned = 0, completed = 0, inProgress = 0, notStarted = 0;
-      courses.forEach((course) => {
-        const status = getUserCourseStatus(user.id, course.id);
-        if (status === "notAssigned") return;
-        assigned++;
-        if (status === "completed") completed++;
-        if (status === "inProgress") inProgress++;
-        if (status === "notStarted") notStarted++;
-      });
-      const rate = assigned > 0 ? Math.round((completed / assigned) * 100) : 0;
-      map[user.id] = { assigned, completed, inProgress, notStarted, rate };
+  const map = {};
+
+  users.forEach((user) => {
+    const visibleCourses = getVisibleCourseEntries(user);
+
+    let assigned = 0;
+    let completed = 0;
+    let inProgress = 0;
+    let notStarted = 0;
+
+    visibleCourses.forEach(({ course }) => {
+      const status = getUserCourseStatus(
+        user.id,
+        course.id
+      );
+
+      if (status === "notAssigned") return;
+
+      assigned++;
+
+      if (status === "completed") completed++;
+      if (status === "inProgress") inProgress++;
+      if (status === "notStarted") notStarted++;
     });
-    return map;
-  }, [users, courses, assignments, completedCourses, results, progress, courseVideosMap]);
+
+    const rate =
+      assigned > 0
+        ? Math.round((completed / assigned) * 100)
+        : 0;
+
+    map[user.id] = {
+      assigned,
+      completed,
+      inProgress,
+      notStarted,
+      rate,
+    };
+  });
+
+  return map;
+}, [
+  users,
+  allCourses,
+  assignments,
+  completedCourses,
+  results,
+  progress,
+  courseVideosMap,
+  currentUser,
+  departmentName,
+]);
+
 
   const selectedUser = useMemo(() => {
     if (!selectedUserId) return null;
     return users.find((u) => u.id === selectedUserId) || null;
   }, [users, selectedUserId]);
 
-  const selectedUserCourses = useMemo(() => {
-    if (!selectedUserId) return [];
-    return courses
-      .map((course) => {
-        const status = getUserCourseStatus(selectedUserId, course.id);
-        if (status === "notAssigned") return null;
-        const percent = getUserCourseProgress(selectedUserId, course.id);
-        const thumb = getCourseThumbnail(course);
-        const videoCount = (courseVideosMap?.[course.id] || []).length || course.totalVideos || 0;
-        return {
-          course,
-          status,
-          percent,
-          thumb,
-          videoCount,
-          title: getCourseTitle(course),
-        };
-      })
-      .filter(Boolean)
-      .sort((a, b) => {
-        const order = { completed: 0, inProgress: 1, notStarted: 2 };
-        return (order[a.status] ?? 3) - (order[b.status] ?? 3);
-      });
-  }, [selectedUserId, courses, assignments, completedCourses, results, progress, courseVideosMap]);
+const selectedUserCourses = useMemo(() => {
+  if (!selectedUserId) return [];
+
+  const user = users.find(
+    (u) => u.id === selectedUserId
+  );
+
+  if (!user) return [];
+
+  return getVisibleCourseEntries(user)
+    .map(({ course }) => {
+      const status = getUserCourseStatus(
+        selectedUserId,
+        course.id
+      );
+
+      if (status === "notAssigned") return null;
+
+      const percent = getUserCourseProgress(
+        selectedUserId,
+        course.id
+      );
+
+      const thumb = getCourseThumbnail(course);
+
+      const videoCount =
+        (courseVideosMap?.[course.id] || []).length ||
+        course.totalVideos ||
+        0;
+
+      return {
+        course,
+        status,
+        percent,
+        thumb,
+        videoCount,
+        title: getCourseTitle(course),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => {
+      const order = {
+        completed: 0,
+        inProgress: 1,
+        notStarted: 2,
+      };
+
+      return (
+        (order[a.status] ?? 3) -
+        (order[b.status] ?? 3)
+      );
+    });
+}, [
+  selectedUserId,
+  users,
+  allCourses,
+  assignments,
+  completedCourses,
+  results,
+  progress,
+  courseVideosMap,
+  currentUser,
+  departmentName,
+]);
 
   const selectedUserStats = useMemo(() => {
     if (!selectedUserId) return { assigned: 0, completed: 0, inProgress: 0, notStarted: 0, rate: 0 };
@@ -539,10 +693,11 @@ function DepartmentMembers() {
                 <div className="dm-profile-info">
                   <h2>{getUserName(selectedUser)}</h2>
                   <p>{selectedUser.email || "-"}</p>
-                  <div className="dm-profile-meta">
-                    <span>{getDesignation(selectedUser)}</span>
-                    <span>{getLocation(selectedUser)}</span>
-                  </div>
+                 <div className="dm-profile-meta">
+  <span>{getDesignation(selectedUser)}</span>
+  <span>{getDepartmentName(selectedUser) || "-"}</span>
+  <span>{getLocation(selectedUser)}</span>
+</div>
                 </div>
               </div>
 
@@ -586,10 +741,12 @@ function DepartmentMembers() {
                             {item.title.charAt(0).toUpperCase()}
                           </div>
                         )}
-                        <div className="dm-course-info">
-                          <strong>{item.title}</strong>
-                          <span>{item.videoCount} Videos</span>
-                        </div>
+                      <div className="dm-course-info">
+  <strong>{item.title}</strong>
+  <span>
+    {getDepartmentName(item.course) || "Not specified"} • {item.videoCount} Videos
+  </span>
+</div>
                         <div className="dm-course-progress-area">
                           <div className="dm-course-bar">
                             <div className="dm-course-bar-fill" style={{ width: `${item.percent}%` }}></div>
