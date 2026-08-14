@@ -365,6 +365,14 @@
   background: #f0fdf4;
 }
 
+.dc-action-delete {
+  color: #dc2626;
+}
+
+.dc-action-delete:hover {
+  background: #fee2e2;
+}
+
 /* ─── Responsive ─── */
 @media (max-width: 768px) {
   .dc-page { padding: 0 12px 20px; }

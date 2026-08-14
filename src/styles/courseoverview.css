@@ -114,6 +114,23 @@
   background: var(--co-primary-hover);
 }
 
+.co-btn-delete {
+  background: transparent;
+  color: var(--co-danger);
+  border: none;
+  padding: 8px 12px;
+  border-radius: var(--co-radius-md);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: 0.2s;
+}
+
+.co-btn-delete:hover {
+  background: #fee2e2;
+}
+
 /* Hero Card */
 .co-hero-card {
   background: var(--co-card);

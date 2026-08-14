@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { get, ref } from "firebase/database";
+import { get, ref, remove } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, database } from "../firebase";
 import { Link, useNavigate } from "react-router-dom";
@@ -76,6 +76,13 @@ function DepartmentCourses() {
     });
     return () => unsubscribe();
   }, [navigate]);
+
+  const deleteCourse = async (courseId) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this course?");
+    if (!confirmDelete) return;
+    await remove(ref(database, `courses/${courseId}`));
+    fetchData(currentUser);
+  };
 
   const getCourseVideos = (course) => {
     const mappedVideos = courseVideos?.[course.id]
@@ -292,6 +299,9 @@ function DepartmentCourses() {
                   </button>
                   <button className="dc-action-assign" onClick={(e) => { e.stopPropagation(); navigate(assignLink); }} title="Assign">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                  </button>
+                  <button className="dc-action-delete" onClick={(e) => { e.stopPropagation(); deleteCourse(course.id); }} title="Delete">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                   </button>
                 </div>
               </div>

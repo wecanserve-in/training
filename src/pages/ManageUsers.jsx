@@ -343,6 +343,36 @@ function ManageUsers() {
     return "";
   };
 
+  const getErrorReason = (errorMessage) => {
+    const msg = (errorMessage || "").toLowerCase();
+
+    if (msg.includes("already-in-use") || msg.includes("email address is already in use")) {
+      return "Email already exists in Firebase Auth";
+    }
+
+    if (msg.includes("invalid email")) {
+      return "Invalid email format";
+    }
+
+    if (msg.includes("weak password")) {
+      return "Password is too weak";
+    }
+
+    if (msg.includes("network") || msg.includes("failed")) {
+      return "Network error or request failed";
+    }
+
+    if (msg.includes("quota") || msg.includes("maximum")) {
+      return "Firebase quota exceeded";
+    }
+
+    if (msg.includes("permission") || msg.includes("auth")) {
+      return "Authentication permission error";
+    }
+
+    return errorMessage || "Unknown error";
+  };
+
   const processFile = async (file) => {
     if (!file) return;
     setCreating(true);
@@ -415,12 +445,35 @@ function ManageUsers() {
       const result = await createUserRecord(excelUser);
       if (result.success) {
         successCount++;
-      } else if (result.error.includes("already-in-use")) {
-        skippedCount++;
-        uploadErrors.push({ row: i + 2, name: row.name || "", email: row.email || "", type: "warning", reason: "User exists." });
       } else {
-        failCount++;
-        uploadErrors.push({ row: i + 2, name: row.name || "", email: row.email || "", type: "error", reason: result.error });
+        const errorReason = getErrorReason(result.error);
+
+        // Check if error is about email already existing (user exists in Firebase Auth)
+        const isDuplicateEmail = errorReason.includes("already exists");
+
+        if (isDuplicateEmail) {
+          skippedCount++;
+          uploadErrors.push({
+            row: i + 2,
+            name: excelUser.name || "",
+            email: excelUser.email || "",
+            type: "warning",
+            reason: errorReason,
+            suggestion: "Use a different email or mark this row to update existing user",
+          });
+        } else {
+          // Check if this might be a case where user was deleted from platform but auth still exists
+          // or other auth-related issues
+          failCount++;
+          uploadErrors.push({
+            row: i + 2,
+            name: excelUser.name || "",
+            email: excelUser.email || "",
+            type: "error",
+            reason: errorReason,
+            suggestion: "Check email format or try with a different email address",
+          });
+        }
       }
     }
 
@@ -823,7 +876,26 @@ const filteredUsers = users
               <span className="error">❌ {uploadModal.failed} Failed</span>
             </div>
             {uploadModal.status === "done" && (
-              <button className="mu-btn mu-btn-primary w-100 mt-3" onClick={() => setUploadModal({ ...uploadModal, open: false })}>Done</button>
+              <>
+                <button className="mu-btn mu-btn-primary w-100 mt-3" onClick={() => setUploadModal({ ...uploadModal, open: false })}>Done</button>
+              </>
+            )}
+            {uploadModal.status === "done" && uploadModal.errors.length > 0 && (
+              <div className="error-summary mt-3">
+                <h3>{uploadModal.failed > 0 ? "Failed Uploads" : "Skipped Uploads"} ({uploadModal.errors.length})</h3>
+                <div className="error-list">
+                  {uploadModal.errors.map((err) => (
+                    <div key={err.email} className="error-item">
+                      <div className="error-details">
+                        <strong>Row {err.row}:</strong> {err.email}
+                        {err.name && <span>{err.name}</span>}
+                      </div>
+                      <p className="error-reason">{err.reason}</p>
+                      {err.suggestion && <p className="error-suggestion">{err.suggestion}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </div>

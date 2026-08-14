@@ -198,22 +198,21 @@ function SuperAdminLayout() {
         </div>
 
         <nav className="sidebar-menu">
-          <NavLink to="/super-admin" end onClick={closeMobileMenu}>
-            <span>Dashboard</span>
-          </NavLink>
+         <NavLink to="/super-admin" end onClick={closeMobileMenu}>
+  <span>Dashboard</span>
+</NavLink>
 
-          <NavLink to="/super-admin/users" onClick={closeMobileMenu}>
-            <span>Users</span>
-          </NavLink>
+<NavLink to="/super-admin/admins" onClick={closeMobileMenu}>
+  <span>Admins</span>
+</NavLink>
 
-          <NavLink to="/super-admin/admins" onClick={closeMobileMenu}>
-            <span>Admins</span>
-          </NavLink>
+<NavLink to="/super-admin/departments" onClick={closeMobileMenu}>
+  <span>Department Admin</span>
+</NavLink>
 
-          <NavLink to="/super-admin/departments" onClick={closeMobileMenu}>
-            <span>Departments</span>
-          </NavLink>
-
+<NavLink to="/super-admin/users" onClick={closeMobileMenu}>
+  <span>Users</span>
+</NavLink>
           <div className="sidebar-dropdown">
             <button
               type="button"

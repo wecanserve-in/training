@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { get, ref } from "firebase/database";
+import { get, ref, remove } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, database } from "../firebase";
 import useBasePath from "../hooks/useBasePath";
@@ -168,6 +168,13 @@ function CourseOverview() {
   const editLink = `${basePath}/courses/edit/${course.id}`;
   const assignLink = `${basePath}/assignments?courseId=${course.id}`;
 
+  const deleteCourse = async () => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this course?");
+    if (!confirmDelete) return;
+    await remove(ref(database, `courses/${course.id}`));
+    navigate(`${basePath}/courses`);
+  };
+
   // Converts seconds into readable text:
   // 90 -> "1 min 30 sec", 60 -> "1 min", 45 -> "45 sec"
   const formatDuration = (rawDuration, fallback = "0 sec") => {
@@ -322,6 +329,7 @@ function CourseOverview() {
           <div className="co-actions">
             <button className="co-btn-edit" onClick={() => navigate(editLink)}>Edit Course</button>
             <button className="co-btn-assign" onClick={() => navigate(assignLink)}>Assign Course</button>
+            <button className="co-btn-delete" onClick={deleteCourse}>Delete Course</button>
           </div>
         </div>
 
