@@ -115,23 +115,62 @@ function CertificatePage() {
   const downloadCertificate = async () => {
     setDownloading(true);
     try {
-      const el = certificateRef.current;
-      const originalTransform = el.style.transform;
-      el.style.transform = "none";
-
       const isMobile = window.innerWidth <= 768;
-      const canvas = await html2canvas(el, {
-        scale: isMobile ? 2 : 3,
-        useCORS: true,
-        backgroundColor: null,
-      });
 
-      el.style.transform = originalTransform;
+      if (isMobile) {
+        const container = document.createElement("div");
+        container.style.position = "fixed";
+        container.style.top = "0";
+        container.style.left = "0";
+        container.style.width = "1600px";
+        container.style.height = "1100px";
+        container.style.overflow = "hidden";
+        container.style.zIndex = "-1";
+        container.style.opacity = "0";
+        container.style.pointerEvents = "none";
+        document.body.appendChild(container);
 
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("landscape", "px", [1600, 1100]);
-      pdf.addImage(imgData, "PNG", 0, 0, 1600, 1100);
-      pdf.save(`${studentName}-${courseName}-certificate.pdf`);
+        const clone = certificateRef.current.cloneNode(true);
+        clone.style.transform = "none";
+        clone.style.margin = "0";
+        container.appendChild(clone);
+
+        await new Promise((r) => setTimeout(r, 300));
+
+        const canvas = await html2canvas(clone, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: null,
+          logging: false,
+          width: 1600,
+          height: 1100,
+        });
+
+        document.body.removeChild(container);
+
+        const imgData = canvas.toDataURL("image/png");
+        const pdf = new jsPDF("landscape", "px", [1600, 1100]);
+        pdf.addImage(imgData, "PNG", 0, 0, 1600, 1100);
+        pdf.save(`${studentName}-${courseName}-certificate.pdf`);
+      } else {
+        const el = certificateRef.current;
+        const originalTransform = el.style.transform;
+        el.style.transform = "none";
+
+        const canvas = await html2canvas(el, {
+          scale: 3,
+          useCORS: true,
+          backgroundColor: null,
+        });
+
+        el.style.transform = originalTransform;
+
+        const imgData = canvas.toDataURL("image/png");
+        const pdf = new jsPDF("landscape", "px", [1600, 1100]);
+        pdf.addImage(imgData, "PNG", 0, 0, 1600, 1100);
+        pdf.save(`${studentName}-${courseName}-certificate.pdf`);
+      }
     } catch (err) {
       console.error("Download failed:", err);
       alert("Failed to download certificate. Please try again.");
