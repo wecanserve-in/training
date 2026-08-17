@@ -33,6 +33,11 @@ function CertificatePage() {
     fetchCertificateData();
   }, [id]);
 
+  useEffect(() => {
+    const img = new Image();
+    img.src = "/certificate/certificate.png";
+  }, []);
+
   const fetchCertificateData = async () => {
     try {
       const attemptUserId = id.split("_")[0];
@@ -110,11 +115,19 @@ function CertificatePage() {
   const downloadCertificate = async () => {
     setDownloading(true);
     try {
-      const canvas = await html2canvas(certificateRef.current, {
-        scale: 3,
+      const el = certificateRef.current;
+      const originalTransform = el.style.transform;
+      el.style.transform = "none";
+
+      const isMobile = window.innerWidth <= 768;
+      const canvas = await html2canvas(el, {
+        scale: isMobile ? 2 : 3,
         useCORS: true,
         backgroundColor: null,
       });
+
+      el.style.transform = originalTransform;
+
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("landscape", "px", [1600, 1100]);
       pdf.addImage(imgData, "PNG", 0, 0, 1600, 1100);
