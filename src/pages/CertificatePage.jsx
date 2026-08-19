@@ -4,7 +4,6 @@ import { ref, get } from "firebase/database";
 import { database } from "../firebase";
 import useBasePath from "../hooks/useBasePath";
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 import {
   FaArrowLeft,
   FaDownload,
@@ -32,11 +31,6 @@ function CertificatePage() {
   useEffect(() => {
     fetchCertificateData();
   }, [id]);
-
-  useEffect(() => {
-    const img = new Image();
-    img.src = "/certificate/certificate.png";
-  }, []);
 
   const fetchCertificateData = async () => {
     try {
@@ -115,62 +109,49 @@ function CertificatePage() {
   const downloadCertificate = async () => {
     setDownloading(true);
     try {
-      const isMobile = window.innerWidth <= 768;
+      const bgImage = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("Failed to load certificate background image"));
+        img.src = "/certificate/certificate.png";
+      });
 
-      if (isMobile) {
-        const container = document.createElement("div");
-        container.style.position = "fixed";
-        container.style.top = "0";
-        container.style.left = "0";
-        container.style.width = "1600px";
-        container.style.height = "1100px";
-        container.style.overflow = "hidden";
-        container.style.zIndex = "-1";
-        container.style.opacity = "0";
-        container.style.pointerEvents = "none";
-        document.body.appendChild(container);
+      const W = 3200;
+      const H = 2200;
+      const canvas = document.createElement("canvas");
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext("2d");
 
-        const clone = certificateRef.current.cloneNode(true);
-        clone.style.transform = "none";
-        clone.style.margin = "0";
-        container.appendChild(clone);
+      ctx.drawImage(bgImage, 0, 0, W, H);
 
-        await new Promise((r) => setTimeout(r, 300));
+      ctx.fillStyle = "#101828";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
 
-        const canvas = await html2canvas(clone, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: null,
-          logging: false,
-          width: 1600,
-          height: 1100,
-        });
+      ctx.font = "600 128px 'Times New Roman', serif";
+      const nameY = (460 / 1100) * H;
+      const capitalizedName = studentName.replace(/\b\w/g, (c) => c.toUpperCase());
+      ctx.fillText(capitalizedName, W / 2, nameY, W - 200);
 
-        document.body.removeChild(container);
+      ctx.font = "600 76px 'Times New Roman', serif";
+      const courseY = (610 / 1100) * H;
+      ctx.fillText(courseName, W / 2, courseY, W - 240);
 
-        const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF("landscape", "px", [1600, 1100]);
-        pdf.addImage(imgData, "PNG", 0, 0, 1600, 1100);
-        pdf.save(`${studentName}-${courseName}-certificate.pdf`);
-      } else {
-        const el = certificateRef.current;
-        const originalTransform = el.style.transform;
-        el.style.transform = "none";
+      ctx.textAlign = "left";
+      ctx.font = "600 52px Arial, sans-serif";
+      const dateX = (790 / 1600) * W;
+      const dateY = (800 / 1100) * H;
+      ctx.fillText(date, dateX, dateY);
 
-        const canvas = await html2canvas(el, {
-          scale: 3,
-          useCORS: true,
-          backgroundColor: null,
-        });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("landscape", "px", [1600, 1100], true);
+      pdf.addImage(imgData, "PNG", 0, 0, 1600, 1100);
 
-        el.style.transform = originalTransform;
-
-        const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF("landscape", "px", [1600, 1100]);
-        pdf.addImage(imgData, "PNG", 0, 0, 1600, 1100);
-        pdf.save(`${studentName}-${courseName}-certificate.pdf`);
-      }
+      const safeName = (studentName || "Student").replace(/[\/\\:*?"<>|]/g, "_");
+      const safeCourse = (courseName || "Course").replace(/[\/\\:*?"<>|]/g, "_");
+      pdf.save(`${safeName}-${safeCourse}-certificate.pdf`);
     } catch (err) {
       console.error("Download failed:", err);
       alert("Failed to download certificate. Please try again.");
@@ -259,7 +240,13 @@ function CertificatePage() {
         </div>
       </div>
 
-      <div className="cert-canvas-preview-frame">
+      <div className="cert-canvas-preview-frame" style={{ position: "relative" }}>
+        {downloading && (
+          <div className="cert-downloading-overlay">
+            <div className="cert-loading-spinner"></div>
+            <p>Generating your certificate...</p>
+          </div>
+        )}
         <div
           ref={certificateRef}
           className="cert-canvas-element"
@@ -278,16 +265,20 @@ function CertificatePage() {
           <div
             style={{
               position: "absolute",
-              top: "450px",
+              top: "460px",
               left: "0",
               width: "100%",
               textAlign: "center",
-              fontSize: "72px",
+              fontSize: "64px",
               fontFamily: "'Times New Roman', serif",
               fontWeight: "600",
               color: "#101828",
               textTransform: "capitalize",
               lineHeight: "1",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              padding: "0 100px",
             }}
           >
             {studentName}
@@ -296,15 +287,19 @@ function CertificatePage() {
           <div
             style={{
               position: "absolute",
-              top: "605px",
+              top: "610px",
               left: "0",
               width: "100%",
               textAlign: "center",
-              fontSize: "40px",
+              fontSize: "38px",
               fontFamily: "'Times New Roman', serif",
               fontWeight: "600",
               color: "#101828",
               lineHeight: "1.2",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              padding: "0 120px",
             }}
           >
             {courseName}
@@ -314,9 +309,9 @@ function CertificatePage() {
             style={{
               position: "absolute",
               top: "800px",
-              left: "770px",
-              fontSize: "28px",
-               fontWeight: "600",
+              left: "790px",
+              fontSize: "26px",
+              fontWeight: "600",
               fontFamily: "Arial, sans-serif",
               color: "#101828",
               lineHeight: "1",
