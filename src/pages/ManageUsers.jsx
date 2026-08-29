@@ -213,7 +213,6 @@ function ManageUsers() {
         state: userData.state.trim(),
         cityArea: userData.cityArea.trim(),
         department: userData.department,
-        defaultPassword: DEFAULT_PASSWORD,
         mustChangePassword: true,
         createdAt: new Date().toISOString(),
       });

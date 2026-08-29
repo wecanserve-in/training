@@ -7,6 +7,94 @@
  */
 
 // ──────────────────────────────────────────────
+// 0. Shared data-access helpers
+// ──────────────────────────────────────────────
+
+/**
+ * Safe timestamp parser.
+ */
+export const getTime = (value) => {
+  const time = new Date(value || 0).getTime();
+  return Number.isFinite(time) ? time : 0;
+};
+
+/**
+ * Convert a Firebase object to an array with id fields.
+ */
+export const objectToArray = (data) => {
+  if (!data || typeof data !== "object") return [];
+  return Object.entries(data).map(([id, value]) => ({
+    id,
+    ...(value && typeof value === "object" ? value : {}),
+  }));
+};
+
+/**
+ * Read the first truthy value from a list of keys.
+ */
+export const getVal = (obj, keys) => {
+  for (const k of keys) {
+    if (obj?.[k]) return String(obj[k]).trim();
+  }
+  return "";
+};
+
+/**
+ * Centralized course title resolver.
+ */
+export const getCourseTitle = (course) => {
+  return (
+    course?.title ||
+    course?.courseTitle ||
+    course?.courseName ||
+    course?.name ||
+    "Untitled Course"
+  );
+};
+
+/**
+ * Centralized course thumbnail resolver.
+ */
+export const getCourseThumbnail = (course) => {
+  if (course?.thumbnailUrl) return course.thumbnailUrl;
+  if (course?.courseThumbnail) return course.courseThumbnail;
+  if (course?.thumbnail) return course.thumbnail;
+  return "";
+};
+
+/**
+ * Centralized department name resolver.
+ */
+export const getDepartmentName = (item) => {
+  return (
+    item?.department ||
+    item?.departmentName ||
+    item?.departmentType ||
+    item?.dept ||
+    item?.deptName ||
+    ""
+  );
+};
+
+/**
+ * Check if a course is active (not inactive/archived/deleted/draft).
+ */
+export const isCourseActive = (course) => {
+  const status = String(course?.status || "").trim().toLowerCase();
+  return !["inactive", "archived", "deleted", "draft"].includes(status);
+};
+
+/**
+ * Human-readable status label.
+ */
+export const getStatusLabel = (s) =>
+  s === "completed"
+    ? "Completed"
+    : s === "inProgress"
+      ? "In Progress"
+      : "Not Started";
+
+// ──────────────────────────────────────────────
 // 1. Role helpers
 // ──────────────────────────────────────────────
 

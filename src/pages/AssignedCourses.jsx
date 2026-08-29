@@ -4,6 +4,11 @@ import { onAuthStateChanged } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { auth, database } from "../firebase";
 import useBasePath from "../hooks/useBasePath";
+import {
+  getTime,
+  getCourseTitle,
+  getCourseThumbnail,
+} from "../utils/trainingAnalytics";
 import "../styles/assignedCourses.css";
 
 import {
@@ -25,15 +30,6 @@ function AssignedCourses() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(true);
-
-  const getTime = (value) => {
-    const time = new Date(value || 0).getTime();
-    return Number.isFinite(time) ? time : 0;
-  };
-
-  const getCourseTitle = (course) => {
-    return course?.title || course?.courseTitle || "Untitled Course";
-  };
 
   const getCourseDescription = (course) => {
     return course?.description || course?.overview || "Training course";
@@ -204,6 +200,16 @@ function AssignedCourses() {
       return 100;
     }
 
+    const cp = courseProgressData?.[courseId];
+    if (
+      cp?.completed === true ||
+      cp?.passed === true ||
+      cp?.courseTestPassed === true ||
+      Number(cp?.progressPercentage ?? cp?.progress ?? 0) >= 100
+    ) {
+      return 100;
+    }
+
     if (videos.length > 0) {
       const totalProgress = videos.reduce((sum, video) => {
         const progress = progressMap?.[video.id];
@@ -243,7 +249,7 @@ function AssignedCourses() {
     return videos.some((v) => v.addedAt && new Date(v.addedAt) > new Date(lastAccessed));
   };
 
-  const getCourseThumbnail = (course) => {
+  const getCourseThumbnailLocal = (course) => {
     if (course.thumbnailUrl) return course.thumbnailUrl;
     if (course.courseThumbnail) return course.courseThumbnail;
     if (course.assignment?.courseThumbnail) return course.assignment.courseThumbnail;
@@ -378,7 +384,7 @@ function AssignedCourses() {
           filteredCourses.map((course, i) => {
             const progress = getCourseProgress(course.id);
             const status = getCourseStatus(course.id);
-            const thumbnail = getCourseThumbnail(course);
+            const thumbnail = getCourseThumbnailLocal(course);
             const colors = ["#f59e0b", "#3b82f6", "#10b981", "#8b5cf6", "#ec4899"];
             const letter = getCourseTitle(course).charAt(0).toUpperCase();
 

@@ -6,6 +6,13 @@ import { auth, database } from "../firebase";
 import useBasePath from "../hooks/useBasePath";
 import {
   isCompletedRecord,
+  isCourseCompletedForUser,
+  getUserCertificateCount,
+  getCourseTitle,
+  getCourseThumbnail,
+  getUserZone,
+  flattenAttempts,
+  computeTestPerformance,
 } from "../utils/trainingAnalytics";
 import "../styles/dashboard.css";
 
@@ -381,31 +388,9 @@ function Dashboard() {
   }, [courses, results, completedCourses]);
 
   const certificatesIssuedCount = useMemo(() => {
-    let count = 0;
-    const checked = new Set();
-    const assignedIds = new Set(courses.map((c) => c.id));
-
-    if (completedCourses && typeof completedCourses === "object") {
-      Object.entries(completedCourses).forEach(([courseId, item]) => {
-        if (!assignedIds.has(courseId)) return;
-        if (item?.passed === true || item?.completed === true) {
-          checked.add(courseId);
-          count += 1;
-        }
-      });
-    }
-
-    if (courseProgressData && typeof courseProgressData === "object") {
-      Object.entries(courseProgressData).forEach(([courseId, item]) => {
-        if (!assignedIds.has(courseId)) return;
-        if (!checked.has(courseId) && (item?.courseTestPassed === true || item?.passed === true)) {
-          count += 1;
-        }
-      });
-    }
-
-    return count;
-  }, [courses, completedCourses, courseProgressData]);
+    if (!userData) return 0;
+    return getUserCertificateCount(userData, completedCourses);
+  }, [userData, completedCourses]);
 
   const videosWatchedCount = useMemo(() => {
     let watched = 0;
@@ -434,23 +419,20 @@ function Dashboard() {
   ]);
 
   const finalTestsTaken = useMemo(() => {
-    let count = 0;
-    const counted = new Set();
     const assignedIds = new Set(courses.map((c) => c.id));
-
-    Object.values(quizAttempts).forEach((attempts) => {
-      if (!attempts || typeof attempts !== "object") return;
-      Object.values(attempts).forEach((attempt) => {
-        const cid = attempt?.courseId;
-        if (
-          (attempt?.quizType === "final" || attempt?.type === "final") &&
-          assignedIds.has(cid) &&
-          !counted.has(cid)
-        ) {
-          counted.add(cid);
-          count += 1;
-        }
-      });
+    const flattened = flattenAttempts({}, quizAttempts);
+    const finalAttempts = flattened.filter(
+      (a) =>
+        (a.quizType === "final" || a.type === "final" || !a.quizType) &&
+        assignedIds.has(a.courseId)
+    );
+    const counted = new Set();
+    let count = 0;
+    finalAttempts.forEach((a) => {
+      if (!counted.has(a.courseId)) {
+        counted.add(a.courseId);
+        count++;
+      }
     });
 
     if (courseProgressData && typeof courseProgressData === "object") {
@@ -466,26 +448,23 @@ function Dashboard() {
   }, [courses, quizAttempts, courseProgressData]);
 
   const avgFinalScore = useMemo(() => {
+    const assignedIds = new Set(courses.map((c) => c.id));
+    const flattened = flattenAttempts({}, quizAttempts);
+    const finalAttempts = flattened.filter(
+      (a) =>
+        (a.quizType === "final" || a.type === "final" || !a.quizType) &&
+        assignedIds.has(a.courseId)
+    );
+    const counted = new Set();
     let total = 0;
     let count = 0;
-    const counted = new Set();
-    const assignedIds = new Set(courses.map((c) => c.id));
 
-    Object.values(quizAttempts).forEach((attempts) => {
-      if (!attempts || typeof attempts !== "object") return;
-
-      Object.values(attempts).forEach((attempt) => {
-        const isFinal =
-          attempt?.quizType === "final" ||
-          attempt?.type === "final";
-        const cid = attempt?.courseId;
-
-        if (isFinal && assignedIds.has(cid) && attempt?.percentage != null && !counted.has(cid)) {
-          counted.add(cid);
-          total += Number(attempt.percentage);
-          count += 1;
-        }
-      });
+    finalAttempts.forEach((a) => {
+      if (!counted.has(a.courseId) && Number.isFinite(a.score) && a.score >= 0) {
+        counted.add(a.courseId);
+        total += a.score;
+        count += 1;
+      }
     });
 
     if (courseProgressData && typeof courseProgressData === "object") {
@@ -544,13 +523,13 @@ function Dashboard() {
   }, [courses, courseVideosMap, courseProgressData]);
 
   const isCourseCompleted = (courseId) => {
-    const completedCourse = completedCourses?.[courseId];
-    if (isCompletedRecord(completedCourse)) return true;
-    
-    const savedCourseProgress = courseProgressData?.[courseId];
-    return Boolean(
-      savedCourseProgress?.courseTestPassed ||
-      savedCourseProgress?.passed
+    if (!userData) return false;
+    return isCourseCompletedForUser(
+      userData,
+      courseId,
+      completedCourses,
+      courseProgressData,
+      courseVideoProgress
     );
   };
 

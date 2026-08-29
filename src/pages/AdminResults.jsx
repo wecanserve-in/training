@@ -3,6 +3,7 @@ import { get, ref } from "firebase/database";
 import { Link } from "react-router-dom";
 import { database } from "../firebase";
 import { flattenAttempts, getAttemptScore, isAttemptPassed, getAttemptTime } from "../utils/trainingAnalytics";
+import useBasePath from "../hooks/useBasePath";
 import "../styles/adminresults.css";
 
 const normalizeRole = (role) =>
@@ -53,6 +54,7 @@ const formatDateTime = (value) => {
 };
 
 function AdminResults() {
+  const basePath = useBasePath();
   const [rawAttempts, setRawAttempts] = useState({});
   const [rawQuizAttempts, setRawQuizAttempts] = useState({});
   const [users, setUsers] = useState([]);
@@ -497,7 +499,7 @@ function AdminResults() {
       <section className="admin-log-hero">
         <div>
           <Link
-            to="/super-admin"
+            to={basePath || "/admin"}
             className="admin-log-back"
           >
             <svg

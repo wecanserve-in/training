@@ -23,6 +23,8 @@ function ManageDepartments() {
 
   useEffect(() => { loadData(); }, []);
 
+  const normalizeRole = (role) => String(role || "").trim().toLowerCase().replace(/[\s_-]/g, "");
+
   const loadData = async () => {
     const deptSnap = await get(ref(database, "departments"));
     const userSnap = await get(ref(database, "users"));
@@ -39,15 +41,19 @@ function ManageDepartments() {
     setAllUsers(userList);
     setMembers(
       userList
-        .filter((user) => user.role === "user" || user.role === "departmentAdmin")
+        .filter((user) => {
+          const r = normalizeRole(user.role);
+          return r === "user" || r === "departmentadmin" || !r;
+        })
         .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
     );
   };
 
   const availableMembers = useMemo(() => {
     return members.filter((member) => {
-      if (member.role === "user") return true;
-      if (member.role === "departmentAdmin") {
+      const r = normalizeRole(member.role);
+      if (r === "user" || !r) return true;
+      if (r === "departmentadmin") {
         const memberDept = departments.find((d) => d.departmentAdminId === member.id);
         return memberDept && editingDepartment && memberDept.id === editingDepartment.id;
       }
@@ -66,8 +72,8 @@ function ManageDepartments() {
         return userDeptId === deptId || userDept === deptName;
       });
       users.sort((a, b) => {
-        const aIsAdmin = a.role === "departmentAdmin" ? 0 : 1;
-        const bIsAdmin = b.role === "departmentAdmin" ? 0 : 1;
+        const aIsAdmin = normalizeRole(a.role) === "departmentadmin" ? 0 : 1;
+        const bIsAdmin = normalizeRole(b.role) === "departmentadmin" ? 0 : 1;
         return aIsAdmin - bIsAdmin;
       });
       map[deptId] = users;
@@ -144,7 +150,7 @@ function ManageDepartments() {
     const admin = members.find((m) => m.id === selectedMember);
     if (!admin) { alert("Invalid selection"); return; }
 
-    if (admin.role === "departmentAdmin") {
+    if (normalizeRole(admin.role) === "departmentadmin") {
       const adminDept = departments.find((d) => d.departmentAdminId === admin.id);
       if (adminDept && (!editingDepartment || adminDept.id !== editingDepartment.id)) {
         alert(`${admin.name} is already assigned as Department Admin for "${adminDept.departmentName}". Remove them from that department first.`);

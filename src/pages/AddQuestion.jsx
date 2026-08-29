@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { ref, get, push } from "firebase/database";
 import * as XLSX from "xlsx";
 import { database } from "../firebase";
+import useBasePath from "../hooks/useBasePath";
 import "../styles/addquestion.css";
 
 function AddQuestion() {
+  const { courseId: paramCourseId } = useParams();
+  const basePath = useBasePath();
   const [departments, setDepartments] = useState([]);
   const [courses, setCourses] = useState([]);
   const [videos, setVideos] = useState([]);
@@ -72,6 +75,19 @@ function AddQuestion() {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (!paramCourseId || courses.length === 0) return;
+    const targetCourse = courses.find((c) => c.id === paramCourseId);
+    if (targetCourse) {
+      setCourseId(paramCourseId);
+      if (targetCourse.department) setDepartment(targetCourse.department);
+      if (targetCourse.departmentId) setDepartmentId(targetCourse.departmentId);
+      const matched = videos.filter((v) => v.courseId === paramCourseId);
+      setFilteredVideos(matched);
+      setFilteredCourses(courses);
+    }
+  }, [paramCourseId, courses, videos]);
+
   const handleDepartmentChange = (e) => {
     const selectedDepartmentName = e.target.value;
     const selectedDept = departments.find((d) => d.departmentName === selectedDepartmentName);
@@ -137,28 +153,31 @@ function AddQuestion() {
       return;
     }
 
-    if (!videoId) {
-      alert("Please select video");
-      return;
-    }
-
     if (!correctAnswer) {
       alert("Please select correct answer");
       return;
     }
 
-    const options = [optionA, optionB, optionC, optionD];
-
-    await push(ref(database, `questions/${videoId}`), {
+    const options = [optionA.trim(), optionB.trim(), optionC.trim(), optionD.trim()];
+    const questionPayload = {
       department,
       departmentId,
       courseId,
-      videoId,
-      question,
+      videoId: videoId || null,
+      question: question.trim(),
       options,
-      correctAnswer,
+      correctAnswer: correctAnswer.trim(),
       createdAt: new Date().toISOString(),
-    });
+    };
+
+    // Save to course questions (primary path for course tests and management)
+    await push(ref(database, `questions/${courseId}`), questionPayload);
+
+    // If videoId is specified, also sync to video revision quizzes
+    if (videoId) {
+      await push(ref(database, `videoQuizzes/${videoId}`), questionPayload);
+      await push(ref(database, `questions/${videoId}`), questionPayload);
+    }
 
     alert("Question Added Successfully");
 
@@ -178,11 +197,6 @@ function AddQuestion() {
 
     if (!courseId) {
       alert("Please select course first");
-      return;
-    }
-
-    if (!videoId) {
-      alert("Please select video first");
       return;
     }
 
@@ -227,29 +241,36 @@ function AddQuestion() {
             continue;
           }
 
-          const options = [a, b, c, d];
-          let finalCorrectAnswer = correct;
+          const options = [String(a).trim(), String(b).trim(), String(c).trim(), String(d).trim()];
+          let finalCorrectAnswer = String(correct).trim();
 
-          if (["A", "B", "C", "D"].includes(String(correct).toUpperCase())) {
-            const key = String(correct).toUpperCase();
+          if (["A", "B", "C", "D"].includes(String(correct).trim().toUpperCase())) {
+            const key = String(correct).trim().toUpperCase();
 
-            if (key === "A") finalCorrectAnswer = a;
-            if (key === "B") finalCorrectAnswer = b;
-            if (key === "C") finalCorrectAnswer = c;
-            if (key === "D") finalCorrectAnswer = d;
+            if (key === "A") finalCorrectAnswer = String(a).trim();
+            if (key === "B") finalCorrectAnswer = String(b).trim();
+            if (key === "C") finalCorrectAnswer = String(c).trim();
+            if (key === "D") finalCorrectAnswer = String(d).trim();
           }
 
-          await push(ref(database, `questions/${videoId}`), {
+          const questionPayload = {
             department,
             departmentId,
             courseId,
-            videoId,
-            question: q,
+            videoId: videoId || null,
+            question: String(q).trim(),
             options,
             correctAnswer: finalCorrectAnswer,
             createdAt: new Date().toISOString(),
             uploadedVia: "excel",
-          });
+          };
+
+          await push(ref(database, `questions/${courseId}`), questionPayload);
+
+          if (videoId) {
+            await push(ref(database, `videoQuizzes/${videoId}`), questionPayload);
+            await push(ref(database, `questions/${videoId}`), questionPayload);
+          }
 
           addedCount++;
         }
@@ -273,8 +294,8 @@ function AddQuestion() {
   return (
     <div className="admin-question-container">
       <div className="admin-nav-back-row">
-        <Link to="/admin" className="btn-admin-back">
-          ← Back to Admin Console
+        <Link to={basePath ? `${basePath}/questions` : "/admin/questions"} className="btn-admin-back">
+          ← Back to Questions
         </Link>
       </div>
 

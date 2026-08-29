@@ -21,6 +21,8 @@ import {
   calculateGroupStats,
   calculateZoneStats,
   getUniqueAnalyticsTrainingUsers,
+  getVal,
+  getDepartmentName,
 } from "../utils/trainingAnalytics";
 
 const AVATAR_COLORS = [
@@ -37,11 +39,6 @@ const AVATAR_COLORS = [
 ];
 
 function getAvatarColor(i) { return AVATAR_COLORS[i % AVATAR_COLORS.length]; }
-
-function getVal(user, keys) {
-  for (const k of keys) { if (user?.[k]) return String(user[k]).trim(); }
-  return "";
-}
 
 function DepartmentAnalytics() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -69,8 +66,6 @@ const [searchParams] = useSearchParams();
 
   const normalize = (value) => String(value || "").trim().toLowerCase();
   const sameText = (a, b) => { const f = normalize(a); const s = normalize(b); return Boolean(f && s && f === s); };
-
-  const getDepartmentName = (item) => item?.department || item?.departmentName || item?.departmentType || item?.dept || item?.deptName || "";
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -727,7 +722,6 @@ const designations = useMemo(() => [...new Set(contextUsers.map((u) => u.designa
             </div>
           </div>
         </div>
-      )}
 
       {/* User Detail Drawer */}
       {selectedUser && (

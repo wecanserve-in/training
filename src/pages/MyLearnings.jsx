@@ -133,17 +133,24 @@ function MyLearnings() {
         setVideos(mergedVideos);
         setLearningActivity(activitySnap.exists() ? activitySnap.val() : {});
 
-        // Collect revision attempts from both new and legacy paths
+        // Collect revision and final attempts from new schema
         const revisionAttempts = [];
+        const normalizedFinalAttempts = [];
 
-        // New path: quizAttempts/{uid}/{courseId}/{quizId}
         if (quizAttemptsSnap.exists()) {
           const allQuizAttempts = quizAttemptsSnap.val() || {};
           Object.values(allQuizAttempts).forEach((courseAttempts) => {
             if (courseAttempts && typeof courseAttempts === "object") {
               Object.entries(courseAttempts).forEach(([quizId, attempt]) => {
-                if (attempt && attempt.quizType === "practice") {
+                if (!attempt) return;
+                if (attempt.quizType === "practice" || attempt.videoId) {
                   revisionAttempts.push({ id: quizId, ...attempt });
+                } else {
+                  normalizedFinalAttempts.push({
+                    id: quizId,
+                    ...attempt,
+                    submittedAt: attempt.attemptedAt || attempt.submittedAt || "",
+                  });
                 }
               });
             }
@@ -152,25 +159,33 @@ function MyLearnings() {
 
         setVideoQuizAttempts(revisionAttempts);
 
-        if (attemptsSnap.exists()) {
-          const allAttempts = attemptsSnap.val();
+        const legacyAttemptsList = attemptsSnap.exists()
+          ? Object.entries(attemptsSnap.val())
+              .map(([attemptId, item]) => ({
+                id: attemptId,
+                ...item,
+              }))
+              .filter((item) => item.courseId)
+          : [];
 
-          const userAttempts = Object.entries(allAttempts)
-            .map(([attemptId, item]) => ({
-              id: attemptId,
-              ...item,
-            }))
-            .filter((item) => item.courseId)
-            .sort(
-              (a, b) =>
-                new Date(b.submittedAt || 0).getTime() -
-                new Date(a.submittedAt || 0).getTime()
-            );
+        // Merge legacy and normalized final attempts avoiding duplicates
+        const combinedAttemptsMap = new Map();
+        [...legacyAttemptsList, ...normalizedFinalAttempts].forEach((item) => {
+          const key = item.id || item.legacyAttemptId || item.quizId || `${item.courseId}_${item.submittedAt}`;
+          if (!combinedAttemptsMap.has(key)) {
+            combinedAttemptsMap.set(key, item);
+          }
+        });
 
-          setAttempts(userAttempts);
-        } else {
-          setAttempts([]);
-        }
+        const userAttempts = Array.from(combinedAttemptsMap.values())
+          .filter((item) => item.courseId)
+          .sort(
+            (a, b) =>
+              new Date(b.submittedAt || b.attemptedAt || 0).getTime() -
+              new Date(a.submittedAt || a.attemptedAt || 0).getTime()
+          );
+
+        setAttempts(userAttempts);
       } catch (error) {
         console.error(error);
         alert("Failed to load learning data");

@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { ref, get, update } from "firebase/database";
 import { database } from "../firebase";
 import { useNavigate, useParams, Link } from "react-router-dom";
+import useBasePath from "../hooks/useBasePath";
 import "../styles/addquestion.css";
 
 function EditQuestion() {
   const { courseId, questionId } = useParams();
   const navigate = useNavigate();
+  const basePath = useBasePath();
 
   const [course, setCourse] = useState(null);
   const [department, setDepartment] = useState("");
@@ -19,18 +21,16 @@ function EditQuestion() {
   const [correctAnswer, setCorrectAnswer] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const questionsListUrl = basePath ? `${basePath}/questions` : "/admin/questions";
+
   useEffect(() => {
     const fetchQuestionAndCourse = async () => {
       try {
-
-        console.log("courseId from URL:", courseId);
-console.log("questionId from URL:", questionId);
-
         const courseSnap = await get(ref(database, `courses/${courseId}`));
 
         if (!courseSnap.exists()) {
           alert("Course not found");
-      navigate("/department-admin/questions");
+          navigate(questionsListUrl);
           return;
         }
 
@@ -42,12 +42,9 @@ console.log("questionId from URL:", questionId);
           ref(database, `questions/${courseId}/${questionId}`)
         );
 
-        console.log("Question path:", `questions/${courseId}/${questionId}`);
-console.log("Question exists:", questionSnap.exists());
-
         if (!questionSnap.exists()) {
           alert("Question not found");
-navigate("/department-admin/questions");
+          navigate(questionsListUrl);
           return;
         }
 
@@ -68,7 +65,7 @@ navigate("/department-admin/questions");
     };
 
     fetchQuestionAndCourse();
-  }, [courseId, questionId, navigate]);
+  }, [courseId, questionId, navigate, questionsListUrl]);
 
   const handleUpdate = async (e) => {
     e.preventDefault();
@@ -107,7 +104,7 @@ navigate("/department-admin/questions");
       });
 
       alert("Question Updated Successfully");
-navigate("/department-admin/questions");
+      navigate(questionsListUrl);
     } catch (error) {
       console.error(error);
       alert("Failed to update question");
@@ -121,7 +118,7 @@ navigate("/department-admin/questions");
   return (
     <div className="admin-question-container">
       <div className="admin-nav-back-row">
-      <Link to="/department-admin/questions" className="btn-admin-back">
+        <Link to={questionsListUrl} className="btn-admin-back">
           ← Cancel and Return
         </Link>
       </div>

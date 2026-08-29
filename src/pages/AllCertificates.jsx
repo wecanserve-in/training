@@ -8,6 +8,7 @@ import {
   hasCertificate,
   mergeUserRecords,
   getUserZone,
+  getDepartmentName,
 } from "../utils/trainingAnalytics";
 import "../styles/allcertificates.css";
 
@@ -72,13 +73,6 @@ function AllCertificates() {
     user?.departmentId ||
     user?.deptId ||
     user?.department?.id ||
-    "";
-
-  const getDepartmentName = (user) =>
-    user?.departmentName ||
-    user?.department ||
-    user?.departmentType ||
-    user?.deptName ||
     "";
 
   useEffect(() => {

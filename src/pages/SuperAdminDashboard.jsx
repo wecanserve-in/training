@@ -9,15 +9,28 @@ import "../styles/assignedusers.css";
 import {
   isAdminRole,
   isSuperAdminRole,
+  isDepartmentAdminRole,
   mergeUserRecords,
   isAssignmentActive,
+  isCompletedRecord,
+  isCourseCompletedForUser,
   getUserCertificateCount,
   getUserZoneField,
   calculateZoneStats,
   getUniqueAnalyticsTrainingUsers,
   flattenAttempts,
   computeTestPerformance,
+  getTime,
+  objectToArray,
+  getDepartmentName,
+  getCourseTitle,
+  getCourseThumbnail,
+  isCourseActive,
+  getVal,
+  getStatusLabel,
 } from "../utils/trainingAnalytics";
+
+const getRole = (user) => String(user?.role || "").trim().toLowerCase();
 
 function SuperAdminDashboard() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -30,6 +43,7 @@ function SuperAdminDashboard() {
   const [assignments, setAssignments] = useState({});
   const [completedCourses, setCompletedCourses] = useState({});
   const [rawAttempts, setRawAttempts] = useState({});
+  const [rawQuizAttempts, setRawQuizAttempts] = useState({});
   const [progress, setProgress] = useState({});
   const [videoProgress, setVideoProgress] = useState({});
   const [courseProgress, setCourseProgress] = useState({});
@@ -42,77 +56,10 @@ function SuperAdminDashboard() {
   const [filterSearch, setFilterSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
 
-  const normalize = (value) => String(value || "").trim().toLowerCase();
-
-  const getRole = (user) => normalize(user?.role);
-
-  const isDepartmentAdminRole = (role) => {
-    const cleanRole = normalize(role);
-    return (
-      cleanRole === "departmentadmin" ||
-      cleanRole === "department admin" ||
-      cleanRole === "department_admin" ||
-      cleanRole === "deptadmin" ||
-      cleanRole === "dept admin"
-    );
-  };
-
   const isUserRole = (role) => {
-    const cleanRole = normalize(role);
+    const cleanRole = String(role || "").trim().toLowerCase();
     return cleanRole === "user" || cleanRole === "";
   };
-
-  const getTime = (value) => {
-    const time = new Date(value || 0).getTime();
-    return Number.isFinite(time) ? time : 0;
-  };
-
-  const objectToArray = (data) => {
-    if (!data || typeof data !== "object") return [];
-    return Object.entries(data).map(([id, value]) => ({
-      id,
-      ...(value && typeof value === "object" ? value : {}),
-    }));
-  };
-
-  const getDepartmentName = (item) => {
-    return (
-      item?.department ||
-      item?.departmentName ||
-      item?.departmentType ||
-      item?.dept ||
-      item?.deptName ||
-      ""
-    );
-  };
-
-  const getCourseTitle = (course) => {
-    return (
-      course?.title ||
-      course?.courseTitle ||
-      course?.courseName ||
-      course?.name ||
-      "Untitled Course"
-    );
-  };
-
-  const getCourseThumbnail = (course) => {
-    if (course?.thumbnailUrl) return course.thumbnailUrl;
-    if (course?.courseThumbnail) return course.courseThumbnail;
-    if (course?.thumbnail) return course.thumbnail;
-    return "";
-  };
-
-  const isCourseActive = (course) => {
-    const status = String(course?.status || "").trim().toLowerCase();
-    return !["inactive", "archived", "deleted", "draft"].includes(status);
-  };
-
-  const isCourseCompleted = (record) =>
-    record === true ||
-    record?.completed === true ||
-    record?.passed === true ||
-    String(record?.status || "").toLowerCase() === "completed";
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
@@ -161,7 +108,7 @@ function SuperAdminDashboard() {
 
     const markLoaded = (path) => {
       loadedPaths.add(path);
-      if (loadedPaths.size === 11) {
+      if (loadedPaths.size === 12) {
         setLoading(false);
       }
     };
@@ -189,6 +136,7 @@ function SuperAdminDashboard() {
     const unsubAssignments = watchPath("userAssignments", setAssignments);
     const unsubCompleted = watchPath("completedCourses", setCompletedCourses);
     const unsubAttempts = watchPath("attempts", setRawAttempts);
+    const unsubQuizAttempts = watchPath("quizAttempts", setRawQuizAttempts);
     const unsubProgress = watchPath("progress", setProgress);
     const unsubVideoProgress = watchPath("videoProgress", setVideoProgress);
     const unsubCourseProgress = watchPath("courseProgress", setCourseProgress);
@@ -202,6 +150,7 @@ function SuperAdminDashboard() {
       unsubAssignments();
       unsubCompleted();
       unsubAttempts();
+      unsubQuizAttempts();
       unsubProgress();
       unsubVideoProgress();
       unsubCourseProgress();
@@ -218,15 +167,15 @@ function SuperAdminDashboard() {
     const userMap = new Map();
 
     allUsers.forEach((user) => {
-      const key = user.id || user.uid || user.email;
+      const key = user?.uid || user?.id || user?.email;
       if (key) userMap.set(String(key), user);
     });
 
     if (currentUser) {
       const key =
-        currentUser.id ||
-        currentUser.uid ||
-        currentUser.email;
+        currentUser?.uid ||
+        currentUser?.id ||
+        currentUser?.email;
 
       if (key) {
         userMap.set(String(key), {
@@ -314,7 +263,7 @@ function SuperAdminDashboard() {
       const byId = user.id !== user.uid ? completedCourses[user.id] || {} : {};
       const merged = { ...byId, ...byUid };
       Object.entries(merged).forEach(([courseId, record]) => {
-        if (validCourseIds.has(courseId) && isCourseCompleted(record)) {
+        if (validCourseIds.has(courseId) && isCompletedRecord(record)) {
           count++;
         }
       });
@@ -324,7 +273,7 @@ function SuperAdminDashboard() {
 
   const getCourseStatusForUser = (userId, courseId) => {
     const assignment = assignments?.[userId]?.[courseId];
-    if (!assignment?.assigned) return "notAssigned";
+    if (!isAssignmentActive(assignment)) return "notAssigned";
 
     const completed = completedCourses?.[userId]?.[courseId];
     if (
@@ -388,21 +337,27 @@ const totalCertificates = useMemo(() => {
   }, 0);
 }, [platformUsers, completedCourses]);
 
-  const countCompletedVideos = (data) => {
-    let c = 0;
-    Object.values(data || {}).forEach((userEntry) => {
+  const totalVideosCompleted = useMemo(() => {
+    let count = 0;
+    const isDone = (v) =>
+      v?.completed === true ||
+      Number(v?.progressPercentage || v?.watchedPercent || v?.progress || 0) >= 100;
+    Object.values(videoProgress || {}).forEach((userEntry) => {
       if (!userEntry || typeof userEntry !== "object") return;
-      Object.values(userEntry).forEach((v) => {
-        if (v?.completed === true || Number(v?.progressPercentage || v?.watchedPercent || v?.progress || 0) >= 100) {
-          c++;
-        }
+      Object.values(userEntry).forEach((courseEntry) => {
+        if (!courseEntry || typeof courseEntry !== "object") return;
+        Object.values(courseEntry).forEach((v) => {
+          if (v && typeof v === "object" && isDone(v)) count++;
+        });
       });
     });
-    return c;
-  };
-
-  const totalVideosCompleted = useMemo(() => {
-    return countCompletedVideos(progress) + countCompletedVideos(videoProgress);
+    Object.values(progress || {}).forEach((userEntry) => {
+      if (!userEntry || typeof userEntry !== "object") return;
+      Object.values(userEntry).forEach((v) => {
+        if (v && typeof v === "object" && isDone(v)) count++;
+      });
+    });
+    return count;
   }, [progress, videoProgress]);
 
   const completionRate = totalAssigned > 0
@@ -464,91 +419,20 @@ const totalCertificates = useMemo(() => {
   }, [platformUsers]);
 
 const zoneStats = useMemo(() => {
-  const zoneMap = {};
-
-  const users = getUniqueAnalyticsTrainingUsers(platformUsers);
-
-  users.forEach((user) => {
-    const zone = String(
-      user?.zone ||
-      user?.Zone ||
-      user?.zoneName ||
-      ""
-    ).trim();
-
-    if (!zone) return;
-
-    if (!zoneMap[zone]) {
-      zoneMap[zone] = {
-        zone,
-        userCount: 0,
-        assigned: 0,
-        completed: 0,
-      };
-    }
-
-    zoneMap[zone].userCount += 1;
-
-    // Use ONLY currently active courses
-    activeCourses.forEach((course) => {
-      const byUid = assignments[user.uid] || {};
-      const byId =
-        user.id !== user.uid
-          ? assignments[user.id] || {}
-          : {};
-
-      const mergedAssignments = {
-        ...byId,
-        ...byUid,
-      };
-
-      const assignment = mergedAssignments[course.id];
-
-      if (!isAssignmentActive(assignment)) return;
-
-      zoneMap[zone].assigned += 1;
-
-      const completedByUid =
-        completedCourses[user.uid] || {};
-
-      const completedById =
-        user.id !== user.uid
-          ? completedCourses[user.id] || {}
-          : {};
-
-      const mergedCompleted = {
-        ...completedById,
-        ...completedByUid,
-      };
-
-      const completedRecord =
-        mergedCompleted[course.id];
-
-      if (
-        completedRecord === true ||
-        completedRecord?.completed === true ||
-        completedRecord?.passed === true ||
-        completedRecord?.isCompleted === true
-      ) {
-        zoneMap[zone].completed += 1;
-      }
-    });
+  return calculateZoneStats({
+    users: getUniqueAnalyticsTrainingUsers(platformUsers),
+    assignments,
+    completedCourses,
+    courseProgress,
+    videoProgress,
   });
-
-  return Object.values(zoneMap).map((item) => ({
-    ...item,
-    percentage:
-      item.assigned > 0
-        ? Math.round(
-            (item.completed / item.assigned) * 100
-          )
-        : 0,
-  }));
 }, [
   platformUsers,
   activeCourses,
   assignments,
   completedCourses,
+  courseProgress,
+  videoProgress,
 ]);
 
   const latestCourses = useMemo(() => {
@@ -672,13 +556,6 @@ const zoneStats = useMemo(() => {
     { bg: "#f0fdf4", color: "#047857" },
   ];
 
-  const getVal = (obj, keys) => {
-    for (const k of keys) { if (obj?.[k]) return String(obj[k]).trim(); }
-    return "";
-  };
-
-  const getStatusLabel = (s) => s === "completed" ? "Completed" : s === "inProgress" ? "In Progress" : "Not Started";
-
   const topDepartments = useMemo(() => {
     const deptMap = {};
 
@@ -708,14 +585,35 @@ const zoneStats = useMemo(() => {
         const byUid = assignments[user.uid] || {};
         const byId = user.id !== user.uid ? assignments[user.id] || {} : {};
         const merged = { ...byId, ...byUid };
-        if (isAssignmentActive(merged[course.id])) {
-          deptMap[departmentKey].assigned += 1;
+        if (!isAssignmentActive(merged[course.id])) return;
+
+        deptMap[departmentKey].assigned += 1;
+
+        if (
+          isCourseCompletedForUser(
+            user,
+            course.id,
+            completedCourses,
+            courseProgress,
+            videoProgress
+          )
+        ) {
+          deptMap[departmentKey].completed += 1;
+          return;
         }
 
-        const compByUid = completedCourses[user.uid] || {};
-        const compById = user.id !== user.uid ? completedCourses[user.id] || {} : {};
-        const compMerged = { ...compById, ...compByUid };
-        if (isCourseCompleted(compMerged[course.id])) {
+        const userProgressEntries = progress?.[user.uid] || progress?.[user.id] || {};
+        const courseVideos = Object.values(userProgressEntries).filter(
+          (v) => String(v?.courseId || "") === String(course.id)
+        );
+        if (
+          courseVideos.length > 0 &&
+          courseVideos.every(
+            (v) =>
+              v?.completed === true ||
+              Number(v?.watchedPercent || 0) >= 100
+          )
+        ) {
           deptMap[departmentKey].completed += 1;
         }
       });
@@ -771,7 +669,7 @@ const zoneStats = useMemo(() => {
           b.users - a.users ||
           a.department.localeCompare(b.department)
       );
-  }, [trainingUserList, activeCourses, assignments, completedCourses, departmentNameById, departments]);
+  }, [trainingUserList, activeCourses, assignments, completedCourses, courseProgress, videoProgress, progress, departmentNameById, departments]);
 
   const recentActivities = useMemo(() => {
     const activities = [];
@@ -788,7 +686,7 @@ const zoneStats = useMemo(() => {
       const completedByUser = mergeUserRecords(completedCourses, user);
 
       Object.entries(completedByUser).forEach(([courseId, record]) => {
-        if (!isCourseCompleted(record)) return;
+        if (!isCompletedRecord(record)) return;
 
         const course = activeCourses.find(
           (item) => String(item.id) === String(courseId)
@@ -816,8 +714,8 @@ const zoneStats = useMemo(() => {
   }, [trainingUserList, completedCourses, activeCourses]);
 
   const testPerformance = useMemo(() => {
-    return computeTestPerformance(flattenAttempts(rawAttempts));
-  }, [rawAttempts]);
+    return computeTestPerformance(flattenAttempts(rawAttempts, rawQuizAttempts));
+  }, [rawAttempts, rawQuizAttempts]);
 
   const userRows = useMemo(() => {
     return trainingUserList
@@ -888,14 +786,14 @@ const zoneStats = useMemo(() => {
                 <span>Dept Admins</span>
               </div>
             </Link>
-            <Link to="/super-admin/analytics" className="hero-stat" style={{ textDecoration: "none", color: "inherit" }}>
-              {/* <div className="hero-stat-icon" style={{ background: "#dcfce7", color: "#16a34a" }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-              </div> */}
-              {/* <div>
-                <strong>{completionRate}%</strong>
-                <span>Completion</span>
-              </div> */}
+            <Link to="/super-admin/courses" className="hero-stat" style={{ textDecoration: "none", color: "inherit" }}>
+              <div className="hero-stat-icon" style={{ background: "#dcfce7", color: "#16a34a" }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              </div>
+              <div>
+                <strong>{activeCourses.length}</strong>
+                <span>Courses</span>
+              </div>
             </Link>
           </div>
         </div>

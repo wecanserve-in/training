@@ -27,7 +27,17 @@ import {
   getUniqueAnalyticsTrainingUsers,
   flattenAttempts,
   computeTestPerformance,
+  getTime,
+  objectToArray,
+  getDepartmentName,
+  getCourseTitle,
+  getCourseThumbnail,
+  isCourseActive,
+  getVal,
+  getStatusLabel,
 } from "../utils/trainingAnalytics";
+
+const getRole = (user) => String(user?.role || "").trim().toLowerCase();
 
 function AdminDashboard() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -40,6 +50,7 @@ function AdminDashboard() {
   const [assignments, setAssignments] = useState({});
   const [completedCourses, setCompletedCourses] = useState({});
   const [rawAttempts, setRawAttempts] = useState({});
+  const [rawQuizAttempts, setRawQuizAttempts] = useState({});
   const [progress, setProgress] = useState({});
   const [videoProgress, setVideoProgress] = useState({});
   const [courseProgress, setCourseProgress] = useState({});
@@ -52,59 +63,9 @@ function AdminDashboard() {
   const [filterSearch, setFilterSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
 
-  const normalize = (value) => String(value || "").trim().toLowerCase();
-
-  const getRole = (user) => normalize(user?.role);
-
   const isUserRole = (role) => {
-    const cleanRole = normalize(role);
+    const cleanRole = String(role || "").trim().toLowerCase();
     return cleanRole === "user" || cleanRole === "";
-  };
-
-  const getTime = (value) => {
-    const time = new Date(value || 0).getTime();
-    return Number.isFinite(time) ? time : 0;
-  };
-
-  const objectToArray = (data) => {
-    if (!data || typeof data !== "object") return [];
-    return Object.entries(data).map(([id, value]) => ({
-      id,
-      ...(value && typeof value === "object" ? value : {}),
-    }));
-  };
-
-  const getDepartmentName = (item) => {
-    return (
-      item?.department ||
-      item?.departmentName ||
-      item?.departmentType ||
-      item?.dept ||
-      item?.deptName ||
-      ""
-    );
-  };
-
-  const getCourseTitle = (course) => {
-    return (
-      course?.title ||
-      course?.courseTitle ||
-      course?.courseName ||
-      course?.name ||
-      "Untitled Course"
-    );
-  };
-
-  const getCourseThumbnail = (course) => {
-    if (course?.thumbnailUrl) return course.thumbnailUrl;
-    if (course?.courseThumbnail) return course.courseThumbnail;
-    if (course?.thumbnail) return course.thumbnail;
-    return "";
-  };
-
-  const isCourseActive = (course) => {
-    const status = String(course?.status || "").trim().toLowerCase();
-    return !["inactive", "archived", "deleted", "draft"].includes(status);
   };
 
   useEffect(() => {
@@ -154,7 +115,7 @@ function AdminDashboard() {
 
     const markLoaded = (path) => {
       loadedPaths.add(path);
-      if (loadedPaths.size === 11) {
+      if (loadedPaths.size === 12) {
         setLoading(false);
       }
     };
@@ -182,6 +143,7 @@ function AdminDashboard() {
     const unsubAssignments = watchPath("userAssignments", setAssignments);
     const unsubCompleted = watchPath("completedCourses", setCompletedCourses);
     const unsubAttempts = watchPath("attempts", setRawAttempts);
+    const unsubQuizAttempts = watchPath("quizAttempts", setRawQuizAttempts);
     const unsubProgress = watchPath("progress", setProgress);
     const unsubVideoProgress = watchPath("videoProgress", setVideoProgress);
     const unsubCourseProgress = watchPath("courseProgress", setCourseProgress);
@@ -195,6 +157,7 @@ function AdminDashboard() {
       unsubAssignments();
       unsubCompleted();
       unsubAttempts();
+      unsubQuizAttempts();
       unsubProgress();
       unsubVideoProgress();
       unsubCourseProgress();
@@ -206,15 +169,15 @@ function AdminDashboard() {
     const userMap = new Map();
 
     allUsers.forEach((user) => {
-      const key = user.id || user.uid || user.email;
+      const key = user?.uid || user?.id || user?.email;
       if (key) userMap.set(String(key), user);
     });
 
     if (currentUser) {
       const key =
-        currentUser.id ||
-        currentUser.uid ||
-        currentUser.email;
+        currentUser?.uid ||
+        currentUser?.id ||
+        currentUser?.email;
 
       if (key) {
         userMap.set(String(key), {
@@ -358,21 +321,27 @@ function AdminDashboard() {
     }, 0);
   }, [platformUsers, completedCourses]);
 
-  const countCompletedVideos = (data) => {
-    let c = 0;
-    Object.values(data || {}).forEach((userEntry) => {
+  const totalVideosCompleted = useMemo(() => {
+    let count = 0;
+    const isDone = (v) =>
+      v?.completed === true ||
+      Number(v?.progressPercentage || v?.watchedPercent || v?.progress || 0) >= 100;
+    Object.values(videoProgress || {}).forEach((userEntry) => {
       if (!userEntry || typeof userEntry !== "object") return;
-      Object.values(userEntry).forEach((v) => {
-        if (v?.completed === true || Number(v?.progressPercentage || v?.watchedPercent || v?.progress || 0) >= 100) {
-          c++;
-        }
+      Object.values(userEntry).forEach((courseEntry) => {
+        if (!courseEntry || typeof courseEntry !== "object") return;
+        Object.values(courseEntry).forEach((v) => {
+          if (v && typeof v === "object" && isDone(v)) count++;
+        });
       });
     });
-    return c;
-  };
-
-  const totalVideosCompleted = useMemo(() => {
-    return countCompletedVideos(progress) + countCompletedVideos(videoProgress);
+    Object.values(progress || {}).forEach((userEntry) => {
+      if (!userEntry || typeof userEntry !== "object") return;
+      Object.values(userEntry).forEach((v) => {
+        if (v && typeof v === "object" && isDone(v)) count++;
+      });
+    });
+    return count;
   }, [progress, videoProgress]);
 
   const completionRate = totalAssigned > 0
@@ -518,13 +487,6 @@ function AdminDashboard() {
     }
   };
 
-  const getVal = (obj, keys) => {
-    for (const k of keys) { if (obj?.[k]) return String(obj[k]).trim(); }
-    return "";
-  };
-
-  const getStatusLabel = (s) => s === "completed" ? "Completed" : s === "inProgress" ? "In Progress" : "Not Started";
-
   const topDepartments = useMemo(() => {
     const deptMap = {};
 
@@ -543,14 +505,35 @@ function AdminDashboard() {
         const byUid = assignments[user.uid] || {};
         const byId = user.id !== user.uid ? assignments[user.id] || {} : {};
         const merged = { ...byId, ...byUid };
-        if (isAssignmentActive(merged[course.id])) {
-          deptMap[departmentKey].assigned += 1;
+        if (!isAssignmentActive(merged[course.id])) return;
+
+        deptMap[departmentKey].assigned += 1;
+
+        if (
+          isCourseCompletedForUser(
+            user,
+            course.id,
+            completedCourses,
+            courseProgress,
+            videoProgress
+          )
+        ) {
+          deptMap[departmentKey].completed += 1;
+          return;
         }
 
-        const compByUid = completedCourses[user.uid] || {};
-        const compById = user.id !== user.uid ? completedCourses[user.id] || {} : {};
-        const compMerged = { ...compById, ...compByUid };
-        if (isCompletedRecord(compMerged[course.id])) {
+        const userProgressEntries = progress?.[user.uid] || progress?.[user.id] || {};
+        const courseVideos = Object.values(userProgressEntries).filter(
+          (v) => String(v?.courseId || "") === String(course.id)
+        );
+        if (
+          courseVideos.length > 0 &&
+          courseVideos.every(
+            (v) =>
+              v?.completed === true ||
+              Number(v?.watchedPercent || 0) >= 100
+          )
+        ) {
           deptMap[departmentKey].completed += 1;
         }
       });
@@ -592,7 +575,7 @@ function AdminDashboard() {
         rate: item.assigned > 0 ? Math.round((item.completed / item.assigned) * 100) : 0,
       }))
       .sort((a, b) => b.rate - a.rate || b.users - a.users || a.department.localeCompare(b.department));
-  }, [trainingUserList, activeCourses, assignments, completedCourses, departmentNameById, departments]);
+  }, [trainingUserList, activeCourses, assignments, completedCourses, courseProgress, videoProgress, progress, departmentNameById, departments]);
 
   const recentActivities = useMemo(() => {
     const activities = [];
@@ -622,8 +605,8 @@ function AdminDashboard() {
   }, [trainingUserList, completedCourses, activeCourses]);
 
   const testPerformance = useMemo(() => {
-    return computeTestPerformance(flattenAttempts(rawAttempts));
-  }, [rawAttempts]);
+    return computeTestPerformance(flattenAttempts(rawAttempts, rawQuizAttempts));
+  }, [rawAttempts, rawQuizAttempts]);
 
   if (loading) {
     return (
@@ -640,7 +623,7 @@ function AdminDashboard() {
           <h1>Training Overview</h1>
           <p>Real-time stats across all users, departments and courses.</p>
           <div className="hero-stats">
-            <Link to="/admin/manage-users" className="hero-stat" style={{ textDecoration: "none", color: "inherit" }}>
+            <Link to="/admin/users" className="hero-stat" style={{ textDecoration: "none", color: "inherit" }}>
               <div className="hero-stat-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
               </div>
@@ -649,7 +632,7 @@ function AdminDashboard() {
                 <span>Total Users</span>
               </div>
             </Link>
-            <Link to="/admin/manage-users" className="hero-stat" style={{ textDecoration: "none", color: "inherit" }}>
+            <Link to="/admin/users" className="hero-stat" style={{ textDecoration: "none", color: "inherit" }}>
               <div className="hero-stat-icon admins-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
               </div>
@@ -658,7 +641,7 @@ function AdminDashboard() {
                 <span>Admins</span>
               </div>
             </Link>
-            <Link to="/admin/manage-users" className="hero-stat" style={{ textDecoration: "none", color: "inherit" }}>
+            <Link to="/admin/users" className="hero-stat" style={{ textDecoration: "none", color: "inherit" }}>
               <div className="hero-stat-icon dept-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
               </div>

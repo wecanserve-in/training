@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { ref, get, update } from "firebase/database";
 import { database } from "../firebase";
 import { useNavigate, useParams, Link } from "react-router-dom";
+import useBasePath from "../hooks/useBasePath";
 import "../styles/addvideo.css";
 
 function EditVideo() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const basePath = useBasePath();
 
   const [departments, setDepartments] = useState([]);
   const [title, setTitle] = useState("");
@@ -17,6 +19,8 @@ function EditVideo() {
   const [passingScore, setPassingScore] = useState(70);
   const [testDuration, setTestDuration] = useState(60);
   const [loading, setLoading] = useState(true);
+
+  const videoListUrl = basePath ? `${basePath}/videos` : "/department-admin/videos";
 
   useEffect(() => {
     const fetchVideo = async () => {
@@ -79,7 +83,7 @@ function EditVideo() {
       });
 
       alert("Video Updated Successfully");
-      navigate("/admin/videos");
+      navigate(videoListUrl);
     } catch (error) {
       console.error(error);
       alert("Failed to update video parameters");
@@ -93,7 +97,7 @@ function EditVideo() {
   return (
     <div className="admin-form-container">
       <div className="admin-nav-back-row">
-        <Link to="/admin/videos" className="btn-admin-back">
+        <Link to={videoListUrl} className="btn-admin-back">
           ← Cancel and Return to Catalog
         </Link>
       </div>

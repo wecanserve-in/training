@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { ref, get, remove } from "firebase/database";
 import { database } from "../firebase";
 import { useNavigate, Link } from "react-router-dom";
+import useBasePath from "../hooks/useBasePath";
 import "../styles/managevideos.css";
 
 function ManageVideos() {
   const navigate = useNavigate();
+  const basePath = useBasePath();
   const [videos, setVideos] = useState([]);
 
   const fetchVideos = async () => {
@@ -45,8 +47,8 @@ function ManageVideos() {
       <div className="catalog-header-row">
         <div>
           <div className="back-link-wrapper">
-            <Link to="/admin" className="btn-catalog-back">
-              ← Admin Dashboard
+            <Link to={basePath || "/department-admin"} className="btn-catalog-back">
+              ← Dashboard
             </Link>
           </div>
 
@@ -56,7 +58,7 @@ function ManageVideos() {
           </p>
         </div>
 
-        <Link to="/department-admin/video-library/upload" className="btn-catalog-create-new">
+        <Link to={basePath ? `${basePath}/video-library/upload` : "/department-admin/video-library/upload"} className="btn-catalog-create-new">
           + Add New Video Course
         </Link>
       </div>
@@ -123,7 +125,11 @@ function ManageVideos() {
                     <div className="table-actions-cell-group">
                       <button
                         onClick={() =>
-                          navigate(`/admin/edit-video/${video.id}`)
+                          navigate(
+                            basePath
+                              ? `${basePath}/edit-video/${video.id}`
+                              : `/department-admin/edit-video/${video.id}`
+                          )
                         }
                         className="btn-action-table-edit"
                       >

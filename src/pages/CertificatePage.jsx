@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ref, get } from "firebase/database";
-import { database } from "../firebase";
+import { database, auth } from "../firebase";
 import useBasePath from "../hooks/useBasePath";
 import jsPDF from "jspdf";
 import {
@@ -34,38 +34,112 @@ function CertificatePage() {
 
   const fetchCertificateData = async () => {
     try {
-      const attemptUserId = id.split("_")[0];
+      const rawUserId = id.includes("_") ? id.split("_")[0] : "";
+      const isLikelyUid = rawUserId && !["final", "practice", "cert", "result"].includes(rawUserId.toLowerCase()) && rawUserId.length > 5;
+      const candidateUserIds = [
+        isLikelyUid ? rawUserId : null,
+        auth.currentUser?.uid,
+      ].filter(Boolean);
 
-      let attemptSnap = await get(ref(database, `attempts/${attemptUserId}/${id}`));
-      let attemptData = attemptSnap.exists() ? attemptSnap.val() : null;
-      let attemptUserIdFound = attemptUserId;
+      let attemptData = null;
 
-      if (!attemptData) {
-        const resultsSnap = await get(ref(database, `results/${attemptUserId}`));
-        if (resultsSnap.exists()) {
-          const allResults = resultsSnap.val();
-          const match = Object.entries(allResults).find(
-            ([key]) => key === id || key.includes(id)
-          );
-          if (match) {
-            attemptData = match[1];
+      // 1. Try candidate user IDs
+      for (const candidateUid of candidateUserIds) {
+        if (!attemptData) {
+          const attemptSnap = await get(ref(database, `attempts/${candidateUid}/${id}`));
+          if (attemptSnap.exists()) {
+            attemptData = { userId: candidateUid, ...attemptSnap.val() };
+            break;
+          }
+        }
+
+        if (!attemptData) {
+          const quizSnap = await get(ref(database, `quizAttempts/${candidateUid}`));
+          if (quizSnap.exists()) {
+            const allCourses = quizSnap.val();
+            for (const cId of Object.keys(allCourses)) {
+              const courseAttempts = allCourses[cId];
+              if (courseAttempts && typeof courseAttempts === "object") {
+                const match = Object.entries(courseAttempts).find(
+                  ([key, val]) => key === id || val?.quizId === id || val?.legacyAttemptId === id || key.includes(id)
+                );
+                if (match) {
+                  attemptData = { userId: candidateUid, courseId: cId, ...match[1] };
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        if (!attemptData) {
+          const compSnap = await get(ref(database, `completedCourses/${candidateUid}`));
+          if (compSnap.exists()) {
+            const compCourses = compSnap.val();
+            const match = Object.entries(compCourses).find(
+              ([cId, val]) => val?.attemptId === id || val?.quizId === id || val?.legacyAttemptId === id || cId === id
+            );
+            if (match) {
+              attemptData = { userId: candidateUid, courseId: match[0], ...match[1] };
+              break;
+            }
+          }
+        }
+
+        if (!attemptData) {
+          const resultsSnap = await get(ref(database, `results/${candidateUid}`));
+          if (resultsSnap.exists()) {
+            const allResults = resultsSnap.val();
+            const match = Object.entries(allResults).find(
+              ([key]) => key === id || key.includes(id)
+            );
+            if (match) {
+              attemptData = { userId: candidateUid, ...match[1] };
+              break;
+            }
           }
         }
       }
 
+      // 2. Global search across completedCourses / quizAttempts if viewing as admin/super-admin
       if (!attemptData) {
-        const quizSnap = await get(ref(database, `quizAttempts/${attemptUserId}`));
-        if (quizSnap.exists()) {
-          const allCourses = quizSnap.val();
-          for (const courseId of Object.keys(allCourses)) {
-            const courseAttempts = allCourses[courseId];
-            const match = Object.entries(courseAttempts).find(
-              ([key]) => key === id || key.includes(id)
-            );
-            if (match) {
-              attemptData = match[1];
-              break;
+        const [allCompletedSnap, allQuizSnap] = await Promise.all([
+          get(ref(database, "completedCourses")),
+          get(ref(database, "quizAttempts")),
+        ]);
+
+        if (allCompletedSnap.exists()) {
+          const allCompleted = allCompletedSnap.val();
+          for (const [uId, courses] of Object.entries(allCompleted)) {
+            if (courses && typeof courses === "object") {
+              const match = Object.entries(courses).find(
+                ([cId, val]) => val?.attemptId === id || val?.quizId === id || val?.legacyAttemptId === id || cId === id
+              );
+              if (match) {
+                attemptData = { userId: uId, courseId: match[0], ...match[1] };
+                break;
+              }
             }
+          }
+        }
+
+        if (!attemptData && allQuizSnap.exists()) {
+          const allQuizzes = allQuizSnap.val();
+          for (const [uId, courses] of Object.entries(allQuizzes)) {
+            if (courses && typeof courses === "object") {
+              for (const [cId, attempts] of Object.entries(courses)) {
+                if (attempts && typeof attempts === "object") {
+                  const match = Object.entries(attempts).find(
+                    ([key, val]) => key === id || val?.quizId === id || val?.legacyAttemptId === id
+                  );
+                  if (match) {
+                    attemptData = { userId: uId, courseId: cId, ...match[1] };
+                    break;
+                  }
+                }
+              }
+            }
+            if (attemptData) break;
           }
         }
       }
@@ -76,19 +150,17 @@ function CertificatePage() {
       }
 
       setResult(attemptData);
-      if (attemptData.userId) attemptUserIdFound = attemptData.userId;
+
+      const targetUid = attemptData.userId || (candidateUserIds.length > 0 ? candidateUserIds[0] : null);
+      const targetCourseId = attemptData.courseId;
 
       const [userSnap, courseSnap] = await Promise.all([
-        attemptData.userId
-          ? get(ref(database, `users/${attemptData.userId}`))
-          : Promise.resolve(null),
-        attemptData.courseId
-          ? get(ref(database, `courses/${attemptData.courseId}`))
-          : Promise.resolve(null),
+        targetUid ? get(ref(database, `users/${targetUid}`)) : Promise.resolve(null),
+        targetCourseId ? get(ref(database, `courses/${targetCourseId}`)) : Promise.resolve(null),
       ]);
 
       if (userSnap?.exists()) setUserData(userSnap.val());
-      if (courseSnap?.exists()) setCourse({ id: attemptData.courseId, ...courseSnap.val() });
+      if (courseSnap?.exists()) setCourse({ id: targetCourseId, ...courseSnap.val() });
     } catch (err) {
       console.error("Certificate fetch error:", err);
     } finally {

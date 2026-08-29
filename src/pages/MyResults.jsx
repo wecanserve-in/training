@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { ref, get } from "firebase/database";
 import { auth, database } from "../firebase";
 import { useNavigate } from "react-router-dom";
+import { onAuthStateChanged } from "firebase/auth";
 import useBasePath from "../hooks/useBasePath";
+import { flattenAttempts, hasCertificate } from "../utils/trainingAnalytics";
 import "../styles/myresults.css";
 
 import {
@@ -20,33 +22,29 @@ function MyResults() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchResults();
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        fetchResults(user);
+      } else {
+        setLoading(false);
+      }
+    });
+    return () => unsubscribe();
   }, []);
 
-  const fetchResults = async () => {
-    const user = auth.currentUser;
-
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
+  const fetchResults = async (user) => {
     try {
-      const snapshot = await get(ref(database, `attempts/${user.uid}`));
+      const [attemptsSnap, quizAttemptsSnap] = await Promise.all([
+        get(ref(database, `attempts/${user.uid}`)),
+        get(ref(database, `quizAttempts/${user.uid}`)),
+      ]);
 
-      if (!snapshot.exists()) {
-        setResults([]);
-        setLoading(false);
-        return;
-      }
+      const rawAttempts = attemptsSnap.exists() ? attemptsSnap.val() : {};
+      const rawQuizAttempts = quizAttemptsSnap.exists() ? quizAttemptsSnap.val() : {};
 
-      const data = snapshot.val();
+      const flattened = flattenAttempts(rawAttempts, rawQuizAttempts);
 
-      const userResults = Object.keys(data)
-        .map((key) => ({
-          id: key,
-          ...data[key],
-        }))
+      const userResults = flattened
         .filter((attempt) => {
           return (
             attempt.courseId &&
@@ -54,7 +52,7 @@ function MyResults() {
             attempt.reason !== "video_revision_quiz"
           );
         })
-        .sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0));
+        .sort((a, b) => (b.attemptTime || 0) - (a.attemptTime || 0));
 
       setResults(userResults);
     } catch (error) {
@@ -77,7 +75,7 @@ function MyResults() {
   const totalAttempts = results.length;
   const passedCount = results.filter((r) => r.passed).length;
   const failedCount = results.filter((r) => !r.passed).length;
-  const certificatesCount = passedCount;
+  const certificatesCount = results.filter((r) => hasCertificate(r)).length;
 
   if (loading) {
     return <h2 className="results-loading">Loading My Results...</h2>;
@@ -160,7 +158,7 @@ function MyResults() {
                       {result.passed ? "Passed" : "Failed"}
                     </span>
                   </td>
-                  <td>{formatDate(result.submittedAt)}</td>
+                  <td>{formatDate(result.submittedAt || result.attemptTime)}</td>
                   <td>
                     {result.passed ? (
                       <button

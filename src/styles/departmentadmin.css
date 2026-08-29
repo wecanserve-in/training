@@ -1,3 +1,19 @@
+.dept-dash-stat-cards {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.dept-dash-stat-cards .stat-card {
+  padding: 16px 18px;
+}
+
+.dept-dash-stat-cards .stat-card-info strong {
+  font-size: 1.35rem;
+}
+
+.dept-dash-stat-cards .stat-card-info span {
+  font-size: 0.7rem;
+}
+
 .dept-table-wrap {
   width: 100%;
   overflow-x: auto;

@@ -21,6 +21,7 @@ import {
   calculateGroupStats,
   calculateZoneStats,
   getUniqueAnalyticsTrainingUsers,
+  getVal,
 } from "../utils/trainingAnalytics";
 
 const AVATAR_COLORS = [
@@ -43,11 +44,6 @@ const BAR_COLORS = [
 
 function getAvatarColor(i) { return AVATAR_COLORS[i % AVATAR_COLORS.length]; }
 function getBarColor(i) { return BAR_COLORS[i % BAR_COLORS.length]; }
-
-function getVal(user, keys) {
-  for (const k of keys) { if (user?.[k]) return String(user[k]).trim(); }
-  return "";
-}
 
 function AdminAnalytics() {
   const [users, setUsers] = useState([]);

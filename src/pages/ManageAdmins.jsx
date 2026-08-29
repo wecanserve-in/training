@@ -31,7 +31,7 @@ function ManageAdmins() {
     const data = snap.val();
 
     const userList = Object.entries(data)
-      .filter(([, u]) => u.role === "user")
+      .filter(([, u]) => String(u?.role || "").trim().toLowerCase() === "user" || !u?.role)
       .map(([id, u]) => ({ id, ...u }))
       .sort((a, b) => {
         const aS = isHigherPost(a) ? 1 : 0;
@@ -41,7 +41,7 @@ function ManageAdmins() {
       });
 
     const adminList = Object.entries(data)
-      .filter(([, u]) => u.role === "admin")
+      .filter(([, u]) => String(u?.role || "").trim().toLowerCase() === "admin")
       .map(([id, u]) => ({ id, ...u }))
       .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 

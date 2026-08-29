@@ -3,10 +3,12 @@ import { ref, get, remove } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
 import { database, auth } from "../firebase";
 import { useNavigate, Link } from "react-router-dom";
+import useBasePath from "../hooks/useBasePath";
 import "../styles/managequestions.css";
 
 function ManageQuestions() {
   const navigate = useNavigate();
+  const basePath = useBasePath();
 
   const [department, setDepartment] = useState("");
 
@@ -15,7 +17,6 @@ function ManageQuestions() {
 
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
-
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
@@ -40,7 +41,7 @@ function ManageQuestions() {
       const realDepartment = userData.department || "";
       setDepartment(realDepartment);
 
-      await fetchData(realDepartment);
+      await fetchData(realDepartment, userData.role);
 
       setLoading(false);
     });
@@ -48,7 +49,7 @@ function ManageQuestions() {
     return () => unsubscribe();
   }, [navigate]);
 
-  const fetchData = async (realDepartment) => {
+  const fetchData = async (realDepartment, role) => {
     const coursesSnap = await get(ref(database, "courses"));
 
     if (coursesSnap.exists()) {
@@ -59,9 +60,14 @@ function ManageQuestions() {
         ...data[key],
       }));
 
-      const deptCourses = courseArray.filter(
-        (course) => course.department === realDepartment
-      );
+      const cleanRole = String(role || "").toLowerCase().replace(/[\s_-]/g, "");
+      const canSeeAll = cleanRole === "admin" || cleanRole === "superadmin" || !realDepartment;
+
+      const deptCourses = canSeeAll
+        ? courseArray
+        : courseArray.filter(
+            (course) => course.department === realDepartment || (course.departmentName === realDepartment)
+          );
 
       setFilteredCourses(deptCourses);
 
@@ -131,8 +137,8 @@ function ManageQuestions() {
       <div className="q-header-row">
         <div>
           <div className="back-link-wrapper">
-            <Link to="/department-admin" className="btn-q-back">
-              ← Department Dashboard
+            <Link to={basePath || "/department-admin"} className="btn-q-back">
+              ← Back to Dashboard
             </Link>
           </div>
 
@@ -146,7 +152,7 @@ function ManageQuestions() {
         <Link
           to={
             selectedCourse
-              ? `/department-admin/questions/add/${selectedCourse}`
+              ? (basePath ? `${basePath}/questions/add/${selectedCourse}` : `/department-admin/questions/add/${selectedCourse}`)
               : "#"
           }
           className="btn-q-create-new"
@@ -166,7 +172,7 @@ function ManageQuestions() {
 
         <div className="select-dropdown-wrapper">
           <input
-            value={department}
+            value={department || "All Accessible Courses"}
             className="admin-filter-select"
             disabled
           />
@@ -179,10 +185,10 @@ function ManageQuestions() {
             value={selectedCourse}
             onChange={handleCourseChange}
             className="admin-filter-select"
-            disabled={!department}
+            disabled={filteredCourses.length === 0}
           >
             <option value="">
-              {department ? "-- Select Course --" : "Department Not Found"}
+              {filteredCourses.length > 0 ? "-- Select Course --" : "No Courses Found"}
             </option>
 
             {filteredCourses.map((course) => (
@@ -195,10 +201,10 @@ function ManageQuestions() {
       </div>
 
       <div className="questions-render-workspace">
-        {!department ? (
+        {filteredCourses.length === 0 ? (
           <div className="workspace-status-card info-prompt">
-            <h3>No Department Found</h3>
-            <p>Your account is not linked with any department.</p>
+            <h3>No Courses Available</h3>
+            <p>No courses were found for your current access level.</p>
           </div>
         ) : !selectedCourse ? (
           <div className="workspace-status-card info-prompt">
@@ -226,7 +232,9 @@ function ManageQuestions() {
                     <button
                       onClick={() =>
                         navigate(
-                          `/department-admin/questions/edit/${selectedCourse}/${question.id}`
+                          basePath
+                            ? `${basePath}/questions/edit/${selectedCourse}/${question.id}`
+                            : `/department-admin/questions/edit/${selectedCourse}/${question.id}`
                         )
                       }
                       className="btn-item-action-edit"

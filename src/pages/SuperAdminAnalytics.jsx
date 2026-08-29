@@ -12,6 +12,7 @@ import {
   getGroupCertificateCount,
   normalizeZone,
   calculateGroupStats,
+  getVal,
 } from "../utils/trainingAnalytics";
 import "../styles/superanalytics.css";
 
@@ -29,11 +30,6 @@ const AVATAR_COLORS = [
 ];
 
 function getAvatarColor(i) { return AVATAR_COLORS[i % AVATAR_COLORS.length]; }
-
-function getVal(user, keys) {
-  for (const k of keys) { if (user?.[k]) return String(user[k]).trim(); }
-  return "";
-}
 
 function SuperAdminAnalytics() {
   const [users, setUsers] = useState([]);

@@ -14,10 +14,6 @@ import {
   isAssignmentActive,
   isCompletedRecord,
   isCourseCompletedForUser,
-  hasCertificate,
-  getCertificateKey,
-  getUserCertificateCount,
-  getUserZone,
   getUserZoneField,
   normalizeZone,
   calculateGroupStats,
@@ -25,7 +21,18 @@ import {
   getUniqueAnalyticsTrainingUsers,
   flattenAttempts,
   computeTestPerformance,
+  getTime,
+  objectToArray,
+  getDepartmentName,
+  getCourseTitle,
+  getCourseThumbnail,
+  isCourseActive,
+  getVal,
+  getStatusLabel,
+  getUserCertificateCount,
 } from "../utils/trainingAnalytics";
+
+const getRole = (user) => String(user?.role || "").trim().toLowerCase();
 import "../styles/superadmin.css";
 import "../styles/assignedusers.css";
 import "../styles/departmentadmin.css";
@@ -41,6 +48,7 @@ function DepartmentAdminDashboard() {
   const [assignments, setAssignments] = useState({});
   const [completedCourses, setCompletedCourses] = useState({});
   const [rawAttempts, setRawAttempts] = useState({});
+  const [rawQuizAttempts, setRawQuizAttempts] = useState({});
   const [progress, setProgress] = useState({});
   const [videoProgress, setVideoProgress] = useState({});
   const [courseProgress, setCourseProgress] = useState({});
@@ -52,38 +60,10 @@ function DepartmentAdminDashboard() {
   const [filterSearch, setFilterSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
 
-  const normalize = (value) => String(value || "").trim().toLowerCase();
-
-  const getRole = (user) => normalize(user?.role);
-
   const sameText = (a, b) => {
-    const first = normalize(a);
-    const second = normalize(b);
+    const first = String(a || "").trim().toLowerCase();
+    const second = String(b || "").trim().toLowerCase();
     return Boolean(first && second && first === second);
-  };
-
-  const getTime = (value) => {
-    const time = new Date(value || 0).getTime();
-    return Number.isFinite(time) ? time : 0;
-  };
-
-  const objectToArray = (data) => {
-    if (!data || typeof data !== "object") return [];
-    return Object.entries(data).map(([id, value]) => ({
-      id,
-      ...(value && typeof value === "object" ? value : {}),
-    }));
-  };
-
-  const getDepartmentName = (item) => {
-    return (
-      item?.department ||
-      item?.departmentName ||
-      item?.departmentType ||
-      item?.dept ||
-      item?.deptName ||
-      ""
-    );
   };
 
   const getDepartmentLabel = (item, currentDeptName) => {
@@ -91,24 +71,6 @@ function DepartmentAdminDashboard() {
     if (!deptName) return "Unassigned";
     if (deptName.toLowerCase() === currentDeptName?.toLowerCase()) return deptName;
     return `${deptName} (${currentDeptName || "Other"})`;
-  };
-
-  const getCourseTitle = (course) => {
-    const title = course?.title || course?.courseTitle || course?.courseName || course?.name || "Untitled Course";
-    const deptLabel = course._departmentLabel && course._departmentLabel !== title ? ` (${course._departmentLabel})` : "";
-    return title + deptLabel;
-  };
-
-  const getCourseThumbnail = (course) => {
-    if (course?.thumbnailUrl) return course.thumbnailUrl;
-    if (course?.courseThumbnail) return course.courseThumbnail;
-    if (course?.thumbnail) return course.thumbnail;
-    return "";
-  };
-
-  const isCourseActive = (course) => {
-    const status = String(course?.status || "").trim().toLowerCase();
-    return !["inactive", "archived", "deleted", "draft"].includes(status);
   };
 
   useEffect(() => {
@@ -158,7 +120,7 @@ function DepartmentAdminDashboard() {
 
     const markLoaded = (path) => {
       loadedPaths.add(path);
-      if (loadedPaths.size === 10) {
+      if (loadedPaths.size === 11) {
         setLoading(false);
       }
     };
@@ -186,6 +148,7 @@ function DepartmentAdminDashboard() {
     const unsubAssignments = watchPath("userAssignments", setAssignments);
     const unsubCompleted = watchPath("completedCourses", setCompletedCourses);
     const unsubAttempts = watchPath("attempts", setRawAttempts);
+    const unsubQuizAttempts = watchPath("quizAttempts", setRawQuizAttempts);
     const unsubProgress = watchPath("progress", setProgress);
     const unsubVideoProgress = watchPath("videoProgress", setVideoProgress);
     const unsubCourseProgress = watchPath("courseProgress", setCourseProgress);
@@ -198,6 +161,7 @@ function DepartmentAdminDashboard() {
       unsubAssignments();
       unsubCompleted();
       unsubAttempts();
+      unsubQuizAttempts();
       unsubProgress();
       unsubVideoProgress();
       unsubCourseProgress();
@@ -275,7 +239,7 @@ function DepartmentAdminDashboard() {
 
   const getCourseStatusForUser = (userId, courseId) => {
     const assignment = assignments?.[userId]?.[courseId];
-    if (!assignment?.assigned) return "notAssigned";
+    if (!isAssignmentActive(assignment)) return "notAssigned";
 
     const completed = completedCourses?.[userId]?.[courseId];
     if (
@@ -350,22 +314,30 @@ function DepartmentAdminDashboard() {
     }, 0);
   }, [deptUsers, completedCourses]);
 
-  const countCompletedVideos = (data) => {
-    let c = 0;
-    Object.values(data || {}).forEach((userEntry) => {
+  const totalVideosCompleted = useMemo(() => {
+    const deptCourseIds = new Set(deptCourses.map((c) => String(c.id)));
+    let count = 0;
+    const isDone = (v) =>
+      v?.completed === true ||
+      Number(v?.progressPercentage || v?.watchedPercent || v?.progress || 0) >= 100;
+    Object.values(videoProgress || {}).forEach((userEntry) => {
       if (!userEntry || typeof userEntry !== "object") return;
-      Object.values(userEntry).forEach((v) => {
-        if (v?.completed === true || Number(v?.progressPercentage || v?.watchedPercent || v?.progress || 0) >= 100) {
-          c++;
-        }
+      Object.entries(userEntry).forEach(([courseId, courseEntry]) => {
+        if (!deptCourseIds.has(String(courseId))) return;
+        if (!courseEntry || typeof courseEntry !== "object") return;
+        Object.values(courseEntry).forEach((v) => {
+          if (v && typeof v === "object" && isDone(v)) count++;
+        });
       });
     });
-    return c;
-  };
-
-  const totalVideosCompleted = useMemo(() => {
-    return countCompletedVideos(progress) + countCompletedVideos(videoProgress);
-  }, [progress, videoProgress]);
+    Object.values(progress || {}).forEach((userEntry) => {
+      if (!userEntry || typeof userEntry !== "object") return;
+      Object.values(userEntry).forEach((v) => {
+        if (v && typeof v === "object" && deptCourseIds.has(String(v.courseId)) && isDone(v)) count++;
+      });
+    });
+    return count;
+  }, [progress, videoProgress, deptCourses]);
 
   const userNameById = useMemo(() => {
     const entries = allUsers.flatMap((user) => {
@@ -458,13 +430,6 @@ function DepartmentAdminDashboard() {
       alert("Failed to unassign.");
     }
   };
-
-  const getVal = (obj, keys) => {
-    for (const k of keys) { if (obj?.[k]) return String(obj[k]).trim(); }
-    return "";
-  };
-
-  const getStatusLabel = (s) => s === "completed" ? "Completed" : s === "inProgress" ? "In Progress" : "Not Started";
 
  const zoneStats = useMemo(() => {
   const zoneMap = {};
@@ -695,14 +660,14 @@ function DepartmentAdminDashboard() {
                 <span>Videos</span>
               </div>
             </Link>
-            <Link to="/department-admin/analytics" className="hero-stat" style={{ textDecoration: "none", color: "inherit" }}>
-              {/* <div className="hero-stat-icon" style={{ background: "#dcfce7", color: "#16a34a" }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <Link to="/department-admin/all-certificates" className="hero-stat" style={{ textDecoration: "none", color: "inherit" }}>
+              <div className="hero-stat-icon" style={{ background: "#dcfce7", color: "#16a34a" }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
               </div>
               <div>
-                <strong>{completionRate}%</strong>
-                <span>Completion</span>
-              </div> */}
+                <strong>{totalCertificates}</strong>
+                <span>Certificates</span>
+              </div>
             </Link>
           </div>
         </div>
@@ -712,23 +677,13 @@ function DepartmentAdminDashboard() {
         </div>
       </section>
 
-      <section className="dash-stat-cards">
-        {/* <Link to="/department-admin/analytics" className="stat-card stat-courses" style={{ textDecoration: "none" }}>
-          <div className="stat-card-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
-          </div>
-          <div className="stat-card-info">
-            <span>Total Assigned</span>
-            <strong>{totalAssigned}</strong>
-          </div>
-        </Link> */}
-
+      <section className="dash-stat-cards dept-dash-stat-cards">
         <Link to="/department-admin/analytics" className="stat-card stat-completed" style={{ textDecoration: "none" }}>
           <div className="stat-card-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           </div>
           <div className="stat-card-info">
-            <span>Completed</span>
+            <span>Course Completed</span>
             <strong>{totalCompleted}</strong>
           </div>
         </Link>
@@ -738,12 +693,22 @@ function DepartmentAdminDashboard() {
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
           </div>
           <div className="stat-card-info">
-            <span>Videos Done</span>
+            <span>Video Done</span>
             <strong>{totalVideosCompleted}</strong>
           </div>
         </Link>
 
         <Link to="/department-admin/analytics" className="stat-card stat-rate" style={{ textDecoration: "none" }}>
+          <div className="stat-card-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+          </div>
+          <div className="stat-card-info">
+            <span>In Progress</span>
+            <strong>{totalInProgress}</strong>
+          </div>
+        </Link>
+
+        <Link to="/department-admin/analytics" className="stat-card stat-courses" style={{ textDecoration: "none" }}>
           <div className="stat-card-icon">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
           </div>
@@ -752,26 +717,6 @@ function DepartmentAdminDashboard() {
             <strong>{totalCertificates}</strong>
           </div>
         </Link>
-
-        <Link to="/department-admin/analytics" className="stat-card stat-progress" style={{ textDecoration: "none" }}>
-          <div className="stat-card-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
-          </div>
-          <div className="stat-card-info">
-            <span>Avg Score</span>
-            <strong>{testPerformance.average}%</strong>
-          </div>
-        </Link>
-           <Link to="/department-admin/analytics" className="stat-card stat-courses" style={{ textDecoration: "none" }}>
-          <div className="stat-card-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
-          </div>
-          <div className="stat-card-info">
-            <span>Total Assigned</span>
-            <strong>{totalAssigned}</strong>
-          </div>
-        </Link>
-
       </section>
 
       <section className="dashboard-overview-row">
