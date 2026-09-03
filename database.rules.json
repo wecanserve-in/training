@@ -1,184 +1,153 @@
 {
   "rules": {
     "users": {
+      ".read": "auth !== null",
+      ".indexOn": ["email", "role", "departmentId"],
       "$uid": {
-        ".read": "auth !== null",
-        ".write": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() === 'superAdmin')"
+        ".write": "auth !== null"
       }
     },
-
     "departments": {
       ".read": "auth !== null",
-      ".write": "auth !== null && root.child('users/' + auth.uid + '/role').val() === 'superAdmin'"
+      "$deptId": {
+        ".write": "auth !== null"
+      }
     },
-
     "courses": {
       ".read": "auth !== null",
-      ".write": "auth !== null && root.child('users/' + auth.uid + '/role').val() === 'superAdmin' || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'departmentAdmin'"
+      ".indexOn": ["status", "departmentId", "createdBy"],
+      "$courseId": {
+        ".write": "auth !== null"
+      }
     },
-
-    "videos": {
-      ".read": "auth !== null",
-      ".write": "auth !== null && root.child('users/' + auth.uid + '/role').val() === 'superAdmin' || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'departmentAdmin'"
-    },
-
-    "videoLibrary": {
-      ".read": "auth !== null",
-      ".write": "auth !== null && root.child('users/' + auth.uid + '/role').val() === 'superAdmin' || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'departmentAdmin'"
-    },
-
     "courseVideos": {
       ".read": "auth !== null",
-      ".write": "auth !== null && root.child('users/' + auth.uid + '/role').val() === 'superAdmin' || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'departmentAdmin'"
+      "$courseId": {
+        ".write": "auth !== null"
+      }
     },
-
-    "videoQuizzes": {
+    "videos": {
       ".read": "auth !== null",
-      ".write": "auth !== null && root.child('users/' + auth.uid + '/role').val() === 'superAdmin' || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'departmentAdmin'"
+      "$videoId": {
+        ".write": "auth !== null"
+      }
     },
-
+    "videoLibrary": {
+      ".read": "auth !== null",
+      "$videoId": {
+        ".write": "auth !== null"
+      }
+    },
     "questions": {
       ".read": "auth !== null",
-      ".write": "auth !== null && root.child('users/' + auth.uid + '/role').val() === 'superAdmin' || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'departmentAdmin'"
-    },
-
-    "userAssignments": {
-      "$uid": {
-        ".read": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')",
-        ".write": "auth !== null && root.child('users/' + auth.uid + '/role').val() !== 'user'"
-      }
-    },
-
-    "videoProgress": {
-      "$uid": {
-        ".read": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')",
-        "$courseId": {
-          "$videoId": {
-            ".write": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')"
-          }
-        }
-      }
-    },
-
-    "courseProgress": {
-      "$uid": {
-        ".read": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')",
-        "$courseId": {
-          ".write": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')"
-        }
-      }
-    },
-
-    "quizAttempts": {
-      "$uid": {
-        ".read": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')",
-        "$courseId": {
-          "$quizId": {
-            ".write": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')"
-          }
-        }
-      }
-    },
-
-    "completedCourses": {
-      "$uid": {
-        ".read": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')",
-        "$courseId": {
-          ".write": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')"
-        }
-      }
-    },
-
-    "results": {
-      "$uid": {
-        ".read": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')",
-        ".write": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')"
-      }
-    },
-
-    "notifications": {
-      "$uid": {
-        ".read": "auth !== null && auth.uid === $uid",
-        "$notificationId": {
-          ".write": "auth !== null && (auth.uid === $uid || auth.uid !== $uid)",
-          ".validate": "newData.hasChildren(['type', 'title', 'message', 'createdAt'])",
-          "notificationId": {
-            ".validate": "newData.val() === $notificationId"
-          },
-          "type": {
-            ".validate": "newData.isString()"
-          },
-          "courseId": {
-            ".validate": "newData.isString()"
-          },
-          "channelId": {
-            ".validate": "newData.isString()"
-          },
-          "videoId": {
-            ".validate": "newData.isString()"
-          },
-          "title": {
-            ".validate": "newData.isString()"
-          },
-          "message": {
-            ".validate": "newData.isString()"
-          },
-          "read": {
-            ".validate": "newData.isBoolean()"
-          },
-          "createdAt": {
-            ".validate": "newData.isString()"
-          },
-          "$other": {
-            ".validate": false
-          }
-        }
-      }
-    },
-
-    "courseDiscussions": {
       "$courseId": {
-        ".read": "auth !== null",
-        "channels": {
-          "$channelId": {
-            ".read": "auth !== null",
-            ".write": "auth !== null",
-            "messages": {
-              "$messageId": {
-                ".read": "auth !== null",
-                ".write": "auth !== null && data.parent().parent().parent().parent().child('courseId').val() === $courseId",
-                ".validate": "newData.hasChildren(['messageId', 'senderId', 'senderName', 'message', 'createdAt'])",
-                "messageId": {
-                  ".validate": "newData.val() === $messageId"
-                },
-                "senderId": {
-                  ".validate": "newData.val() === auth.uid"
-                },
-                "message": {
-                  ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 5000"
-                },
-                "createdAt": {
-                  ".validate": "newData.isString()"
-                },
-                "$other": {
-                  ".validate": false
-                }
-              }
-            }
-          }
-        }
+        ".write": "auth !== null"
       }
     },
-
+    "videoQuizzes": {
+      ".read": "auth !== null",
+      "$id": {
+        ".write": "auth !== null"
+      }
+    },
+    "userAssignments": {
+      ".read": "auth !== null",
+      "$uid": {
+        ".write": "auth !== null"
+      }
+    },
+    "courseProgress": {
+      ".read": "auth !== null",
+      "$uid": {
+        ".write": "auth !== null"
+      }
+    },
+    "videoProgress": {
+      ".read": "auth !== null",
+      "$uid": {
+        ".write": "auth !== null"
+      }
+    },
+    "completedCourses": {
+      ".read": "auth !== null",
+      "$uid": {
+        ".write": "auth !== null"
+      }
+    },
+    "quizAttempts": {
+      ".read": "auth !== null",
+      "$uid": {
+        ".write": "auth !== null"
+      }
+    },
+    "attempts": {
+      ".read": "auth !== null",
+      "$uid": {
+        ".write": "auth !== null"
+      }
+    },
+    "results": {
+      ".read": "auth !== null",
+      "$uid": {
+        ".write": "auth !== null"
+      }
+    },
+    "certificates": {
+      ".read": "auth !== null",
+      "$uid": {
+        ".write": "auth !== null"
+      }
+    },
+    "notifications": {
+      ".read": "auth !== null",
+      "$uid": {
+        ".write": "auth !== null"
+      }
+    },
+    "learningActivity": {
+      ".read": "auth !== null",
+      "$uid": {
+        ".write": "auth !== null"
+      }
+    },
+    "courseDiscussions": {
+      ".read": "auth !== null",
+      "$courseId": {
+        ".write": "auth !== null"
+      }
+    },
     "courseContentUpdates": {
       ".read": "auth !== null",
-      ".write": "auth !== null && root.child('users/' + auth.uid + '/role').val() === 'superAdmin' || root.child('users/' + auth.uid + '/role').val() === 'admin' || root.child('users/' + auth.uid + '/role').val() === 'departmentAdmin'"
+      "$courseId": {
+        ".write": "auth !== null"
+      }
     },
-
-    "learningActivity": {
+    "doubtThreads": {
+      ".read": "auth !== null",
+      "$threadId": {
+        ".write": "auth !== null"
+      }
+    },
+    "doubtMessages": {
+      ".read": "auth !== null",
+      "$threadId": {
+        ".write": "auth !== null"
+      }
+    },
+    "master": {
+      ".read": "auth !== null",
+      ".write": "auth !== null"
+    },
+    "progress": {
+      ".read": "auth !== null",
       "$uid": {
-        ".read": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')",
-        ".write": "auth !== null && (auth.uid === $uid || root.child('users/' + auth.uid + '/role').val() !== 'user')"
+        ".write": "auth !== null"
+      }
+    },
+    "videoQuizAttempts": {
+      ".read": "auth !== null",
+      "$uid": {
+        ".write": "auth !== null"
       }
     }
   }

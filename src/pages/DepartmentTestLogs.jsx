@@ -610,14 +610,17 @@ function DepartmentTestLogs() {
        * This avoids showing the same result twice if it exists
        * under both attempts and quizAttempts.
        */
+      const submittedDate = details.submittedAt
+        ? new Date(details.submittedAt).toISOString().slice(0, 10)
+        : "";
+
       const uniqueKey = [
         userId,
         resolvedCourseId,
-        resolvedAttemptId,
         details.score,
         details.correct,
         details.total,
-        getTimestamp(details.submittedAt),
+        submittedDate,
       ].join("|");
 
       if (usedAttemptKeys.has(uniqueKey)) {

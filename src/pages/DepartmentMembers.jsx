@@ -219,13 +219,17 @@ function DepartmentMembers() {
   const users = useMemo(() => {
     const userDeptId = String(currentUser?.departmentId || "").trim();
     const userDept = String(departmentName || "").trim().toLowerCase();
+    const userId = String(currentUser?.id || currentUser?.uid || "").trim();
     const deptCourseIds = new Set(
       allCourses.filter((course) => {
-        if (!userDeptId && !userDept) return false;
-        const courseDeptId = String(course.departmentId || "").trim();
-        const courseDept = String(getDepartmentName(course) || "").trim().toLowerCase();
-        if (courseDeptId && userDeptId && courseDeptId === userDeptId) return true;
-        if (courseDept && userDept && courseDept === userDept) return true;
+        if (userDeptId || userDept) {
+          const courseDeptId = String(course.departmentId || "").trim();
+          const courseDept = String(getDepartmentName(course) || "").trim().toLowerCase();
+          if (courseDeptId && userDeptId && courseDeptId === userDeptId) return true;
+          if (courseDept && userDept && courseDept === userDept) return true;
+        }
+        const createdBy = String(course.createdBy || course.createdById || "").trim();
+        if (userId && createdBy === userId) return true;
         return false;
       }).map((c) => c.id)
     );
@@ -252,8 +256,7 @@ function DepartmentMembers() {
 
     const userDeptId = String(currentUser?.departmentId || "").trim();
     const userDept = String(departmentName || "").trim().toLowerCase();
-
-    if (!userDeptId && !userDept) return [];
+    const userId = String(currentUser?.id || currentUser?.uid || "").trim();
 
     return allCourses
       .filter((course) => {
@@ -261,6 +264,8 @@ function DepartmentMembers() {
         const courseDept = String(getDepartmentName(course) || "").trim().toLowerCase();
         if (courseDeptId && userDeptId && courseDeptId === userDeptId) return true;
         if (courseDept && userDept && courseDept === userDept) return true;
+        const createdBy = String(course.createdBy || course.createdById || "").trim();
+        if (userId && createdBy === userId) return true;
         return false;
       })
       .sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));

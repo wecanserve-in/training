@@ -73,17 +73,22 @@ export const getCourseDiscussionMessages = async (
   courseId,
   channelId = GENERAL_DISCUSSION_CHANNEL
 ) => {
-  const snapshot = await get(
-    ref(database, discussionMessagesPath(courseId, channelId))
-  );
-
-  if (!snapshot.exists()) return [];
-
-  return Object.entries(snapshot.val())
-    .map(([messageId, value]) => ({ messageId, ...value }))
-    .sort(
-      (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0)
+  try {
+    const snapshot = await get(
+      ref(database, discussionMessagesPath(courseId, channelId))
     );
+
+    if (!snapshot.exists()) return [];
+
+    return Object.entries(snapshot.val())
+      .map(([messageId, value]) => ({ messageId, ...value }))
+      .sort(
+        (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0)
+      );
+  } catch (error) {
+    console.error("Failed to load discussion messages:", error);
+    return [];
+  }
 };
 
 export const watchCourseDiscussionMessages = (
@@ -123,23 +128,27 @@ export const watchCourseDiscussionMessages = (
 };
 
 export const createNotification = async (userId, notificationData) => {
-  const notificationRef = push(
-    ref(database, notificationsForUserPath(userId))
-  );
-  const now = new Date().toISOString();
+  try {
+    const notificationRef = push(
+      ref(database, notificationsForUserPath(userId))
+    );
+    const now = new Date().toISOString();
 
-  await set(notificationRef, {
-    notificationId: notificationRef.key,
-    type: notificationData.type || "course_discussion",
-    courseId: notificationData.courseId || "",
-    courseTitle: notificationData.courseTitle || "",
-    channelId: notificationData.channelId || GENERAL_DISCUSSION_CHANNEL,
-    videoId: notificationData.videoId || "",
-    title: notificationData.title || "Course discussion",
-    message: notificationData.message || "",
-    read: false,
-    createdAt: now,
-  });
+    await set(notificationRef, {
+      notificationId: notificationRef.key,
+      type: notificationData.type || "course_discussion",
+      courseId: notificationData.courseId || "",
+      courseTitle: notificationData.courseTitle || "",
+      channelId: notificationData.channelId || GENERAL_DISCUSSION_CHANNEL,
+      videoId: notificationData.videoId || "",
+      title: notificationData.title || "Course discussion",
+      message: notificationData.message || "",
+      read: false,
+      createdAt: now,
+    });
+  } catch (error) {
+    console.error("Failed to create notification:", error);
+  }
 };
 
 export const notifyCourseDiscussionParticipants = async ({
@@ -204,39 +213,54 @@ export const notifyCourseDiscussionParticipants = async ({
 
 export const watchNotifications = (userId, callback) => {
   const notificationRef = ref(database, notificationsForUserPath(userId));
-  const listener = onValue(notificationRef, (snapshot) => {
-    if (!snapshot.exists()) {
-      callback([]);
-      return;
-    }
+  const listener = onValue(
+    notificationRef,
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        callback([]);
+        return;
+      }
 
-    callback(
-      Object.entries(snapshot.val())
-        .map(([notificationId, value]) => ({ notificationId, ...value }))
-        .sort(
-          (a, b) =>
-            new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
-        )
-    );
-  });
+      callback(
+        Object.entries(snapshot.val())
+          .map(([notificationId, value]) => ({ notificationId, ...value }))
+          .sort(
+            (a, b) =>
+              new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+          )
+      );
+    },
+    (error) => {
+      console.error("Notifications listener error:", error);
+      callback([]);
+    }
+  );
 
   return () => off(notificationRef, "value", listener);
 };
 
 export const markNotificationRead = async (userId, notificationId) => {
-  await update(ref(database, `notifications/${userId}/${notificationId}`), {
-    read: true,
-  });
+  try {
+    await update(ref(database, `notifications/${userId}/${notificationId}`), {
+      read: true,
+    });
+  } catch (error) {
+    console.error("Failed to mark notification read:", error);
+  }
 };
 
 export const markAllNotificationsRead = async (userId) => {
-  const snapshot = await get(ref(database, notificationsForUserPath(userId)));
-  if (!snapshot.exists()) return;
+  try {
+    const snapshot = await get(ref(database, notificationsForUserPath(userId)));
+    if (!snapshot.exists()) return;
 
-  const updates = {};
-  Object.keys(snapshot.val()).forEach((notificationId) => {
-    updates[`notifications/${userId}/${notificationId}/read`] = true;
-  });
+    const updates = {};
+    Object.keys(snapshot.val()).forEach((notificationId) => {
+      updates[`notifications/${userId}/${notificationId}/read`] = true;
+    });
 
-  await update(ref(database), updates);
+    await update(ref(database), updates);
+  } catch (error) {
+    console.error("Failed to mark all notifications read:", error);
+  }
 };

@@ -125,7 +125,7 @@ const [searchParams] = useSearchParams();
   const deptCourses = useMemo(() => {
     const userDeptId = String(currentUser?.departmentId || "").trim();
     const userDept = String(departmentName || "").trim().toLowerCase();
-    if (!userDeptId && !userDept) return [];
+    const userId = String(currentUser?.id || currentUser?.uid || "").trim();
     return courses.filter((course) => {
       const status = String(course?.status || "").trim().toLowerCase();
       if (["inactive", "archived", "deleted", "draft"].includes(status)) return false;
@@ -133,6 +133,8 @@ const [searchParams] = useSearchParams();
       const courseDept = String(getDepartmentName(course) || "").trim().toLowerCase();
       if (courseDeptId && userDeptId && courseDeptId === userDeptId) return true;
       if (courseDept && userDept && courseDept === userDept) return true;
+      const createdBy = String(course.createdBy || course.createdById || "").trim();
+      if (userId && createdBy === userId) return true;
       return false;
     });
   }, [courses, currentUser, departmentName]);
@@ -253,6 +255,12 @@ const getAssignedCourseEntries = (userOrId) => {
   const getCourseResultRecord = (userOrId, courseId) => { const r = mergeUserNode(results, userOrId); return r?.[courseId] || Object.values(r).find((x) => String(x?.courseId || "") === String(courseId)); };
   const getCourseStatus = (userOrId, courseId) => { if (isCompletedRecord(getCourseCompletionRecord(userOrId, courseId))) return "completed"; const cp = mergeUserNode(courseProgress, userOrId)?.[courseId]; if (cp?.courseTestPassed || cp?.passed) return "completed"; return getCourseProgressPercent(userOrId, courseId) > 0 ? "inProgress" : "notStarted"; };
   const getUserCompletion = (userOrId) => { const a = getAssignedCount(userOrId); const c = getCompletedCount(userOrId); return a > 0 ? Math.min(100, Math.round((c / a) * 100)) : 0; };
+  const getUserOverallProgress = (userOrId) => {
+    const entries = getAssignedCourseEntries(userOrId);
+    if (entries.length === 0) return 0;
+    const totalProgress = entries.reduce((sum, [courseId]) => sum + getCourseProgressPercent(userOrId, courseId), 0);
+    return Math.round(totalProgress / entries.length);
+  };
 
   const getGroupStats = (groupUsers) => {
     const total = groupUsers.length;
@@ -491,9 +499,7 @@ const designations = useMemo(() => [...new Set(contextUsers.map((u) => u.designa
     inProgress,
     notStarted,
     certificates,
-    completion: assigned > 0
-      ? Math.round((completed / assigned) * 100)
-      : 0,
+    completion: getUserOverallProgress(selectedUser),
   };
 }, [selectedUser, selectedUserCourseRows]);
   const downloadReport = () => {
@@ -501,7 +507,7 @@ const designations = useMemo(() => [...new Set(contextUsers.map((u) => u.designa
       Name: u.name || "", Email: u.email || "", Designation: u.designation || "",
       Zone: getVal(u, ["zone", "Zone", "zoneName"]), State: getVal(u, ["state", "State", "stateName"]), City: getVal(u, ["cityArea", "city", "City", "Area", "area"]),
       "Assigned": getAssignedCount(u), "Completed": getCompletedCount(u),
-      "Certificates": getCertificateCount(u), "Completion %": `${getUserCompletion(u)}%`,
+      "Certificates": getCertificateCount(u), "Completion %": `${getUserOverallProgress(u)}%`,
     }));
     const headers = Object.keys(rows[0] || {});
     const csv = [headers.join(","), ...rows.map((r) => headers.map((h) => `"${String(r[h] || "").replace(/"/g, '""')}"`).join(","))].join("\n");
@@ -691,7 +697,7 @@ const designations = useMemo(() => [...new Set(contextUsers.map((u) => u.designa
                     ) : filteredUsers.map((u, idx) => {
                       const assigned = getAssignedCount(u);
                       const comp = getCompletedCount(u);
-                      const pct = getUserCompletion(u);
+                      const pct = getUserOverallProgress(u);
                       return (
                         <tr key={u.id} className="sa-table-row-enter sa-user-clickable-row" style={{ animationDelay: `${idx * 30}ms` }} onClick={() => setSelectedUser(u)} role="button" tabIndex={0} aria-label={`View progress for ${u.name || "user"}`} title="Click to view user progress">
                           <td className="sa-td-idx">{idx + 1}</td>

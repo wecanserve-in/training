@@ -45,10 +45,15 @@ function DepartmentVideoLibrary() {
     if (!userData) return false;
     const role = getRole(userData);
     if (role === "admin" || role === "superadmin") return true;
-    return (
-      video.createdBy === userData.id ||
-      normalizeText(video.createdByEmail) === normalizeText(userData.email)
-    );
+    if (video.createdBy === userData.id ||
+        normalizeText(video.createdByEmail) === normalizeText(userData.email)) return true;
+    const videoDept = normalizeText(video.department || video.departmentName || "");
+    const userDept = normalizeText(userData.department || userData.departmentName || "");
+    if (videoDept && userDept && videoDept === userDept) return true;
+    const videoDeptId = String(video.departmentId || "").trim();
+    const userDeptId = String(userData.departmentId || "").trim();
+    if (videoDeptId && userDeptId && videoDeptId === userDeptId) return true;
+    return false;
   };
 
   const objectToArray = (data) => {

@@ -98,17 +98,21 @@ function EditVideoLibrary() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
-      if (!loggedUser) {
-        navigate("/");
-        return;
-      }
-      const userSnap = await get(ref(database, `users/${loggedUser.uid}`));
-      if (userSnap.exists()) {
-        setCurrentUser({
-          id: loggedUser.uid,
-          email: loggedUser.email,
-          ...userSnap.val(),
-        });
+      try {
+        if (!loggedUser) {
+          navigate("/");
+          return;
+        }
+        const userSnap = await get(ref(database, `users/${loggedUser.uid}`));
+        if (userSnap.exists()) {
+          setCurrentUser({
+            id: loggedUser.uid,
+            email: loggedUser.email,
+            ...userSnap.val(),
+          });
+        }
+      } catch (error) {
+        console.error("Failed to load user profile:", error);
       }
     });
     return () => unsubscribe();

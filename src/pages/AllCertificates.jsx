@@ -92,11 +92,12 @@ function AllCertificates() {
       try {
         setLoading(true);
 
-        const [currentUserSnap, allUsersSnap, departmentsSnap] =
+        const [currentUserSnap, allUsersSnap, departmentsSnap, assignmentsSnap] =
           await Promise.all([
             get(ref(database, `users/${firebaseUser.uid}`)),
             get(ref(database, "users")),
             get(ref(database, "departments")),
+            get(ref(database, "userAssignments")),
           ]);
 
         const loggedInUser = currentUserSnap.exists()
@@ -122,6 +123,10 @@ function AllCertificates() {
 
         const departments = departmentsSnap.exists()
           ? departmentsSnap.val()
+          : {};
+
+        const allAssignments = assignmentsSnap.exists()
+          ? assignmentsSnap.val()
           : {};
 
         const role = getRole(loggedInUser);
@@ -187,14 +192,20 @@ function AllCertificates() {
               This supports users explicitly assigned by the
               Department Admin.
             */
-            const assignedBy =
-              user.assignedBy ||
-              user.assignedByUid ||
-              user.createdBy ||
-              user.createdByUid ||
-              "";
+            const userAssignments = allAssignments[user.id] || {};
+            const wasAssignedByAdmin = Object.values(userAssignments).some(
+              (assignment) => {
+                const assignedBy = String(
+                  assignment?.assignedBy ||
+                    assignment?.assignedById ||
+                    assignment?.departmentAdminId ||
+                    ""
+                ).trim();
+                return assignedBy === firebaseUser.uid;
+              }
+            );
 
-            if (assignedBy === firebaseUser.uid) {
+            if (wasAssignedByAdmin) {
               return true;
             }
 

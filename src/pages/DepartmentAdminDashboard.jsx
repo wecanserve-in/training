@@ -125,6 +125,10 @@ function DepartmentAdminDashboard() {
       }
     };
 
+    const loadingTimeout = setTimeout(() => {
+      setLoading(false);
+    }, 15000);
+
     const watchPath = (path, setter, asArray = false) => {
       return onValue(
         ref(database, path),
@@ -154,6 +158,7 @@ function DepartmentAdminDashboard() {
     const unsubCourseProgress = watchPath("courseProgress", setCourseProgress);
 
     return () => {
+      clearTimeout(loadingTimeout);
       unsubCourses();
       unsubUsers();
       unsubVideoLibrary();
@@ -177,8 +182,7 @@ function DepartmentAdminDashboard() {
   const deptCourses = useMemo(() => {
     const userDeptId = String(currentUser?.departmentId || "").trim();
     const userDept = String(departmentName || "").trim().toLowerCase();
-
-    if (!userDeptId && !userDept) return [];
+    const userId = String(currentUser?.id || currentUser?.uid || "").trim();
 
     return allCourses
       .filter((course) => {
@@ -187,6 +191,8 @@ function DepartmentAdminDashboard() {
         const courseDept = String(getDepartmentName(course) || "").trim().toLowerCase();
         if (courseDeptId && userDeptId && courseDeptId === userDeptId) return true;
         if (courseDept && userDept && courseDept === userDept) return true;
+        const createdBy = String(course.createdBy || course.createdById || "").trim();
+        if (userId && createdBy === userId) return true;
         return false;
       })
       .sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));

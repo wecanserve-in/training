@@ -479,6 +479,7 @@ function VideoPage() {
     completed = false,
     currentTime = 0
   ) => {
+    try {
     const user = auth.currentUser;
     if (!user || !video || !courseId) return;
 
@@ -592,6 +593,9 @@ function VideoPage() {
     }
 
     setProgressMap(nextProgressMap);
+    } catch (error) {
+      console.error("Failed to save video progress:", error);
+    }
   };
 
   const handleLoadedMetadata = (e) => {

@@ -120,6 +120,10 @@ function AdminDashboard() {
       }
     };
 
+    const loadingTimeout = setTimeout(() => {
+      setLoading(false);
+    }, 15000);
+
     const watchPath = (path, setter, asArray = false) => {
       return onValue(
         ref(database, path),
@@ -150,6 +154,7 @@ function AdminDashboard() {
     const unsubDepartments = watchPath("departments", setDepartments);
 
     return () => {
+      clearTimeout(loadingTimeout);
       unsubCourses();
       unsubUsers();
       unsubVideoLibrary();

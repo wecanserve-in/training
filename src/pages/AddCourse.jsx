@@ -128,36 +128,41 @@ function AddCourse() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
-      if (!loggedUser) {
-        navigate("/");
-        return;
+      try {
+        if (!loggedUser) {
+          navigate("/");
+          return;
+        }
+
+        const userSnap = await get(ref(database, `users/${loggedUser.uid}`));
+
+        if (!userSnap.exists()) {
+          alert("User profile not found");
+          navigate("/");
+          return;
+        }
+
+        const userData = {
+          id: loggedUser.uid,
+          email: loggedUser.email,
+          ...userSnap.val(),
+        };
+
+        setCurrentUser(userData);
+
+        if (checkIsDeptAdmin(userData)) {
+          setDepartment(userData.department || "");
+          setDepartmentType(userData.departmentType || "");
+          setDepartmentId(userData.departmentId || "");
+        }
+
+        await loadDepartments();
+        await loadVideoLibrary(userData);
+        setLoadingUser(false);
+      } catch (error) {
+        console.error("Failed to initialize AddCourse:", error);
+        setLoadingUser(false);
       }
-
-      const userSnap = await get(ref(database, `users/${loggedUser.uid}`));
-
-      if (!userSnap.exists()) {
-        alert("User profile not found");
-        navigate("/");
-        return;
-      }
-
-      const userData = {
-        id: loggedUser.uid,
-        email: loggedUser.email,
-        ...userSnap.val(),
-      };
-
-      setCurrentUser(userData);
-
-      if (checkIsDeptAdmin(userData)) {
-        setDepartment(userData.department || "");
-        setDepartmentType(userData.departmentType || "");
-        setDepartmentId(userData.departmentId || "");
-      }
-
-      await loadDepartments();
-      await loadVideoLibrary(userData);
-      setLoadingUser(false);
     });
 
     return () => unsubscribe();

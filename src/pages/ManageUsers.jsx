@@ -147,45 +147,65 @@ function ManageUsers() {
   };
 
   const fetchMasterData = async () => {
-    const snap = await get(ref(database, "master/designations"));
-    if (snap.exists()) {
-      const data = snap.val();
-      setDesignations(Object.entries(data).map(([id, item]) => ({ id, ...item })));
-    } else {
+    try {
+      const snap = await get(ref(database, "master/designations"));
+      if (snap.exists()) {
+        const data = snap.val();
+        setDesignations(Object.entries(data).map(([id, item]) => ({ id, ...item })));
+      } else {
+        setDesignations([]);
+      }
+    } catch (error) {
+      console.error("Failed to load designations:", error);
       setDesignations([]);
     }
   };
 
   const fetchUsers = async () => {
-    const snap = await get(ref(database, "users"));
-    if (!snap.exists()) return setUsers([]);
-    const data = snap.val();
-    const userList = Object.entries(data)
-      .map(([id, user]) => ({ id, ...user }))
-      .filter((user) => {
-        const role = String(user?.role || "").trim().toLowerCase();
-        return role === "user" || role === "departmentadmin" || role === "department admin" || role === "department_admin" || role === "deptadmin" || role === "dept admin" || role === "admin" || role === "superadmin";
-      });
-    setUsers(userList);
+    try {
+      const snap = await get(ref(database, "users"));
+      if (!snap.exists()) return setUsers([]);
+      const data = snap.val();
+      const userList = Object.entries(data)
+        .map(([id, user]) => ({ id, ...user }))
+        .filter((user) => {
+          const role = String(user?.role || "").trim().toLowerCase();
+          return role === "user" || role === "departmentadmin" || role === "department admin" || role === "department_admin" || role === "deptadmin" || role === "dept admin" || role === "admin" || role === "superadmin";
+        });
+      setUsers(userList);
+    } catch (error) {
+      console.error("Failed to load users:", error);
+      setUsers([]);
+    }
   };
 
   const addDesignation = async () => {
-    const name = newDesignation.trim();
-    if (!name) return;
-    if (designations.some((item) => item.name.toLowerCase() === name.toLowerCase())) {
-      alert("Designation already exists.");
-      return;
+    try {
+      const name = newDesignation.trim();
+      if (!name) return;
+      if (designations.some((item) => item.name.toLowerCase() === name.toLowerCase())) {
+        alert("Designation already exists.");
+        return;
+      }
+      const newRef = push(ref(database, "master/designations"));
+      await set(newRef, { name, createdAt: new Date().toISOString() });
+      setNewDesignation("");
+      fetchMasterData();
+    } catch (error) {
+      console.error("Failed to add designation:", error);
+      alert("Failed to add designation. Please try again.");
     }
-    const newRef = push(ref(database, "master/designations"));
-    await set(newRef, { name, createdAt: new Date().toISOString() });
-    setNewDesignation("");
-    fetchMasterData();
   };
 
   const removeDesignation = async (id) => {
-    if (!window.confirm("Remove this designation?")) return;
-    await remove(ref(database, `master/designations/${id}`));
-    fetchMasterData();
+    try {
+      if (!window.confirm("Remove this designation?")) return;
+      await remove(ref(database, `master/designations/${id}`));
+      fetchMasterData();
+    } catch (error) {
+      console.error("Failed to remove designation:", error);
+      alert("Failed to remove designation. Please try again.");
+    }
   };
 
   const resetForm = () => {

@@ -82,42 +82,46 @@ function DepartmentUploadVideo() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
-      if (!loggedUser) return;
+      try {
+        if (!loggedUser) return;
 
-      const userSnap = await get(ref(database, `users/${loggedUser.uid}`));
-      if (!userSnap.exists()) return;
+        const userSnap = await get(ref(database, `users/${loggedUser.uid}`));
+        if (!userSnap.exists()) return;
 
-      const userData = {
-        id: loggedUser.uid,
-        email: loggedUser.email,
-        ...userSnap.val(),
-      };
+        const userData = {
+          id: loggedUser.uid,
+          email: loggedUser.email,
+          ...userSnap.val(),
+        };
 
-      setCurrentUser(userData);
+        setCurrentUser(userData);
 
-      if (String(userData.role || "").toLowerCase().replace(/[\s_-]/g, "") === "departmentadmin") {
-        let deptName = userData.department || "";
-        let deptType = userData.departmentType || "";
-        let deptId = userData.departmentId || "";
+        if (String(userData.role || "").toLowerCase().replace(/[\s_-]/g, "") === "departmentadmin") {
+          let deptName = userData.department || "";
+          let deptType = userData.departmentType || "";
+          let deptId = userData.departmentId || "";
 
-        if (!deptName || !deptType || !deptId) {
-          const deptSnap = await get(ref(database, "departments"));
-          if (deptSnap.exists()) {
-            const depts = deptSnap.val();
-            const match = Object.entries(depts).find(
-              ([, d]) => d.departmentAdminId === loggedUser.uid
-            );
-            if (match) {
-              deptId = deptId || match[0];
-              deptName = deptName || match[1].departmentName || "";
-              deptType = deptType || match[1].departmentType || "";
+          if (!deptName || !deptType || !deptId) {
+            const deptSnap = await get(ref(database, "departments"));
+            if (deptSnap.exists()) {
+              const depts = deptSnap.val();
+              const match = Object.entries(depts).find(
+                ([, d]) => d.departmentAdminId === loggedUser.uid
+              );
+              if (match) {
+                deptId = deptId || match[0];
+                deptName = deptName || match[1].departmentName || "";
+                deptType = deptType || match[1].departmentType || "";
+              }
             }
           }
-        }
 
-        setDepartment(deptName);
-        setDepartmentType(deptType);
-        setSelectedDepartmentId(deptId);
+          setDepartment(deptName);
+          setDepartmentType(deptType);
+          setSelectedDepartmentId(deptId);
+        }
+      } catch (error) {
+        console.error("Failed to initialize DepartmentUploadVideo:", error);
       }
     });
 

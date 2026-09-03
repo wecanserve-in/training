@@ -584,7 +584,7 @@ function QuizPage() {
     const percentage = total > 0 ? Math.round((correct / total) * 100) : 100;
     const nowIso = new Date().toISOString();
 
-    if (document.fullscreenElement) {
+    if (isFullscreenSupported() && document.fullscreenElement) {
       await document.exitFullscreen().catch(() => {});
     }
 
@@ -780,6 +780,7 @@ function QuizPage() {
       if (
         quizStarted &&
         !submittedRef.current &&
+        isFullscreenSupported() &&
         !document.fullscreenElement
       ) {
         handleSecurityViolation("Fullscreen exited.");
@@ -805,6 +806,10 @@ function QuizPage() {
     };
   }, [quizStarted]);
 
+  const isFullscreenSupported = () => {
+    return Boolean(document.fullscreenEnabled || document.webkitFullscreenEnabled || document.mozFullScreenEnabled || document.msFullscreenEnabled);
+  };
+
   const startStrictQuiz = async () => {
     if (!isVideoQuiz && existingFinalResult?.passed) return;
 
@@ -817,20 +822,23 @@ function QuizPage() {
       return;
     }
 
-    try {
-      if (!document.fullscreenElement) {
-        await examElement.requestFullscreen();
+    if (isFullscreenSupported()) {
+      try {
+        if (!document.fullscreenElement) {
+          await examElement.requestFullscreen();
+        }
+      } catch (error) {
+        console.error("Fullscreen failed:", error);
+        setQuizStarted(false);
+        setSecurityMessage(
+          "Fullscreen permission was blocked. Allow fullscreen in the browser and click Start again."
+        );
+        return;
       }
-
-      setSecurityMessage("");
-      setQuizStarted(true);
-    } catch (error) {
-      console.error("Fullscreen failed:", error);
-      setQuizStarted(false);
-      setSecurityMessage(
-        "Fullscreen permission was blocked. Allow fullscreen in the browser and click Start again."
-      );
     }
+
+    setSecurityMessage("");
+    setQuizStarted(true);
   };
 
   useEffect(() => {
@@ -841,7 +849,7 @@ function QuizPage() {
     return () => {
       document.body.classList.remove("final-quiz-active");
 
-      if (document.fullscreenElement === examRootRef.current) {
+      if (isFullscreenSupported() && document.fullscreenElement === examRootRef.current) {
         document.exitFullscreen().catch(() => {});
       }
     };
@@ -981,7 +989,7 @@ function QuizPage() {
           )}
 
           <button type="button" onClick={startStrictQuiz}>
-            Enter Fullscreen &amp; Start
+            {isFullscreenSupported() ? "Enter Fullscreen & Start" : "Start Test"}
           </button>
         </div>
       ) : (

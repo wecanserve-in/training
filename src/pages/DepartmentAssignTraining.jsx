@@ -255,6 +255,9 @@ function DepartmentAssignTraining() {
         .join(" ")
         .toLowerCase();
 
+      const status = getUserCourseStatus(user.id);
+      if (status !== "notAssigned") return false;
+
       return (
         text.includes(search.trim().toLowerCase()) &&
         (roleFilter

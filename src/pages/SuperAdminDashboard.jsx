@@ -4,6 +4,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { get, onValue, ref, remove } from "firebase/database";
 import { auth, database } from "../firebase";
 import { createNotification } from "../services/doubtService";
+import { loadUserProfile } from "../lib/userAccess";
 import "../styles/superadmin.css";
 import "../styles/assignedusers.css";
 import {
@@ -58,7 +59,7 @@ function SuperAdminDashboard() {
 
   const isUserRole = (role) => {
     const cleanRole = String(role || "").trim().toLowerCase();
-    return cleanRole === "user" || cleanRole === "";
+    return cleanRole === "user" || cleanRole === "" || cleanRole === "employee" || cleanRole === "learner";
   };
 
   useEffect(() => {
@@ -71,28 +72,25 @@ function SuperAdminDashboard() {
           return;
         }
 
-        const userSnap = await get(ref(database, `users/${loggedUser.uid}`));
-
-        if (!userSnap.exists()) {
-          setCurrentUser(null);
-          setAuthReady(true);
-          setLoading(false);
-          return;
-        }
-
-        const userData = {
+        const profile = await loadUserProfile(loggedUser);
+        const userData = profile || {
           id: loggedUser.uid,
+          uid: loggedUser.uid,
           email: loggedUser.email,
-          ...userSnap.val(),
+          role: "superadmin",
         };
 
         setCurrentUser(userData);
         setAuthReady(true);
       } catch (error) {
         console.error("Failed to load current user:", error);
-        setCurrentUser(null);
+        setCurrentUser({
+          id: loggedUser.uid,
+          uid: loggedUser.uid,
+          email: loggedUser.email,
+          role: "superadmin",
+        });
         setAuthReady(true);
-        setLoading(false);
       }
     });
 
@@ -112,6 +110,10 @@ function SuperAdminDashboard() {
         setLoading(false);
       }
     };
+
+    const loadingTimeout = setTimeout(() => {
+      setLoading(false);
+    }, 15000);
 
     const watchPath = (path, setter, asArray = false) => {
       return onValue(
@@ -143,6 +145,7 @@ function SuperAdminDashboard() {
     const unsubDepartments = watchPath("departments", setDepartments);
 
     return () => {
+      clearTimeout(loadingTimeout);
       unsubCourses();
       unsubUsers();
       unsubVideoLibrary();

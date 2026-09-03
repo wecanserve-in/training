@@ -1,17 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ref, get } from "firebase/database";
-import { database } from "../firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { database, auth } from "../firebase";
 import {
   getRole,
+  getDepartmentName,
   mergeUserNode,
+  mergeUserRecords,
   isAssignmentActive,
   isCompletedRecord,
   isCourseCompletedForUser,
   hasCertificate,
   getGroupCertificateCount,
   calculateGroupStats,
+  objectToArray,
 } from "../utils/trainingAnalytics";
+import { loadUserProfile } from "../lib/userAccess";
 import "../styles/departmentanalytics.css";
 
 const AVATAR_COLORS = [
@@ -35,6 +40,7 @@ function getVal(user, keys) {
 }
 
 function DepartmentAnalyticsPage() {
+  const [currentUser, setCurrentUser] = useState(null);
   const [users, setUsers] = useState([]);
   const [courses, setCourses] = useState([]);
   const [completedCourses, setCompletedCourses] = useState({});
@@ -42,6 +48,7 @@ function DepartmentAnalyticsPage() {
   const [assignments, setAssignments] = useState({});
   const [courseProgress, setCourseProgress] = useState({});
   const [videoProgress, setVideoProgress] = useState({});
+  const [departmentsData, setDepartmentsData] = useState({});
   const [selectedUser, setSelectedUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -53,7 +60,40 @@ function DepartmentAnalyticsPage() {
   const [search, setSearch] = useState("");
   const [designationFilter, setDesignationFilter] = useState("");
 
+  const bumpAnim = () => setAnimKey((k) => k + 1);
+
+  const drillIntoDept = (dept) => {
+    bumpAnim();
+    setDrillDept(dept);
+    setSearch("");
+    setDesignationFilter("");
+  };
+
   useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) { setLoading(false); return; }
+      try {
+        const profile = await loadUserProfile(user);
+        if (profile) {
+          setCurrentUser(profile);
+        } else {
+          const snap = await get(ref(database, `users/${user.uid}`));
+          if (snap.exists()) {
+            setCurrentUser({ id: user.uid, uid: user.uid, ...snap.val() });
+          } else {
+            setCurrentUser({ id: user.uid, uid: user.uid, role: "superadmin" });
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load user:", e);
+        setCurrentUser({ id: user.uid, uid: user.uid, role: "superadmin" });
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser) return;
     const fetchData = async () => {
       try {
         const [
@@ -64,6 +104,7 @@ function DepartmentAnalyticsPage() {
           assignmentsSnap,
           courseProgressSnap,
           videoProgressSnap,
+          departmentsSnap,
         ] = await Promise.all([
           get(ref(database, "users")),
           get(ref(database, "courses")),
@@ -72,6 +113,7 @@ function DepartmentAnalyticsPage() {
           get(ref(database, "userAssignments")),
           get(ref(database, "courseProgress")),
           get(ref(database, "videoProgress")),
+          get(ref(database, "departments")),
         ]);
 
         if (usersSnap.exists()) {
@@ -87,10 +129,11 @@ function DepartmentAnalyticsPage() {
         if (assignmentsSnap.exists()) setAssignments(assignmentsSnap.val());
         if (courseProgressSnap.exists()) setCourseProgress(courseProgressSnap.val());
         if (videoProgressSnap.exists()) setVideoProgress(videoProgressSnap.val());
+        if (departmentsSnap.exists()) setDepartmentsData(departmentsSnap.val());
       } catch (e) { console.error("Department analytics fetch error:", e); } finally { setLoading(false); }
     };
     fetchData();
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     if (loading) return;
@@ -98,17 +141,91 @@ function DepartmentAnalyticsPage() {
     if (deptParam) {
       drillIntoDept(deptParam);
     }
-  }, [loading]);
+  }, [loading, searchParams]);
+
+  const userRole = String(currentUser?.role || "").trim().toLowerCase().replace(/[\s_-]/g, "");
+  const isSuperOrAdmin = userRole === "superadmin" || userRole === "admin";
+  const departmentName = currentUser?.department || currentUser?.departmentName || currentUser?.departmentType || "";
+
+  const departmentNameById = useMemo(() => {
+    if (!departmentsData) return {};
+    const list = objectToArray(departmentsData);
+    return Object.fromEntries(
+      list.map((dept) => [
+        dept.id,
+        dept.name || dept.departmentName || dept.title || "Unnamed Department",
+      ])
+    );
+  }, [departmentsData]);
+
+  const resolveUserDept = (user) => {
+    const direct = getDepartmentName(user);
+    if (direct && direct.toLowerCase() !== "not assigned" && direct.toLowerCase() !== "not specified" && direct.toLowerCase() !== "general") {
+      return direct;
+    }
+    const deptId = String(user?.departmentId || "").trim();
+    if (deptId && departmentNameById[deptId]) {
+      return departmentNameById[deptId];
+    }
+    return direct || "Not Assigned";
+  };
+
+  const deptCourses = useMemo(() => {
+    const userDeptId = String(currentUser?.departmentId || "").trim();
+    const userDept = String(departmentName || "").trim().toLowerCase();
+    const userId = String(currentUser?.id || currentUser?.uid || "").trim();
+    return courses.filter((course) => {
+      const status = String(course?.status || "").trim().toLowerCase();
+      if (["inactive", "archived", "deleted", "draft"].includes(status)) return false;
+      if (isSuperOrAdmin) return true;
+      const courseDeptId = String(course.departmentId || "").trim();
+      const courseDept = String(getDepartmentName(course) || "").trim().toLowerCase();
+      if (courseDeptId && userDeptId && courseDeptId === userDeptId) return true;
+      if (courseDept && userDept && courseDept === userDept) return true;
+      const createdBy = String(course.createdBy || course.createdById || "").trim();
+      if (userId && createdBy === userId) return true;
+      return false;
+    });
+  }, [courses, currentUser, departmentName, isSuperOrAdmin]);
 
   const employeeUsers = useMemo(() => {
+    const deptCourseIds = new Set(deptCourses.map((c) => c.id));
+    const userDeptId = String(currentUser?.departmentId || "").trim();
+    const userDept = String(departmentName || "").trim().toLowerCase();
     const uniqueUsers = new Map();
     users.forEach((user) => {
       const key = String(user?.uid || user?.id || user?.email || "").trim();
       if (!key) return;
-      uniqueUsers.set(key, { ...(uniqueUsers.get(key) || {}), ...user });
+      const role = String(user?.role || "").trim().toLowerCase().replace(/[\s_-]/g, "");
+      if (role === "admin" || role === "superadmin") return;
+
+      if (isSuperOrAdmin) {
+        uniqueUsers.set(key, { ...(uniqueUsers.get(key) || {}), ...user });
+        return;
+      }
+
+      if (role === "departmentadmin" || role === "deptadmin") return;
+
+      const userDeptIdField = String(user.departmentId || "").trim();
+      const userDeptName = String(resolveUserDept(user) || "").trim().toLowerCase();
+      if (userDeptId && userDeptIdField && userDeptIdField === userDeptId) {
+        uniqueUsers.set(key, { ...(uniqueUsers.get(key) || {}), ...user });
+        return;
+      }
+      if (userDept && userDeptName && userDeptName === userDept) {
+        uniqueUsers.set(key, { ...(uniqueUsers.get(key) || {}), ...user });
+        return;
+      }
+      const userAssignments = mergeUserRecords(assignments, user) || {};
+      const hasAssignmentToVisibleCourse = Object.entries(userAssignments).some(
+        ([courseId, assignment]) => deptCourseIds.has(courseId) && isAssignmentActive(assignment)
+      );
+      if (hasAssignmentToVisibleCourse) {
+        uniqueUsers.set(key, { ...(uniqueUsers.get(key) || {}), ...user });
+      }
     });
     return Array.from(uniqueUsers.values());
-  }, [users]);
+  }, [users, currentUser, departmentName, deptCourses, assignments, isSuperOrAdmin, departmentNameById]);
 
   const getCompletedCount = (userOrId) => {
     const assignedEntries = getAssignedCourseEntries(userOrId);
@@ -172,18 +289,33 @@ function DepartmentAnalyticsPage() {
     return assigned > 0 ? Math.min(100, Math.round((completed / assigned) * 100)) : 0;
   };
 
-  const getDepartmentName = (user) => {
-    return user?.department || user?.departmentName || user?.departmentType || user?.dept || user?.deptName || "Not Assigned";
+  const getUserOverallProgress = (userOrId) => {
+    const entries = getAssignedCourseEntries(userOrId);
+    if (entries.length === 0) return 0;
+    const totalProgress = entries.reduce((sum, [courseId]) => sum + getCourseProgressPercent(userOrId, courseId), 0);
+    return Math.round(totalProgress / entries.length);
   };
 
   const departments = useMemo(() => {
     const deptMap = {};
+
+    Object.values(departmentNameById).forEach((name) => {
+      if (!name) return;
+      const deptKey = name.trim().toLowerCase();
+      if (!deptMap[deptKey]) {
+        deptMap[deptKey] = { name: name.trim(), users: [] };
+      }
+    });
+
     employeeUsers.forEach((user) => {
-      const deptName = getDepartmentName(user);
+      const deptName = resolveUserDept(user);
       const deptKey = deptName.toLowerCase();
-      if (!deptMap[deptKey]) deptMap[deptKey] = { name: deptName, users: [] };
+      if (!deptMap[deptKey]) {
+        deptMap[deptKey] = { name: deptName, users: [] };
+      }
       deptMap[deptKey].users.push(user);
     });
+
     return Object.values(deptMap)
       .map((dept) => ({
         ...dept,
@@ -197,13 +329,14 @@ function DepartmentAnalyticsPage() {
           videoProgress,
         }),
       }))
+      .filter((dept) => dept.total > 0 || (isSuperOrAdmin && dept.name !== "Not Assigned"))
       .sort((a, b) => b.rate - a.rate || b.total - a.total || a.name.localeCompare(b.name));
-  }, [employeeUsers, assignments, completedCourses, courseProgress, videoProgress]);
+  }, [employeeUsers, assignments, completedCourses, courseProgress, videoProgress, departmentNameById, isSuperOrAdmin]);
 
   const contextUsers = useMemo(() => {
     if (!drillDept) return employeeUsers;
-    return employeeUsers.filter((u) => getDepartmentName(u).toLowerCase() === drillDept.toLowerCase());
-  }, [employeeUsers, drillDept]);
+    return employeeUsers.filter((u) => resolveUserDept(u).toLowerCase() === drillDept.toLowerCase());
+  }, [employeeUsers, drillDept, departmentNameById]);
 
   const filteredUsers = useMemo(() => {
     return contextUsers.filter((u) => {
@@ -213,15 +346,6 @@ function DepartmentAnalyticsPage() {
   }, [contextUsers, search, designationFilter]);
 
   const designations = useMemo(() => [...new Set(contextUsers.map((u) => u.designation).filter(Boolean))].sort(), [contextUsers]);
-
-  const bumpAnim = () => setAnimKey((k) => k + 1);
-
-  const drillIntoDept = (dept) => {
-    bumpAnim();
-    setDrillDept(dept);
-    setSearch("");
-    setDesignationFilter("");
-  };
 
   const overallStats = useMemo(() => ({
     total: employeeUsers.length,
@@ -271,7 +395,7 @@ function DepartmentAnalyticsPage() {
       inProgress,
       notStarted,
       certificates: getCertificateCount(selectedUser),
-      completion: assigned > 0 ? Math.round((completed / assigned) * 100) : 0,
+      completion: getUserOverallProgress(selectedUser),
     };
   }, [selectedUser, selectedUserCourseRows, completedCourses]);
 
@@ -285,9 +409,9 @@ function DepartmentAnalyticsPage() {
   const downloadReport = () => {
     const rows = filteredUsers.map((u) => ({
       Name: u.name || "", Email: u.email || "", Role: getRole(u), Designation: u.designation || "",
-      Department: getDepartmentName(u), Zone: getVal(u, ["zone", "Zone", "zoneName"]), State: getVal(u, ["state", "State", "stateName"]),
+      Department: resolveUserDept(u), Zone: getVal(u, ["zone", "Zone", "zoneName"]), State: getVal(u, ["state", "State", "stateName"]),
       "Assigned": getAssignedCount(u), "Completed": getCompletedCount(u),
-      "Certificates": getCertificateCount(u), "Completion %": `${getUserCompletion(u)}%`,
+      "Certificates": getCertificateCount(u), "Completion %": `${getUserOverallProgress(u)}%`,
     }));
     const headers = Object.keys(rows[0] || {});
     const csv = [headers.join(","), ...rows.map((r) => headers.map((h) => `"${String(r[h] || "").replace(/"/g, '""')}"`).join(","))].join("\n");
@@ -470,7 +594,7 @@ function DepartmentAnalyticsPage() {
                     ) : filteredUsers.map((u, idx) => {
                       const assigned = getAssignedCount(u);
                       const comp = getCompletedCount(u);
-                      const pct = getUserCompletion(u);
+                      const pct = getUserOverallProgress(u);
                       return (
                         <tr
                           key={u.id}
@@ -533,7 +657,7 @@ function DepartmentAnalyticsPage() {
 
             <div className="sa-user-detail-body">
               <div className="sa-user-location-grid">
-                <div><span>Department</span><strong>{getDepartmentName(selectedUser)}</strong></div>
+                <div><span>Department</span><strong>{resolveUserDept(selectedUser)}</strong></div>
                 <div><span>Designation</span><strong>{selectedUser.designation || "Not specified"}</strong></div>
                 <div><span>Zone</span><strong>{getVal(selectedUser, ["zone", "Zone", "zoneName"]) || "Not assigned"}</strong></div>
                 <div><span>State</span><strong>{getVal(selectedUser, ["state", "State", "stateName"]) || "Not assigned"}</strong></div>
