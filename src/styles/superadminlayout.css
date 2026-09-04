@@ -748,3 +748,474 @@
     }
   }
 }
+
+
+/* =========================================================
+   SUPER ADMIN — FULL MOBILE RESPONSIVE FIX
+   ========================================================= */
+
+/* Prevent width calculations from causing overflow */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+@media (max-width: 768px) {
+
+  /* =========================
+     MAIN LAYOUT
+     ========================= */
+
+  .super-layout,
+  .admin-layout {
+    width: 100%;
+    min-width: 0;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .super-page,
+  .admin-page,
+  .sidebar-collapsed .super-page,
+  .sidebar-collapsed .admin-page {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin-left: 0 !important;
+    padding: 12px;
+    padding-top: 12px;
+    overflow-x: hidden;
+  }
+
+
+  /* =========================
+     MOBILE TOPBAR
+     ========================= */
+
+  .mobile-topbar {
+    position: sticky;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 56px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 0 12px;
+
+    background: #ffffff;
+    z-index: 11000;
+
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  }
+
+  .mobile-topbar img {
+    max-width: 120px;
+    width: auto;
+    height: 32px;
+    object-fit: contain;
+  }
+
+  .mobile-topbar-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 7px;
+
+    position: relative;
+    z-index: 11001;
+  }
+
+
+  /* =========================
+     MOBILE BUTTONS
+     ========================= */
+
+  .mobile-topbar-actions button,
+  .mobile-topbar button {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+
+    padding: 0;
+    margin: 0;
+
+    border: none;
+    border-radius: 10px;
+
+    background: #f0faf5;
+    color: #059669;
+
+    display: grid;
+    place-items: center;
+
+    cursor: pointer;
+    position: relative;
+
+    z-index: 11002;
+
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .mobile-topbar-actions button:active,
+  .mobile-topbar button:active {
+    transform: scale(0.95);
+  }
+
+
+  /* =========================
+     NOTIFICATION BELL
+     ========================= */
+
+  .notif-bell-mobile {
+    position: relative !important;
+
+    width: 40px !important;
+    height: 40px !important;
+
+    min-width: 40px !important;
+    min-height: 40px !important;
+
+    display: grid !important;
+    place-items: center !important;
+
+    pointer-events: auto !important;
+
+    z-index: 11005 !important;
+  }
+
+  .notif-bell-mobile svg,
+  .notif-bell-mobile i {
+    pointer-events: none;
+  }
+
+  .notif-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+
+    min-width: 18px;
+    height: 18px;
+
+    z-index: 11006;
+    pointer-events: none;
+  }
+
+
+  /* =========================
+     NOTIFICATION DROPDOWN
+     ========================= */
+
+  .notif-dropdown {
+    position: fixed !important;
+
+    top: 56px !important;
+    left: 8px !important;
+    right: 8px !important;
+
+    width: auto !important;
+    max-width: calc(100vw - 16px) !important;
+
+    max-height: calc(100vh - 68px) !important;
+
+    margin: 0 !important;
+
+    border-radius: 0 0 14px 14px;
+
+    z-index: 12000 !important;
+
+    overflow: hidden;
+
+    pointer-events: auto !important;
+  }
+
+  .notif-dropdown-list {
+    max-height: calc(100vh - 170px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .notif-dropdown-item {
+    padding: 12px;
+  }
+
+  .notif-dropdown-content p {
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+
+  /* =========================
+     DESKTOP TOPBAR OFF
+     ========================= */
+
+  .page-topbar {
+    display: none !important;
+    pointer-events: none !important;
+  }
+
+
+  /* =========================
+     SIDEBAR
+     ========================= */
+
+  .super-sidebar,
+  .admin-sidebar {
+    position: fixed;
+
+    top: 0;
+    left: 0;
+
+    width: min(280px, 85vw) !important;
+    max-width: 280px;
+
+    height: 100dvh;
+
+    transform: translateX(-105%);
+
+    z-index: 13000;
+
+    transition: transform 0.25s ease;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .super-sidebar.sidebar-open,
+  .admin-sidebar.sidebar-open {
+    transform: translateX(0) !important;
+  }
+
+
+  /* Close button must stay clickable */
+  .sidebar-close {
+    display: grid;
+
+    position: absolute;
+
+    top: 12px;
+    right: 12px;
+
+    width: 34px;
+    height: 34px;
+
+    z-index: 13005;
+
+    place-items: center;
+
+    border: none;
+    border-radius: 8px;
+
+    background: #f0faf5;
+    color: #059669;
+
+    cursor: pointer;
+
+    -webkit-tap-highlight-color: transparent;
+  }
+
+
+  /* Collapse button is desktop-only */
+  .sidebar-collapse-btn {
+    display: none !important;
+  }
+
+
+  /* =========================
+     SIDEBAR OPEN STATE
+     ========================= */
+
+  .sidebar-collapsed .super-sidebar,
+  .sidebar-collapsed .admin-sidebar {
+    width: min(280px, 85vw) !important;
+  }
+
+  .sidebar-collapsed .sidebar-logo-box,
+  .sidebar-collapsed .sidebar-profile,
+  .sidebar-collapsed .sidebar-menu a,
+  .sidebar-collapsed .dropdown-toggle,
+  .sidebar-collapsed .sidebar-logout {
+    display: flex;
+  }
+
+
+  /* =========================
+     BACKDROP
+     ========================= */
+
+  .sidebar-backdrop {
+    position: fixed;
+
+    inset: 0;
+
+    width: 100vw;
+    height: 100dvh;
+
+    background: rgba(0, 0, 0, 0.3);
+
+    z-index: 12500;
+  }
+
+
+  /* =========================
+     GENERAL MOBILE CONTENT
+     ========================= */
+
+  .super-page > *,
+  .admin-page > * {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .super-page img,
+  .admin-page img {
+    max-width: 100%;
+  }
+
+  .super-page table,
+  .admin-page table {
+    max-width: 100%;
+  }
+}
+
+
+/* =========================================================
+   EXTRA SMALL PHONES
+   ========================================================= */
+
+@media (max-width: 380px) {
+
+  .mobile-topbar {
+    padding: 0 9px;
+  }
+
+  .mobile-topbar img {
+    max-width: 105px;
+    height: 29px;
+  }
+
+  .mobile-topbar-actions {
+    gap: 5px;
+  }
+
+  .mobile-topbar-actions button,
+  .mobile-topbar button,
+  .notif-bell-mobile {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+  }
+
+  .super-page,
+  .admin-page {
+    padding: 10px;
+  }
+
+  .notif-dropdown {
+    left: 5px !important;
+    right: 5px !important;
+    max-width: calc(100vw - 10px) !important;
+  }
+}
+
+/* =========================================================
+   MOBILE NOTIFICATION FIX
+   ========================================================= */
+
+.mobile-notification-wrapper {
+  position: relative;
+  width: 100%;
+  z-index: 11000;
+}
+
+.mobile-notif-dropdown {
+  position: fixed !important;
+
+  top: 56px !important;
+
+  left: 10px !important;
+  right: 10px !important;
+
+  width: auto !important;
+  max-width: none !important;
+
+  max-height: calc(100dvh - 66px) !important;
+
+  background: #ffffff;
+
+  border-radius: 0 0 14px 14px;
+
+  z-index: 20000 !important;
+
+  overflow: hidden;
+
+  box-shadow:
+    0 10px 35px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+
+  pointer-events: auto !important;
+}
+
+@media (max-width: 768px) {
+
+  .mobile-notification-wrapper {
+    display: block;
+  }
+
+  .mobile-notif-dropdown .notif-dropdown-list {
+    max-height: calc(100dvh - 170px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mobile-notif-dropdown .notif-dropdown-item {
+    padding: 13px 12px;
+  }
+
+  .mobile-notif-dropdown .notif-dropdown-content {
+    min-width: 0;
+  }
+
+  .mobile-notif-dropdown .notif-dropdown-content p {
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.35;
+  }
+}
+
+@media (max-width: 380px) {
+
+  .mobile-notif-dropdown {
+    left: 6px !important;
+    right: 6px !important;
+    top: 56px !important;
+  }
+
+  .mobile-notif-dropdown .notif-dropdown-header {
+    padding: 12px;
+  }
+
+  .mobile-notif-dropdown .notif-dropdown-item {
+    padding: 11px;
+  }
+}

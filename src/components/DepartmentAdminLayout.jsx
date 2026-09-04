@@ -18,6 +18,7 @@ function DepartmentAdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const notifDropdownRef = useRef(null);
+  const mobileNotifRef = useRef(null);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -64,7 +65,10 @@ function DepartmentAdminLayout() {
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (notifDropdownRef.current && !notifDropdownRef.current.contains(e.target)) {
+      const clickedDesktop = notifDropdownRef.current?.contains(e.target);
+      const clickedMobile = mobileNotifRef.current?.contains(e.target);
+
+      if (!clickedDesktop && !clickedMobile) {
         setNotifOpen(false);
       }
     };
@@ -144,15 +148,85 @@ function DepartmentAdminLayout() {
 
   return (
     <div className={`dept-admin-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
-      <div className="mobile-topbar">
-        <img src="/Logo.webp" alt="Logo" />
-        <div className="mobile-topbar-actions">
-          <button className="notif-bell-mobile" onClick={toggleNotifDropdown} type="button">
-            <FaBell />
-            {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
-          </button>
-          <button type="button" onClick={() => setSidebarOpen(true)} aria-label="Open navigation menu">☰</button>
+      <div className="mobile-notification-wrapper" ref={mobileNotifRef}>
+        <div className="mobile-topbar">
+          <img src="/Logo.webp" alt="Logo" />
+          <div className="mobile-topbar-actions">
+            <button
+              className="notif-bell-mobile"
+              onClick={toggleNotifDropdown}
+              type="button"
+              aria-label="Open notifications"
+              aria-expanded={notifOpen}
+            >
+              <FaBell />
+              {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open navigation menu"
+            >
+              ☰
+            </button>
+          </div>
         </div>
+
+        {/* Mobile-only notification popup. Desktop popup remains unchanged below. */}
+        {notifOpen && (
+          <div className="notif-dropdown mobile-notif-dropdown">
+            <div className="notif-dropdown-header">
+              <h3>Notifications</h3>
+              {unreadCount > 0 && (
+                <button type="button" onClick={handleMarkAllRead}>
+                  Mark all read
+                </button>
+              )}
+            </div>
+
+            <div className="notif-dropdown-list">
+              {recentNotifications.length === 0 ? (
+                <div className="notif-dropdown-empty">
+                  <FaBell />
+                  <p>No notifications yet</p>
+                </div>
+              ) : (
+                recentNotifications.map((notif) => (
+                  <div
+                    className={`notif-dropdown-item ${!notif.read ? "unread" : ""}`}
+                    key={notif.notificationId}
+                    onClick={() => handleNotifClick(notif)}
+                  >
+                    <div className={`notif-dropdown-icon ${notif.type}`}>
+                      {getNotificationIcon(notif.type)}
+                    </div>
+
+                    <div className="notif-dropdown-content">
+                      <h4>{notif.title}</h4>
+                      <p>{notif.message}</p>
+                      <span>{formatTime(notif.createdAt)}</span>
+                    </div>
+
+                    {!notif.read && (
+                      <div className="notif-dropdown-dot"></div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div
+              className="notif-dropdown-footer"
+              onClick={() => {
+                navigate("/department-admin/notifications");
+                setNotifOpen(false);
+              }}
+            >
+              View all notifications
+            </div>
+          </div>
+        )}
       </div>
 
       {sidebarOpen && <div className="dept-sidebar-backdrop" onClick={closeSidebar} />}

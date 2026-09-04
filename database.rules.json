@@ -7,12 +7,14 @@
         ".write": "auth !== null"
       }
     },
+
     "departments": {
       ".read": "auth !== null",
       "$deptId": {
         ".write": "auth !== null"
       }
     },
+
     "courses": {
       ".read": "auth !== null",
       ".indexOn": ["status", "departmentId", "createdBy"],
@@ -20,133 +22,162 @@
         ".write": "auth !== null"
       }
     },
+
     "courseVideos": {
       ".read": "auth !== null",
       "$courseId": {
         ".write": "auth !== null"
       }
     },
+
     "videos": {
       ".read": "auth !== null",
       "$videoId": {
         ".write": "auth !== null"
       }
     },
+
     "videoLibrary": {
       ".read": "auth !== null",
       "$videoId": {
         ".write": "auth !== null"
       }
     },
+
     "questions": {
       ".read": "auth !== null",
       "$courseId": {
         ".write": "auth !== null"
       }
     },
+
     "videoQuizzes": {
       ".read": "auth !== null",
       "$id": {
         ".write": "auth !== null"
       }
     },
+
     "userAssignments": {
       ".read": "auth !== null",
       "$uid": {
         ".write": "auth !== null"
       }
     },
+
     "courseProgress": {
       ".read": "auth !== null",
       "$uid": {
         ".write": "auth !== null"
       }
     },
+
     "videoProgress": {
       ".read": "auth !== null",
       "$uid": {
         ".write": "auth !== null"
       }
     },
+
     "completedCourses": {
       ".read": "auth !== null",
       "$uid": {
         ".write": "auth !== null"
       }
     },
+
     "quizAttempts": {
       ".read": "auth !== null",
       "$uid": {
         ".write": "auth !== null"
       }
     },
+
     "attempts": {
       ".read": "auth !== null",
       "$uid": {
         ".write": "auth !== null"
       }
     },
+
     "results": {
       ".read": "auth !== null",
       "$uid": {
         ".write": "auth !== null"
       }
     },
+
     "certificates": {
       ".read": "auth !== null",
       "$uid": {
         ".write": "auth !== null"
       }
     },
+
     "notifications": {
-      ".read": "auth !== null",
       "$uid": {
-        ".write": "auth !== null"
+        ".read": "auth !== null && auth.uid === $uid",
+        ".write": "auth !== null && auth.uid === $uid"
       }
     },
+
     "learningActivity": {
       ".read": "auth !== null",
       "$uid": {
         ".write": "auth !== null"
       }
     },
+
     "courseDiscussions": {
       ".read": "auth !== null",
       "$courseId": {
         ".write": "auth !== null"
       }
     },
+
     "courseContentUpdates": {
       ".read": "auth !== null",
       "$courseId": {
         ".write": "auth !== null"
       }
     },
+
     "doubtThreads": {
       ".read": "auth !== null",
       "$threadId": {
         ".write": "auth !== null"
       }
     },
+
     "doubtMessages": {
       ".read": "auth !== null",
       "$threadId": {
         ".write": "auth !== null"
       }
     },
+
     "master": {
       ".read": "auth !== null",
       ".write": "auth !== null"
     },
+
     "progress": {
       ".read": "auth !== null",
       "$uid": {
         ".write": "auth !== null"
       }
     },
+
     "videoQuizAttempts": {
       ".read": "auth !== null",
       "$uid": {
+        ".write": "auth !== null"
+      }
+    },
+
+    "resources": {
+      ".read": "auth !== null",
+      "$resourceId": {
         ".write": "auth !== null"
       }
     }

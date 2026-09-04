@@ -180,50 +180,149 @@ function CertificatePage() {
 
   const downloadCertificate = async () => {
     setDownloading(true);
+
     try {
       const bgImage = await new Promise((resolve, reject) => {
         const img = new Image();
-        img.crossOrigin = "anonymous";
+
         img.onload = () => resolve(img);
-        img.onerror = () => reject(new Error("Failed to load certificate background image"));
+        img.onerror = () =>
+          reject(
+            new Error("Failed to load certificate background image")
+          );
+
         img.src = "/certificate/certificate.png";
       });
 
-      const W = 3200;
-      const H = 2200;
+      /*
+       * IMPORTANT:
+       * The visible certificate preview is designed at EXACTLY:
+       *
+       *   1600 x 1100
+       *
+       * All text below uses the SAME coordinates, font sizes and
+       * positions as the preview JSX.
+       *
+       * Do NOT use a 3200x2200 canvas here because that makes it
+       * very easy for text measurements/positions to differ from
+       * the browser preview.
+       */
+
+      const W = 1600;
+      const H = 1100;
+
       const canvas = document.createElement("canvas");
       canvas.width = W;
       canvas.height = H;
+
       const ctx = canvas.getContext("2d");
 
+      if (!ctx) {
+        throw new Error("Could not create certificate canvas");
+      }
+
+      // Same background as the preview.
       ctx.drawImage(bgImage, 0, 0, W, H);
 
       ctx.fillStyle = "#101828";
-      ctx.textAlign = "center";
       ctx.textBaseline = "top";
 
-      ctx.font = "600 128px 'Times New Roman', serif";
-      const nameY = (460 / 1100) * H;
-      const capitalizedName = studentName.replace(/\b\w/g, (c) => c.toUpperCase());
-      ctx.fillText(capitalizedName, W / 2, nameY, W - 200);
+      // =====================================================
+      // STUDENT NAME
+      // Preview:
+      // top: 460px
+      // left: 0
+      // width: 100%
+      // font-size: 64px
+      // text-align: center
+      // =====================================================
 
-      ctx.font = "600 76px 'Times New Roman', serif";
-      const courseY = (610 / 1100) * H;
-      ctx.fillText(courseName, W / 2, courseY, W - 240);
+      ctx.textAlign = "center";
+      ctx.font = "600 64px 'Times New Roman', serif";
+
+      const capitalizedName = studentName.replace(
+        /\b\w/g,
+        (c) => c.toUpperCase()
+      );
+
+      ctx.fillText(
+        capitalizedName,
+        W / 2,
+        460,
+        W - 200
+      );
+
+      // =====================================================
+      // COURSE NAME
+      // Preview:
+      // top: 610px
+      // left: 0
+      // width: 100%
+      // font-size: 38px
+      // text-align: center
+      // =====================================================
+
+      ctx.font = "600 38px 'Times New Roman', serif";
+
+      ctx.fillText(
+        courseName,
+        W / 2,
+        610,
+        W - 240
+      );
+
+      // =====================================================
+      // DATE
+      // Preview:
+      // top: 800px
+      // left: 740px
+      // font-size: 26px
+      // font-family: Arial
+      // =====================================================
 
       ctx.textAlign = "left";
-      ctx.font = "600 52px Arial, sans-serif";
-      const dateX = (790 / 1600) * W;
-      const dateY = (800 / 1100) * H;
-      ctx.fillText(date, dateX, dateY);
+      ctx.font = "600 26px Arial, sans-serif";
 
+      ctx.fillText(
+        date,
+        740,
+        800
+      );
+
+      // Convert the exact 1600x1100 certificate to PNG.
       const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("landscape", "px", [1600, 1100], true);
-      pdf.addImage(imgData, "PNG", 0, 0, 1600, 1100);
 
-      const safeName = (studentName || "Student").replace(/[\/\\:*?"<>|]/g, "_");
-      const safeCourse = (courseName || "Course").replace(/[\/\\:*?"<>|]/g, "_");
-      pdf.save(`${safeName}-${safeCourse}-certificate.pdf`);
+      // PDF is ALSO exactly 1600x1100.
+      // Therefore there is no additional scaling/repositioning.
+      const pdf = new jsPDF(
+        "landscape",
+        "px",
+        [1600, 1100],
+        true
+      );
+
+      pdf.addImage(
+        imgData,
+        "PNG",
+        0,
+        0,
+        1600,
+        1100
+      );
+
+      const safeName = (studentName || "Student").replace(
+        /[\/\\:*?"<>|]/g,
+        "_"
+      );
+
+      const safeCourse = (courseName || "Course").replace(
+        /[\/\\:*?"<>|]/g,
+        "_"
+      );
+
+      pdf.save(
+        `${safeName}-${safeCourse}-certificate.pdf`
+      );
     } catch (err) {
       console.error("Download failed:", err);
       alert("Failed to download certificate. Please try again.");
@@ -381,7 +480,7 @@ function CertificatePage() {
             style={{
               position: "absolute",
               top: "800px",
-              left: "790px",
+              left: "740px",
               fontSize: "26px",
               fontWeight: "600",
               fontFamily: "Arial, sans-serif",

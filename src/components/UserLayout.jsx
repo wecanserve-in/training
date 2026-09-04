@@ -18,6 +18,8 @@ function UserLayout() {
   const location = useLocation();
 
   const notifDropdownRef = useRef(null);
+  const mobileNotifRef = useRef(null);
+  const notifMenuRef = useRef(null);
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -56,10 +58,15 @@ function UserLayout() {
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (notifDropdownRef.current && !notifDropdownRef.current.contains(e.target)) {
+      const clickedInsideDesktop = notifDropdownRef.current?.contains(e.target);
+      const clickedInsideMobile = mobileNotifRef.current?.contains(e.target);
+      const clickedInsideMenu = notifMenuRef.current?.contains(e.target);
+
+      if (!clickedInsideDesktop && !clickedInsideMobile && !clickedInsideMenu) {
         setNotifOpen(false);
       }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -164,10 +171,18 @@ function UserLayout() {
       <div className="learner-mobile-topbar">
         <img src="/Logo.webp" alt="Logo" />
         <div className="learner-mobile-topbar-actions">
-          <button className="learner-notif-bell-mobile" onClick={toggleNotifDropdown} type="button">
-            <FaBell />
-            {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
-          </button>
+          <div ref={mobileNotifRef} className="learner-mobile-notification-wrapper">
+            <button
+              className="learner-notif-bell-mobile"
+              onClick={toggleNotifDropdown}
+              type="button"
+              aria-label="Open notifications"
+              aria-expanded={notifOpen}
+            >
+              <FaBell />
+              {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
+            </button>
+          </div>
           <button
             type="button"
             onClick={() => setMobileSidebarOpen(true)}
@@ -278,55 +293,55 @@ function UserLayout() {
             <FaBell />
             {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
           </button>
-
-          {notifOpen && (
-            <div className="notif-dropdown">
-              <div className="notif-dropdown-header">
-                <h3>Notifications</h3>
-                {unreadCount > 0 && (
-                  <button onClick={handleMarkAllRead}>Mark all read</button>
-                )}
-              </div>
-
-              <div className="notif-dropdown-list">
-                {recentNotifications.length === 0 ? (
-                  <div className="notif-dropdown-empty">
-                    <FaBell />
-                    <p>No notifications yet</p>
-                  </div>
-                ) : (
-                  recentNotifications.map((notif) => (
-                    <div
-                      className={`notif-dropdown-item ${!notif.read ? "unread" : ""}`}
-                      key={notif.notificationId}
-                      onClick={() => handleNotifClick(notif)}
-                    >
-                      <div className={`notif-dropdown-icon ${notif.type}`}>
-                        {getNotificationIcon(notif.type)}
-                      </div>
-                      <div className="notif-dropdown-content">
-                        <h4>{notif.title}</h4>
-                        <p>{notif.message}</p>
-                        <span>{formatTime(notif.createdAt)}</span>
-                      </div>
-                      {!notif.read && <div className="notif-dropdown-dot"></div>}
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <div
-                className="notif-dropdown-footer"
-                onClick={() => {
-                  navigate("/notifications");
-                  setNotifOpen(false);
-                }}
-              >
-                View all notifications
-              </div>
-            </div>
-          )}
         </div>
+
+        {notifOpen && (
+          <div className="notif-dropdown" ref={notifMenuRef}>
+            <div className="notif-dropdown-header">
+              <h3>Notifications</h3>
+              {unreadCount > 0 && (
+                <button onClick={handleMarkAllRead}>Mark all read</button>
+              )}
+            </div>
+
+            <div className="notif-dropdown-list">
+              {recentNotifications.length === 0 ? (
+                <div className="notif-dropdown-empty">
+                  <FaBell />
+                  <p>No notifications yet</p>
+                </div>
+              ) : (
+                recentNotifications.map((notif) => (
+                  <div
+                    className={`notif-dropdown-item ${!notif.read ? "unread" : ""}`}
+                    key={notif.notificationId}
+                    onClick={() => handleNotifClick(notif)}
+                  >
+                    <div className={`notif-dropdown-icon ${notif.type}`}>
+                      {getNotificationIcon(notif.type)}
+                    </div>
+                    <div className="notif-dropdown-content">
+                      <h4>{notif.title}</h4>
+                      <p>{notif.message}</p>
+                      <span>{formatTime(notif.createdAt)}</span>
+                    </div>
+                    {!notif.read && <div className="notif-dropdown-dot"></div>}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div
+              className="notif-dropdown-footer"
+              onClick={() => {
+                navigate("/notifications");
+                setNotifOpen(false);
+              }}
+            >
+              View all notifications
+            </div>
+          </div>
+        )}
 
         <Outlet />
         {!location.pathname.includes("/video/") && (

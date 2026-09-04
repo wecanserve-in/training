@@ -3,44 +3,17 @@ import { useNavigate, useParams } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { ref, get } from "firebase/database";
 import { auth, database } from "../firebase";
+import useBasePath from "../hooks/useBasePath";
 import "../styles/resultpage.css";
 
 function ResultPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const basePath = useBasePath();
 
   const [result, setResult] = useState(null);
   const [course, setCourse] = useState(null);
-  const [viewerRole, setViewerRole] = useState("user");
   const [loading, setLoading] = useState(true);
-
-  /*
-   * Make sure these paths match the paths used in your App.jsx.
-   *
-   * Example:
-   * superAdmin       -> /superadmin
-   * admin            -> /admin
-   * departmentAdmin  -> /department-admin
-   * user             -> normal user routes
-   */
-  const getRoleBasePath = (role) => {
-    switch (role) {
-      case "superAdmin":
-        return "/superadmin";
-
-      case "admin":
-        return "/admin";
-
-      case "departmentAdmin":
-      case "deptAdmin":
-        return "/department-admin";
-
-      default:
-        return "";
-    }
-  };
-
-  const basePath = getRoleBasePath(viewerRole);
 
   const getDashboardPath = () => {
     if (!basePath) {
@@ -79,28 +52,6 @@ function ResultPage() {
       }
 
       try {
-        /*
-         * Get the role of the person currently viewing the page.
-         * Do not use attemptUserId here because an admin may be viewing
-         * another user's result.
-         */
-        const viewerSnap = await get(
-          ref(database, `users/${loggedInUser.uid}`)
-        );
-
-        if (viewerSnap.exists()) {
-          const viewerData = viewerSnap.val();
-
-          setViewerRole(
-            viewerData.role ||
-              viewerData.userRole ||
-              viewerData.type ||
-              "user"
-          );
-        } else {
-          setViewerRole("user");
-        }
-
         await fetchResult();
       } catch (error) {
         console.error("Result page loading error:", error);

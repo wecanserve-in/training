@@ -548,32 +548,799 @@
 .text-muted { color: #94a3b8; font-size: 0.85rem; }
 
 /* ─── Responsive ─── */
+/* =========================================================
+   MOBILE RESPONSIVE
+   ========================================================= */
+
 @media (max-width: 768px) {
-  .manage-users-page { padding: 0 12px 20px; }
-  .mu-hero {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 18px 20px;
-    gap: 12px;
+
+  .manage-users-page {
+    width: 100%;
+    max-width: 100%;
+    padding: 0 12px 20px;
+    margin-top: 0;
+    overflow-x: hidden;
   }
-  .mu-hero-content h1 { font-size: 1.25rem; }
-  .mu-hero-stats { gap: 16px; }
+
+  /* =========================
+     HERO
+     ========================= */
+
+  .mu-hero {
+    width: 100%;
+    margin: 0 0 12px;
+    padding: 16px;
+    border-radius: 14px;
+
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .mu-hero-content {
+    width: 100%;
+  }
+
+  .mu-hero-content h1 {
+    font-size: 1.15rem;
+    line-height: 1.25;
+  }
+
+  .mu-hero-content p {
+    font-size: 0.72rem;
+    line-height: 1.35;
+  }
+
+  /* Stats stay in one clean row */
+  .mu-hero-stats {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+
+  .mu-hero-stat {
+    min-width: 0;
+    gap: 5px;
+  }
+
+  .mu-hero-stat-icon {
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    border-radius: 8px;
+  }
+
+  .mu-hero-stat strong {
+    font-size: 0.85rem;
+  }
+
+  .mu-hero-stat span {
+    font-size: 0.58rem;
+    line-height: 1.15;
+  }
+
+
+  /* =========================
+     SEARCH + ACTIONS
+     ========================= */
+
   .mu-action-bar {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .mu-search-box {
+    width: 100%;
+    max-width: none;
+    min-height: 36px;
+    padding: 7px 11px;
+  }
+
+  .mu-search-box input {
+    min-width: 0;
+    font-size: 0.75rem;
+  }
+
+  /* IMPORTANT:
+     Buttons arranged in proper rows */
+  .mu-action-buttons {
+    width: 100%;
+    display: grid;
+
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+
+    align-items: stretch;
+  }
+
+  .mu-action-buttons .mu-btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 34px;
+
+    justify-content: center;
+
+    padding: 7px 6px;
+
+    font-size: 0.68rem;
+    line-height: 1.1;
+
+    white-space: nowrap;
+  }
+
+  /* Make Add New User full width */
+  .mu-action-buttons .mu-btn-primary {
+    grid-column: 1 / -1;
+  }
+
+  /* Make Download Users Detail full width */
+  .mu-action-buttons .mu-btn-green {
+    grid-column: 1 / -1;
+  }
+
+
+  /* =========================
+     FORM
+     ========================= */
+
+  .mu-form-card {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .mu-form-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .mu-form-actions {
+    width: 100%;
     flex-direction: column;
     align-items: stretch;
   }
-  .mu-search-box { max-width: 100%; }
-  .mu-action-buttons { justify-content: flex-end; }
-  .mu-form-grid { grid-template-columns: 1fr; }
-  .mu-actions button { width: 28px; height: 28px; }
+
+  .mu-form-actions .mu-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+
+  /* =========================
+     USERS TABLE
+     ========================= */
+
+  .mu-table-card {
+    width: 100%;
+    border-radius: 12px;
+  }
+
+  .mu-table-header {
+    padding: 13px 12px;
+  }
+
+  .mu-table-header h2 {
+    font-size: 0.9rem;
+  }
+
+  .mu-table-header p {
+    font-size: 0.68rem;
+  }
+
+  .mu-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .mu-table-wrap table {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  .mu-table-wrap th {
+    padding: 8px 8px;
+    font-size: 0.6rem;
+  }
+
+  .mu-table-wrap td {
+    padding: 9px 8px;
+    font-size: 0.68rem;
+    word-break: break-word;
+  }
+
+  .mu-td-email {
+    font-size: 0.62rem;
+    word-break: break-all;
+  }
+
+  .mu-td-name {
+    font-size: 0.68rem;
+  }
+
+  .mu-td-idx {
+    font-size: 0.62rem;
+  }
+
+  .mu-actions {
+    gap: 2px;
+  }
+
+  .mu-actions button {
+    width: 26px;
+    height: 26px;
+  }
+
+
+  /* =========================
+     MODALS
+     ========================= */
+
+  .modal-overlay {
+    padding: 12px;
+  }
+
+  .modal-content {
+    width: 100%;
+    max-width: 450px;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+    padding: 18px;
+  }
+
+  .modal-header {
+    margin-bottom: 15px;
+  }
+
+  .modal-header h2 {
+    font-size: 1rem;
+  }
+
+  .designation-input-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .designation-input-row input {
+    width: 100%;
+  }
 }
 
+
+/* =========================================================
+   SMALL PHONES
+   ========================================================= */
+
 @media (max-width: 480px) {
-  .mu-hero { margin: 0 0 12px; padding: 16px; }
-  .mu-hero-content h1 { font-size: 1.1rem; }
-  .mu-hero-stat-icon { width: 32px; height: 32px; }
-  .mu-hero-stat strong { font-size: 0.95rem; }
-  .mu-hero-stat span { font-size: 0.65rem; }
-  .mu-action-buttons { flex-wrap: wrap; }
-  .mu-btn { padding: 7px 10px; font-size: 0.78rem; }
+
+  .manage-users-page {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  /* HERO */
+
+  .mu-hero {
+    padding: 14px;
+  }
+
+  .mu-hero-content h1 {
+    font-size: 1.05rem;
+  }
+
+  .mu-hero-content p {
+    font-size: 0.68rem;
+  }
+
+  .mu-hero-stats {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+  }
+
+  .mu-hero-stat {
+    gap: 4px;
+  }
+
+  .mu-hero-stat-icon {
+    width: 27px;
+    height: 27px;
+    min-width: 27px;
+  }
+
+  .mu-hero-stat strong {
+    font-size: 0.78rem;
+  }
+
+  .mu-hero-stat span {
+    font-size: 0.52rem;
+  }
+
+
+  /* BUTTONS */
+
+  .mu-action-buttons {
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+  }
+
+  .mu-action-buttons .mu-btn {
+    min-height: 32px;
+    padding: 6px 4px;
+    font-size: 0.62rem;
+  }
+
+
+  /* TABLE */
+
+  .mu-table-header {
+    padding: 12px 10px;
+  }
+
+  .mu-table-wrap th {
+    padding: 7px 6px;
+    font-size: 0.55rem;
+  }
+
+  .mu-table-wrap td {
+    padding: 8px 6px;
+    font-size: 0.62rem;
+  }
+
+  .mu-td-email {
+    font-size: 0.57rem;
+  }
+
+  .mu-td-name {
+    font-size: 0.63rem;
+  }
+}
+
+
+/* =========================================================
+   VERY SMALL PHONES
+   ========================================================= */
+
+@media (max-width: 360px) {
+
+  .manage-users-page {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .mu-action-buttons {
+    gap: 4px;
+  }
+
+  .mu-action-buttons .mu-btn {
+    font-size: 0.58rem;
+    padding-left: 3px;
+    padding-right: 3px;
+  }
+
+  .mu-hero-stat-icon {
+    width: 25px;
+    height: 25px;
+    min-width: 25px;
+  }
+
+  .mu-hero-stat strong {
+    font-size: 0.72rem;
+  }
+
+  .mu-hero-stat span {
+    font-size: 0.48rem;
+  }
+}
+
+
+/* =========================================================
+   FINAL MOBILE WIDTH FIX
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+  html,
+  body,
+  #root {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow-x: hidden !important;
+  }
+
+  .super-layout {
+    width: 100vw !important;
+    min-width: 100vw !important;
+    max-width: 100vw !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    overflow-x: hidden !important;
+  }
+
+  .super-page {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+
+    margin-left: 0 !important;
+
+    padding: 10px !important;
+
+    overflow-x: hidden !important;
+  }
+
+  .manage-users-page {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+
+    margin: 0 !important;
+    padding: 0 10px 20px !important;
+
+    box-sizing: border-box !important;
+  }
+
+  .mobile-topbar {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* =========================================================
+   FINAL MOBILE FULL WIDTH FIX
+   ========================================================= */
+
+@media screen and (max-width: 768px) {
+
+  /* ---------- GLOBAL ---------- */
+
+  html,
+  body {
+    width: 100vw !important;
+    min-width: 100vw !important;
+    max-width: 100vw !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    overflow-x: hidden !important;
+  }
+
+  #root {
+    width: 100vw !important;
+    min-width: 100vw !important;
+    max-width: 100vw !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    overflow-x: hidden !important;
+  }
+
+
+  /* ---------- SUPER ADMIN WRAPPER ---------- */
+
+  .super-layout {
+    width: 100vw !important;
+    min-width: 100vw !important;
+    max-width: 100vw !important;
+
+    min-height: 100vh !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    overflow-x: hidden !important;
+  }
+
+
+  /* ---------- MOBILE HEADER ---------- */
+
+  .mobile-notification-wrapper {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    min-width: 0 !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    box-sizing: border-box !important;
+  }
+
+  .mobile-topbar {
+    width: 100vw !important;
+    max-width: 100vw !important;
+
+    height: 56px !important;
+
+    margin: 0 !important;
+
+    padding: 0 12px !important;
+
+    box-sizing: border-box !important;
+  }
+
+
+  /* ---------- MAIN CONTENT ---------- */
+
+  .super-page {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    min-width: 0 !important;
+
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+
+    padding: 10px !important;
+
+    box-sizing: border-box !important;
+
+    overflow-x: hidden !important;
+  }
+
+
+  /* ---------- MANAGE USERS ---------- */
+
+  .manage-users-page {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+
+    margin: 0 !important;
+
+    padding: 0 !important;
+
+    box-sizing: border-box !important;
+
+    overflow-x: hidden !important;
+  }
+
+
+  /* ---------- HERO ---------- */
+
+  .manage-users-page .mu-hero {
+    width: 100% !important;
+    max-width: 100% !important;
+
+    margin: 0 0 10px !important;
+
+    box-sizing: border-box !important;
+  }
+
+
+  /* ---------- SEARCH ---------- */
+
+  .manage-users-page .mu-action-bar {
+    width: 100% !important;
+    max-width: 100% !important;
+
+    box-sizing: border-box !important;
+  }
+
+  .manage-users-page .mu-search-box {
+    width: 100% !important;
+    max-width: 100% !important;
+
+    box-sizing: border-box !important;
+  }
+
+
+  /* ---------- BUTTONS ---------- */
+
+  .manage-users-page .mu-action-buttons {
+    width: 100% !important;
+    max-width: 100% !important;
+
+    display: grid !important;
+
+    grid-template-columns:
+      minmax(0, 1fr)
+      minmax(0, 1fr) !important;
+
+    gap: 6px !important;
+
+    box-sizing: border-box !important;
+  }
+
+  .manage-users-page .mu-action-buttons .mu-btn {
+    width: 100% !important;
+    min-width: 0 !important;
+
+    box-sizing: border-box !important;
+
+    justify-content: center !important;
+  }
+
+  .manage-users-page .mu-action-buttons .mu-btn-primary,
+  .manage-users-page .mu-action-buttons .mu-btn-green {
+    grid-column: 1 / -1 !important;
+  }
+
+
+  /* ---------- TABLE CARD ---------- */
+
+  .manage-users-page .mu-table-card {
+    width: 100% !important;
+    max-width: 100% !important;
+
+    margin: 0 !important;
+
+    box-sizing: border-box !important;
+
+    overflow: hidden !important;
+  }
+
+
+  /* ---------- TABLE ---------- */
+
+  .manage-users-page .mu-table-wrap {
+    width: 100% !important;
+    max-width: 100% !important;
+
+    overflow-x: auto !important;
+
+    box-sizing: border-box !important;
+  }
+
+  .manage-users-page .mu-table-wrap table {
+    width: 100% !important;
+
+    min-width: 0 !important;
+
+    table-layout: fixed !important;
+
+    box-sizing: border-box !important;
+  }
+
+
+  /* # */
+  .manage-users-page .mu-table-wrap th:nth-child(1),
+  .manage-users-page .mu-table-wrap td:nth-child(1) {
+    width: 9% !important;
+    text-align: center !important;
+  }
+
+  /* NAME */
+  .manage-users-page .mu-table-wrap th:nth-child(2),
+  .manage-users-page .mu-table-wrap td:nth-child(2) {
+    width: 27% !important;
+  }
+
+  /* EMAIL */
+  .manage-users-page .mu-table-wrap th:nth-child(3),
+  .manage-users-page .mu-table-wrap td:nth-child(3) {
+    width: 64% !important;
+  }
+
+
+  /* Hide secondary columns on phone */
+
+  .manage-users-page .mu-table-wrap th:nth-child(4),
+  .manage-users-page .mu-table-wrap td:nth-child(4),
+
+  .manage-users-page .mu-table-wrap th:nth-child(5),
+  .manage-users-page .mu-table-wrap td:nth-child(5),
+
+  .manage-users-page .mu-table-wrap th:nth-child(6),
+  .manage-users-page .mu-table-wrap td:nth-child(6),
+
+  .manage-users-page .mu-table-wrap th:nth-child(7),
+  .manage-users-page .mu-table-wrap td:nth-child(7),
+
+  .manage-users-page .mu-table-wrap th:nth-child(8),
+  .manage-users-page .mu-table-wrap td:nth-child(8),
+
+  .manage-users-page .mu-table-wrap th:nth-child(9),
+  .manage-users-page .mu-table-wrap td:nth-child(9),
+
+  .manage-users-page .mu-table-wrap th:nth-child(10),
+  .manage-users-page .mu-table-wrap td:nth-child(10),
+
+  .manage-users-page .mu-table-wrap th:nth-child(11),
+  .manage-users-page .mu-table-wrap td:nth-child(11) {
+    display: none !important;
+  }
+
+
+  /* ---------- TABLE TEXT ---------- */
+
+  .manage-users-page .mu-table-wrap th {
+    padding: 9px 7px !important;
+
+    font-size: 0.56rem !important;
+
+    white-space: nowrap !important;
+  }
+
+  .manage-users-page .mu-table-wrap td {
+    padding: 10px 7px !important;
+
+    font-size: 0.68rem !important;
+
+    vertical-align: middle !important;
+  }
+
+  .manage-users-page .mu-td-name {
+    font-size: 0.68rem !important;
+    font-weight: 600 !important;
+
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .manage-users-page .mu-td-email {
+    font-size: 0.60rem !important;
+
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+  }
+
+
+  /* ---------- MOBILE SIDEBAR ---------- */
+
+  .super-sidebar {
+    width: min(280px, 85vw) !important;
+
+    max-width: 280px !important;
+
+    left: 0 !important;
+  }
+
+}
+
+
+/* =========================================================
+   VERY SMALL PHONES
+   ========================================================= */
+
+@media screen and (max-width: 360px) {
+
+  .super-page {
+    padding: 8px !important;
+  }
+
+  .manage-users-page {
+    padding: 0 !important;
+  }
+
+  .mobile-topbar {
+    padding: 0 9px !important;
+  }
+
+  .manage-users-page .mu-hero {
+    padding: 13px !important;
+  }
+
+  .manage-users-page .mu-action-buttons {
+    gap: 5px !important;
+  }
+
+  .manage-users-page .mu-action-buttons .mu-btn {
+    min-height: 32px !important;
+    padding: 6px 4px !important;
+    font-size: 0.60rem !important;
+  }
+
+  .manage-users-page .mu-table-wrap th {
+    padding: 8px 5px !important;
+  }
+
+  .manage-users-page .mu-table-wrap td {
+    padding: 9px 5px !important;
+  }
+
+  .manage-users-page .mu-td-email {
+    font-size: 0.56rem !important;
+  }
 }
