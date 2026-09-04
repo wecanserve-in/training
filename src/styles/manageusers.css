@@ -170,6 +170,17 @@
   background: #e2e8f0;
 }
 
+.mu-btn-green {
+  background: #059669;
+  color: #fff;
+  border: 1px solid #059669;
+}
+
+.mu-btn-green:hover {
+  background: #047857;
+  border-color: #047857;
+}
+
 /* ─── Form Card ─── */
 .mu-form-card {
   background: #fff;

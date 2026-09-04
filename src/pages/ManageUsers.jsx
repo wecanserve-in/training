@@ -526,6 +526,72 @@ function ManageUsers() {
     XLSX.writeFile(workbook, "user-template.xlsx");
   };
 
+  const downloadUsersDetail = () => {
+    const fmtDate = (val) => {
+      if (!val) return "";
+      const d = new Date(val);
+      if (isNaN(d)) return val;
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const yyyy = d.getFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    };
+
+    const roleLabel = (r) => {
+      const norm = String(r || "").trim().toLowerCase();
+      if (norm === "superadmin") return "Super Admin";
+      if (norm === "admin") return "Admin";
+      if (norm === "departmentadmin" || norm === "department_admin" || norm === "deptadmin" || norm === "department admin" || norm === "dept admin") return "Dept Admin";
+      return "User";
+    };
+
+    const rows = users.map((u) => {
+      const kids = Array.isArray(u.kids)
+        ? u.kids
+        : u.kids && typeof u.kids === "object"
+          ? Object.values(u.kids)
+          : [];
+      return {
+        Name: u.name || "",
+        Email: u.email || "",
+        Phone: u.phone || "",
+        "Date of Birth": fmtDate(u.dob),
+        Gender: u.gender ? (u.gender.charAt(0).toUpperCase() + u.gender.slice(1)) : "",
+        Designation: u.designation || "",
+        Seniority: u.seniority ? (u.seniority.charAt(0).toUpperCase() + u.seniority.slice(1)) : "",
+        Department: u.department || "",
+        Zone: u.zone || "",
+        State: u.state || "",
+        City: u.cityArea || "",
+        Role: roleLabel(u.role),
+        "Marital Status": u.maritalStatus ? (u.maritalStatus.charAt(0).toUpperCase() + u.maritalStatus.slice(1)) : "",
+        "Anniversary Date": fmtDate(u.anniversaryDate),
+        "Spouse Name": u.spouseName || "",
+        "Number of Kids": u.numberOfKids ?? kids.length ?? 0,
+        "Kid 1 Name": kids[0]?.name || "",
+        "Kid 1 DOB": fmtDate(kids[0]?.dob),
+        "Kid 2 Name": kids[1]?.name || "",
+        "Kid 2 DOB": fmtDate(kids[1]?.dob),
+        "Kid 3 Name": kids[2]?.name || "",
+        "Kid 3 DOB": fmtDate(kids[2]?.dob),
+        "Residential Address": u.residentialAddress || "",
+        "Emergency Contact": u.emergencyContact || "",
+      };
+    });
+
+    const roleOrder = { "super admin": 0, admin: 1, "dept admin": 2, user: 3 };
+    rows.sort((a, b) => {
+      const ra = roleOrder[String(a.Role || "").trim().toLowerCase()] ?? 4;
+      const rb = roleOrder[String(b.Role || "").trim().toLowerCase()] ?? 4;
+      return ra - rb;
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Users Details");
+    XLSX.writeFile(workbook, "users-detail.xlsx");
+  };
+
   const normalizeRole = (role) =>
     String(role || "")
       .trim()
@@ -719,6 +785,10 @@ const filteredUsers = users
           <button className="mu-btn mu-btn-primary" onClick={() => { setEditingUserId(null); resetForm(); setShowForm(true); }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Add New User
+          </button>
+          <button className="mu-btn mu-btn-green" onClick={downloadUsersDetail}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download Users Detail
           </button>
         </div>
       </div>
