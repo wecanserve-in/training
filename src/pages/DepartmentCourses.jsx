@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { get, ref, remove } from "firebase/database";
+import { get, ref } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, database } from "../firebase";
 import { Link, useNavigate } from "react-router-dom";
+import { deleteCourseEverywhere } from "../services/courseService";
 import "../styles/departmentcourses.css";
 
 function DepartmentCourses() {
@@ -81,28 +82,14 @@ function DepartmentCourses() {
     const confirmDelete = window.confirm("Are you sure you want to delete this course?");
     if (!confirmDelete) return;
     
-    const userId = currentUser?.uid;
-    const course = courses.find((c) => c.id === courseId);
-    
-    await Promise.all([
-      remove(ref(database, `courses/${courseId}`)),
-      remove(ref(database, `userAssignments/${userId}/${courseId}`)),
-    ]);
-    
-    if (userId && course) {
-      await Promise.all([
-        remove(ref(database, `courseProgress/${userId}/${courseId}`)),
-        remove(ref(database, `completedCourses/${userId}/${courseId}`)),
-      ]);
-      
-      if (course.videoIds && course.videoIds.length > 0) {
-        const videoProgressPromises = course.videoIds.map((videoId) =>
-          remove(ref(database, `videoProgress/${userId}/${courseId}/${videoId}`))
-        );
-        await Promise.all(videoProgressPromises);
-      }
+    try {
+      await deleteCourseEverywhere(courseId);
+    } catch (error) {
+      console.error("Failed to delete course:", error);
+      alert("Could not delete the course. Please try again.");
+      return;
     }
-    
+
     fetchData(currentUser);
   };
 

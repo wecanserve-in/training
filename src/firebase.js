@@ -1,7 +1,7 @@
 
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getDatabase } from "firebase/database";
+import { connectAuthEmulator, getAuth } from "firebase/auth";
+import { connectDatabaseEmulator, getDatabase } from "firebase/database";
 
 export const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -29,3 +29,9 @@ const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export const database = getDatabase(app);
+
+// Local testing only (npm run test:e2e). Never set in production builds.
+if (import.meta.env.VITE_USE_EMULATORS === "true") {
+  connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+  connectDatabaseEmulator(database, "127.0.0.1", 9000);
+}

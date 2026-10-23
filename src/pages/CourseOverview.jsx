@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { get, ref, remove } from "firebase/database";
+import { get, ref } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, database } from "../firebase";
 import useBasePath from "../hooks/useBasePath";
+import { deleteCourseEverywhere } from "../services/courseService";
 import "../styles/courseoverview.css";
 
 function CourseOverview() {
@@ -11,7 +12,7 @@ function CourseOverview() {
   const navigate = useNavigate();
   const basePath = useBasePath();
 
-  const [currentUser, setCurrentUser] = useState(null);
+  const [, setCurrentUser] = useState(null);
   const [course, setCourse] = useState(null);
   const [videos, setVideos] = useState([]);
   const [questions, setQuestions] = useState([]); 
@@ -172,27 +173,14 @@ function CourseOverview() {
     const confirmDelete = window.confirm("Are you sure you want to delete this course?");
     if (!confirmDelete) return;
     
-    const userId = currentUser?.uid;
-    
-    await Promise.all([
-      remove(ref(database, `courses/${course.id}`)),
-      remove(ref(database, `userAssignments/${userId}/${course.id}`)),
-    ]);
-    
-    if (userId) {
-      await Promise.all([
-        remove(ref(database, `courseProgress/${userId}/${course.id}`)),
-        remove(ref(database, `completedCourses/${userId}/${course.id}`)),
-      ]);
-      
-      if (course.videoIds && course.videoIds.length > 0) {
-        const videoProgressPromises = course.videoIds.map((videoId) =>
-          remove(ref(database, `videoProgress/${userId}/${course.id}/${videoId}`))
-        );
-        await Promise.all(videoProgressPromises);
-      }
+    try {
+      await deleteCourseEverywhere(course.id);
+    } catch (error) {
+      console.error("Failed to delete course:", error);
+      alert("Could not delete the course. Please try again.");
+      return;
     }
-    
+
     navigate(`${basePath}/courses`);
   };
 

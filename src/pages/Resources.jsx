@@ -19,19 +19,8 @@ import {
 } from "react-icons/fa";
 import "../styles/resources.css";
 
-// --- R2 IMPORT ---
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-
-// --- R2 CLIENT INITIALIZATION ---
-const s3Client = new S3Client({
-  region: "auto",
-  endpoint: `https://${import.meta.env.VITE_R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: import.meta.env.VITE_R2_ACCESS_KEY_ID,
-    secretAccessKey: import.meta.env.VITE_R2_SECRET_ACCESS_KEY,
-  },
-  requestChecksumCalculation: "WHEN_REQUIRED",
-});
+import { uploadFile } from "../services/uploadService";
+import { normalizeRole } from "../lib/userAccess";
 
 const FILE_ICONS = {
   pdf: FaFilePdf,
@@ -112,7 +101,7 @@ function Resources() {
     }
   };
 
-  const isAdmin = ["superAdmin", "admin", "departmentAdmin"].includes(user?.role);
+  const isAdmin = ["superadmin", "admin", "departmentadmin"].includes(normalizeRole(user?.role));
 
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
@@ -126,29 +115,8 @@ function Resources() {
 
     setUploading(true);
     try {
-      const bucketName = import.meta.env.VITE_R2_BUCKET_NAME;
-      const publicDomain = import.meta.env.VITE_R2_PUBLIC_URL;
-
-      if (!bucketName || !publicDomain) {
-        throw new Error("R2 environment variables are missing.");
-      }
-
-      // 1. Generate unique file name for R2
-      const fileExtension = selectedFile.name.split('.').pop();
-      const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
-      const fileKey = `resources/${uniqueFileName}`;
-
-      // 2. Upload directly to R2
-      const command = new PutObjectCommand({
-        Bucket: bucketName,
-        Key: fileKey,
-        Body: selectedFile,
-        ContentType: selectedFile.type,
-      });
-
-      await s3Client.send(command);
-
-      const secureUrl = `${publicDomain}/${fileKey}`;
+      // 1. Upload to R2 through a signed link from the server
+      const { url: secureUrl } = await uploadFile(selectedFile, "resources");
 
       // 3. Save to Firebase
       const resourceData = {

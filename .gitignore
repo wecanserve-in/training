@@ -28,3 +28,11 @@ public/videos/
 *.mp4
 
 .env
+# Server secrets (never commit)
+server/config.php
+*service-account*.json
+lms-private/
+
+# Test output
+test-results/
+playwright-report/

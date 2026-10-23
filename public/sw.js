@@ -1,4 +1,4 @@
-const CACHE_NAME = "zuvious-portal-v1";
+const CACHE_NAME = "zuvious-portal-v2";
 const PRECACHE = ["/", "/index.html"];
 
 self.addEventListener("install", (event) => {
@@ -19,15 +19,35 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+// Network first, falling back to the cache when offline.
+// Only the site's own files are cached: never the API, Firebase,
+// or videos/images from storage (those are large and use range requests).
 self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") return;
+  const { request } = event;
+
+  if (request.method !== "GET") return;
+
+  const url = new URL(request.url);
+
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith("/api/")) return;
+  if (request.headers.has("range")) return;
+
   event.respondWith(
-    fetch(event.request)
+    fetch(request)
       .then((response) => {
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        if (response.ok && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        }
         return response;
       })
-      .catch(() => caches.match(event.request))
+      .catch(() =>
+        caches.match(request).then(
+          (cached) =>
+            cached ||
+            (request.mode === "navigate" ? caches.match("/index.html") : undefined)
+        )
+      )
   );
 });

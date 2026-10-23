@@ -1,21 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { get, ref, set, update } from "firebase/database";
+import { get, ref, set } from "firebase/database";
 import { auth, database } from "../firebase";
 import useBasePath from "../hooks/useBasePath";
-import { createNotification } from "../services/doubtService";
+import { apiRequest } from "../services/apiClient";
 import {
   coursePath,
   courseVideosForCoursePath,
-  questionsForCoursePath,
   videoProgressForCoursePath,
   courseProgressForCoursePath,
   quizAttemptsForCoursePath,
   quizAttemptPath,
   legacyCompletedCoursePath,
   legacyAttemptsPath,
-  legacyAttemptPath,
   legacyResultsPath,
 } from "../services/dbPaths";
 import "../styles/quizpage.css";
@@ -129,7 +127,7 @@ function QuizPage() {
           oldVideosSnapshot,
           videoLibrarySnapshot,
           courseVideosSnapshot,
-          questionsSnapshot,
+          questionsResult,
           videoQuestionsSnapshot,
           completedCourseSnapshot,
           courseProgressSnapshot,
@@ -141,7 +139,10 @@ function QuizPage() {
           get(ref(database, "videos")),
           get(ref(database, "videoLibrary")),
           get(ref(database, courseVideosForCoursePath(activeCourseId))),
-          get(ref(database, questionsForCoursePath(activeCourseId))),
+          // Final test questions come from the server without their answers.
+          isVideoQuiz
+            ? Promise.resolve(null)
+            : apiRequest("quiz.php", { query: { courseId: activeCourseId } }),
           get(ref(database, "videoQuizzes")),
           get(ref(database, legacyCompletedCoursePath(user.uid, activeCourseId))),
           get(ref(database, courseProgressForCoursePath(user.uid, activeCourseId))),
@@ -425,15 +426,14 @@ function QuizPage() {
             )
           );
         } else {
-          const courseQuestions = questionsSnapshot.exists()
-            ? questionsSnapshot.val() || {}
-            : {};
+          const courseQuestions = Array.isArray(questionsResult?.questions)
+            ? questionsResult.questions
+            : [];
 
-          allQuestions = Object.entries(courseQuestions)
-            .map(([questionId, question]) => ({
-              id: questionId,
-              courseId: activeCourseId,
+          allQuestions = courseQuestions
+            .map((question) => ({
               ...(question || {}),
+              courseId: activeCourseId,
             }))
             .filter((question) => getQuestionText(question))
             .sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
@@ -619,119 +619,28 @@ function QuizPage() {
         return;
       }
 
-      const passingScore = Number(course.passingScore || 70);
-      const passed = total === 0 || percentage >= passingScore;
-      const legacyAttemptId = `${user.uid}_${course.id}_${Date.now()}`;
-      const quizId = `final_${course.id}_${Date.now()}`;
-
-      const normalizedAttempt = {
-        quizId,
-        quizType: "final",
-        userId: user.uid,
-        userName: user.displayName || "",
-        courseId: course.id,
-        courseTitle: course.title || course.courseTitle || "",
-        score: percentage,
-        totalMarks: total,
-        correct,
-        percentage,
-        passed,
-        attemptCount: 1,
-        legacyAttemptId,
-        reason,
-        warningCount: warningCountRef.current,
-        answers,
-        attemptedAt: nowIso,
-      };
-
-      await set(
-        ref(database, quizAttemptPath(user.uid, course.id, quizId)),
-        normalizedAttempt
-      );
-
-      // Kept temporarily because the existing Result page may still read this path.
-      await set(ref(database, legacyAttemptPath(user.uid, legacyAttemptId)), {
-        userId: user.uid,
-        userName: user.displayName || "",
-        courseId: course.id,
-        courseTitle: course.title || course.courseTitle || "",
-        score: percentage,
-        percentage,
-        total,
-        totalMarks: total,
-        correct,
-        passed,
-        quizId,
-        reason,
-        warningCount: warningCountRef.current,
-        submittedAt: nowIso,
+      // The final test is graded on the server, which also saves the result,
+      // progress, completion record and notifications.
+      const result = await apiRequest("submit-quiz.php", {
+        method: "POST",
+        body: {
+          courseId: course.id,
+          answers,
+          reason,
+          warningCount: warningCountRef.current,
+        },
       });
 
-      if (passed) {
-        // Update only test/completion fields. Do not erase video counts already stored.
-        await update(
-          ref(database, courseProgressForCoursePath(user.uid, course.id)),
-          {
-            courseId: course.id,
-            progressPercentage: 100,
-            completed: true,
-            completedAt: nowIso,
-            lastAccessedAt: nowIso,
-            courseTestCompleted: true,
-            courseTestPassed: true,
-            score: percentage,
-            percentage,
-            correct,
-            totalMarks: total,
-            finalQuizAttemptId: quizId,
-            legacyAttemptId,
-          }
-        );
-
-        // Temporary migration write for older certificate/result screens.
-        await set(
-          ref(database, legacyCompletedCoursePath(user.uid, course.id)),
-          {
-            courseId: course.id,
-            courseTitle: course.title || course.courseTitle || "",
-            passed: true,
-            score: percentage,
-            percentage,
-            correct,
-            total,
-            totalMarks: total,
-            attemptId: legacyAttemptId,
-            quizId,
-            completedAt: nowIso,
-          }
-        );
-
-        try {
-          await createNotification(user.uid, {
-            type: "course_completed",
-            courseId: course.id,
-            courseTitle: course.title || course.courseTitle || "",
-            title: "Congratulations",
-            message: `You have successfully completed '${course.title || course.courseTitle || ""}'.`,
-          });
-          await createNotification(user.uid, {
-            type: "certificate_ready",
-            courseId: course.id,
-            courseTitle: course.title || course.courseTitle || "",
-            title: "Certificate Ready",
-            message: `Your certificate for '${course.title || course.courseTitle || ""}' is now available.`,
-          });
-        } catch (notifError) {
-          console.error("Failed to send completion notification:", notifError);
-        }
+      if (result.legacyAttemptId) {
+        navigate(`${basePath}/result/${result.legacyAttemptId}`);
+      } else {
+        navigate(courseUrl(course.id));
       }
-
-      navigate(`${basePath}/result/${legacyAttemptId}`);
     } catch (error) {
       submittedRef.current = false;
       setSubmitted(false);
       console.error("Failed to submit quiz:", error);
-      alert("Failed to submit quiz. Please try again.");
+      alert(error?.message || "Failed to submit quiz. Please try again.");
     }
   };
 

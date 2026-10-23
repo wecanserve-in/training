@@ -1,4 +1,5 @@
-import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import PageOutlet from "./PageOutlet";
 import { useState, useEffect, useRef } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase";
@@ -786,7 +787,7 @@ function SuperAdminLayout() {
             PAGE CONTENT
             ================================================= */}
 
-        <Outlet />
+        <PageOutlet />
 
         {/* PROFILE COMPLETION */}
         {!location.pathname.includes("/video/") && (

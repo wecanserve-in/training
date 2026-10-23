@@ -1,0 +1,27 @@
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Serve real files and folders (including /api/*.php) directly
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Unknown /api/ paths are a 404, not the React app
+  RewriteRule ^api/ - [R=404,L]
+
+  # Everything else goes to index.html so React Router can handle it
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# Never cache index.html or the service worker, so new deploys show up immediately
+<IfModule mod_headers.c>
+  <FilesMatch "^(index\.html|sw\.js)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+  <FilesMatch "\.(js|css|woff2?|png|webp|svg)$">
+    Header set X-Content-Type-Options "nosniff"
+  </FilesMatch>
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set X-Frame-Options "SAMEORIGIN"
+</IfModule>

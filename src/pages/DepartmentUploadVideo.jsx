@@ -10,27 +10,7 @@ import "../styles/videolibrary.css";
 
 import { generateDefaultThumbnail } from "../utils/generateThumbnail";
 
-// --- R2 IMPORT ---
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-
-// --- R2 CLIENT INITIALIZATION ---
-const s3Client = new S3Client({
-  region: "auto",
-  endpoint: `https://${import.meta.env.VITE_R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: import.meta.env.VITE_R2_ACCESS_KEY_ID,
-    secretAccessKey: import.meta.env.VITE_R2_SECRET_ACCESS_KEY,
-  },
-  requestChecksumCalculation: "WHEN_REQUIRED", // <-- Add this line to fix the error
-});
-
-const createSafeSlug = (value = "") =>
-  String(value)
-    .trim()
-    .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+import { uploadFile } from "../services/uploadService";
 
 function DepartmentUploadVideo() {
   const navigate = useNavigate();
@@ -171,55 +151,9 @@ function DepartmentUploadVideo() {
     });
   };
 
-  // --- R2 UPLOAD (PutObjectCommand + simulated progress) ---
   const uploadFileToR2 = async (file, baseFolder, departmentName, onProgress) => {
-    if (!file) {
-      throw new Error("Please select a file before uploading.");
-    }
-
-    const bucketName = import.meta.env.VITE_R2_BUCKET_NAME;
-    const publicDomain = import.meta.env.VITE_R2_PUBLIC_URL;
-
-    if (!bucketName || !publicDomain) {
-      throw new Error("R2 environment variables missing.");
-    }
-
-    const safeDepartment = createSafeSlug(departmentName) || "general";
-
-    const fileExtension = file.name.split('.').pop();
-    const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
-    const fileKey = `${baseFolder}/${safeDepartment}/${uniqueFileName}`;
-
-    // Simulated progress: ramps up steadily, caps at 90% until upload completes
-    let pct = 0;
-    const sizeMB = (file.size || 0) / (1024 * 1024);
-    const intervalMs = Math.max(200, Math.min(800, Math.round(sizeMB * 15)));
-    const timer = setInterval(() => {
-      if (pct < 90) {
-        pct += 1;
-        if (onProgress) onProgress(pct);
-      }
-    }, intervalMs);
-
-    try {
-      const command = new PutObjectCommand({
-        Bucket: bucketName,
-        Key: fileKey,
-        Body: file,
-        ContentType: file.type,
-      });
-
-      await s3Client.send(command);
-    } finally {
-      clearInterval(timer);
-    }
-
-    if (onProgress) onProgress(100);
-
-    return {
-      secure_url: `${publicDomain}/${fileKey}`,
-      public_id: fileKey,
-    };
+    const { url, key } = await uploadFile(file, baseFolder, { department: departmentName, onProgress });
+    return { secure_url: url, public_id: key };
   };
 
   const uploadAssets = async () => {

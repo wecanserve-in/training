@@ -97,8 +97,8 @@ export const buildUserProfile = (
  *
  * users/{firebaseAuthUid}
  *
- * The initial account below is treated as Super Admin
- * even when the database profile is missing or unreadable.
+ * The role always comes from the database. (There used to be a hard-coded
+ * "emergency" super admin email here; anyone could sign up with it.)
  */
 export const loadUserProfile = async (
   firebaseUser
@@ -107,110 +107,29 @@ export const loadUserProfile = async (
     return null;
   }
 
-  const normalizedEmail = String(
-    firebaseUser.email || ""
-  )
-    .trim()
-    .toLowerCase();
-
-  const isBootstrapSuperAdmin =
-    normalizedEmail ===
-    "wemedialabs@gmail.com";
-
   try {
-    const userReference = ref(
-      database,
-      `users/${firebaseUser.uid}`
+    const snapshot = await get(
+      ref(database, `users/${firebaseUser.uid}`)
     );
 
-    const snapshot = await get(userReference);
-
-    /*
-     * Bootstrap Super Admin:
-     * force this account to always receive
-     * the superadmin role.
-     */
-    if (isBootstrapSuperAdmin) {
-      const databaseProfile =
-        snapshot.exists()
-          ? snapshot.val()
-          : {};
-
-      return buildUserProfile(
-        firebaseUser,
-        {
-          ...databaseProfile,
-
-          uid: firebaseUser.uid,
-          email:
-            firebaseUser.email ||
-            "wemedialabs@gmail.com",
-
-          name:
-            databaseProfile.name ||
-            databaseProfile.fullName ||
-            "Super Admin",
-
-          role: "superAdmin",
-          status: "active",
-        }
-      );
-    }
-
-    /*
-     * Normal user without a database profile.
-     */
     if (!snapshot.exists()) {
-      return buildUserProfile(
-        firebaseUser,
-        {
-          email: firebaseUser.email || "",
-          role: "user",
-          status: "active",
-        }
-      );
+      return buildUserProfile(firebaseUser, {
+        email: firebaseUser.email || "",
+        role: "user",
+        status: "active",
+      });
     }
 
-    /*
-     * Normal user with a database profile.
-     */
     return buildUserProfile(
       firebaseUser,
       snapshot.val()
     );
   } catch (error) {
-    console.error(
-      "Unable to load user profile:",
-      {
-        uid: firebaseUser.uid,
-        email: firebaseUser.email,
-        code: error?.code,
-        message: error?.message,
-      }
-    );
-
-    /*
-     * Allow the bootstrap Super Admin to log in
-     * even if Realtime Database rules deny access.
-     */
-    if (isBootstrapSuperAdmin) {
-      console.warn(
-        "Using emergency Super Admin profile because the database profile could not be loaded."
-      );
-
-      return buildUserProfile(
-        firebaseUser,
-        {
-          uid: firebaseUser.uid,
-          email:
-            firebaseUser.email ||
-            "wemedialabs@gmail.com",
-          name: "Super Admin",
-          role: "superAdmin",
-          status: "active",
-        }
-      );
-    }
+    console.error("Unable to load user profile:", {
+      uid: firebaseUser.uid,
+      code: error?.code,
+      message: error?.message,
+    });
 
     throw error;
   }

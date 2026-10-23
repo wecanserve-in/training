@@ -1,4 +1,5 @@
-import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import PageOutlet from "./PageOutlet";
 import { useState, useEffect, useRef } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase";
@@ -398,7 +399,7 @@ function DepartmentAdminLayout() {
           )}
         </div>
 
-        <Outlet />
+        <PageOutlet />
         {!location.pathname.includes("/video/") && (
           <ProfileCompletionBadge profileData={profile} profilePath="/department-admin/profile" />
         )}

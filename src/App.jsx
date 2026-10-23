@@ -1,66 +1,74 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Suspense, lazy } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 
-import Login from "./pages/Login";
+const Login = lazy(() => import("./pages/Login"));
 
-import Dashboard from "./pages/Dashboard";
-import VideoPage from "./pages/VideoPage";
-import QuizPage from "./pages/QuizPage";
-import ResultPage from "./pages/ResultPage";
-import CertificatePage from "./pages/CertificatePage";
-import MyResults from "./pages/MyResults";
-import CourseDetails from "./pages/CourseDetails";
-import CourseOverview from "./pages/CourseOverview";
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const VideoPage = lazy(() => import("./pages/VideoPage"));
+const QuizPage = lazy(() => import("./pages/QuizPage"));
+const ResultPage = lazy(() => import("./pages/ResultPage"));
+const CertificatePage = lazy(() => import("./pages/CertificatePage"));
+const MyResults = lazy(() => import("./pages/MyResults"));
+const CourseDetails = lazy(() => import("./pages/CourseDetails"));
+const CourseOverview = lazy(() => import("./pages/CourseOverview"));
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import RoleRoute from "./components/RoleRoute";
 
 import SuperAdminLayout from "./components/SuperAdminLayout";
-import SuperAdminDashboard from "./pages/SuperAdminDashboard";
-import ManageAdmins from "./pages/ManageAdmins";
-import ManageUsers from "./pages/ManageUsers";
-import ManageDepartments from "./pages/ManageDepartments";
-import SuperAdminAnalytics from "./pages/SuperAdminAnalytics";
-import DepartmentAnalyticsPage from "./pages/DepartmentAnalyticsPage";
+const SuperAdminDashboard = lazy(() => import("./pages/SuperAdminDashboard"));
+const ManageAdmins = lazy(() => import("./pages/ManageAdmins"));
+const ManageUsers = lazy(() => import("./pages/ManageUsers"));
+const ManageDepartments = lazy(() => import("./pages/ManageDepartments"));
+const SuperAdminAnalytics = lazy(() => import("./pages/SuperAdminAnalytics"));
+const DepartmentAnalyticsPage = lazy(() => import("./pages/DepartmentAnalyticsPage"));
 
 import AdminLayout from "./components/AdminLayout";
-import AdminDashboard from "./pages/AdminDashboard";
-import AdminAnalytics from "./pages/AdminAnalytics";
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const AdminAnalytics = lazy(() => import("./pages/AdminAnalytics"));
 
 import DepartmentAdminLayout from "./components/DepartmentAdminLayout";
-import DepartmentAdminDashboard from "./pages/DepartmentAdminDashboard";
-import DepartmentAssignTraining from "./pages/DepartmentAssignTraining";
-import DepartmentMembers from "./pages/DepartmentMembers";
-import DepartmentVideoLibrary from "./pages/DepartmentVideoLibrary";
-import DepartmentUploadVideo from "./pages/DepartmentUploadVideo";
-import DepartmentCourses from "./pages/DepartmentCourses";
-import DepartmentTestLogs from "./pages/DepartmentTestLogs";
-import DepartmentTrainingAnalytics from "./pages/DepartmentTrainingAnalytics";
-import DepartmentAnalytics from "./pages/DepartmentAnalytics";
-import AssignedUsers from "./pages/AssignedUsers";
+const DepartmentAdminDashboard = lazy(() => import("./pages/DepartmentAdminDashboard"));
+const DepartmentAssignTraining = lazy(() => import("./pages/DepartmentAssignTraining"));
+const DepartmentMembers = lazy(() => import("./pages/DepartmentMembers"));
+const DepartmentVideoLibrary = lazy(() => import("./pages/DepartmentVideoLibrary"));
+const DepartmentUploadVideo = lazy(() => import("./pages/DepartmentUploadVideo"));
+const DepartmentCourses = lazy(() => import("./pages/DepartmentCourses"));
+const DepartmentTestLogs = lazy(() => import("./pages/DepartmentTestLogs"));
+const DepartmentTrainingAnalytics = lazy(() => import("./pages/DepartmentTrainingAnalytics"));
+const DepartmentAnalytics = lazy(() => import("./pages/DepartmentAnalytics"));
+const AssignedUsers = lazy(() => import("./pages/AssignedUsers"));
 
-import AddCourse from "./pages/AddCourse";
-import EditCourse from "./pages/EditCourse";
+const AddCourse = lazy(() => import("./pages/AddCourse"));
+const EditCourse = lazy(() => import("./pages/EditCourse"));
 
-import ManageVideos from "./pages/ManageVideos";
-import AddQuestion from "./pages/AddQuestion";
-import ManageQuestions from "./pages/ManageQuestions";
-import AdminResults from "./pages/AdminResults";
-import EditVideo from "./pages/EditVideo";
-import EditVideoLibrary from "./pages/EditVideoLibrary";
-import EditQuestion from "./pages/EditQuestion";
+const ManageVideos = lazy(() => import("./pages/ManageVideos"));
+const AddQuestion = lazy(() => import("./pages/AddQuestion"));
+const ManageQuestions = lazy(() => import("./pages/ManageQuestions"));
+const AdminResults = lazy(() => import("./pages/AdminResults"));
+const EditVideo = lazy(() => import("./pages/EditVideo"));
+const EditVideoLibrary = lazy(() => import("./pages/EditVideoLibrary"));
+const EditQuestion = lazy(() => import("./pages/EditQuestion"));
 
 import UserLayout from "./components/UserLayout";
-import AssignedCourses from "./pages/AssignedCourses";
-import Certificates from "./pages/Certificates";
-import AllCertificates from "./pages/AllCertificates";
-import MyLearnings from "./pages/MyLearnings";
-import Profile from "./pages/Profile";
-import Resources from "./pages/Resources";
-import Notifications from "./pages/Notifications";
+const AssignedCourses = lazy(() => import("./pages/AssignedCourses"));
+const Certificates = lazy(() => import("./pages/Certificates"));
+const AllCertificates = lazy(() => import("./pages/AllCertificates"));
+const MyLearnings = lazy(() => import("./pages/MyLearnings"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Resources = lazy(() => import("./pages/Resources"));
+const Notifications = lazy(() => import("./pages/Notifications"));
+
+// The course overview shows quiz answers and is for staff only.
+function CourseOverviewRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/course/${id}`} replace />;
+}
 
 function App() {
   return (
     <BrowserRouter>
+      <Suspense fallback={<div className="page-loading" role="status"><span className="page-loading-spinner" aria-hidden="true" /><span>Loading…</span></div>}>
       <Routes>
         <Route path="/" element={<Login />} />
 
@@ -440,7 +448,7 @@ function App() {
 
           <Route
             path="/course-overview/:id"
-            element={<CourseOverview />}
+            element={<CourseOverviewRedirect />}
           />
 
           <Route
@@ -489,6 +497,7 @@ function App() {
           />
         </Route>
       </Routes>
+    </Suspense>
     </BrowserRouter>
   );
 }

@@ -1,185 +1,270 @@
 {
   "rules": {
     "users": {
-      ".read": "auth !== null",
-      ".indexOn": ["email", "role", "departmentId"],
+      ".read": "auth != null",
+      ".indexOn": [
+        "email",
+        "role",
+        "departmentId"
+      ],
       "$uid": {
-        ".write": "auth !== null"
+        ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin) *$/)) || ((auth != null && auth.uid === $uid) && newData.exists())",
+        "role": {
+          ".validate": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin) *$/)) || newData.val() === data.val()"
+        },
+        "status": {
+          ".validate": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin) *$/)) || newData.val() === data.val()"
+        },
+        "email": {
+          ".validate": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin) *$/)) || newData.val() === data.val()"
+        },
+        "uid": {
+          ".validate": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin) *$/)) || newData.val() === data.val()"
+        },
+        "department": {
+          ".validate": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin) *$/)) || newData.val() === data.val()"
+        },
+        "departmentId": {
+          ".validate": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin) *$/)) || newData.val() === data.val()"
+        },
+        "departmentType": {
+          ".validate": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin) *$/)) || newData.val() === data.val()"
+        },
+        "designation": {
+          ".validate": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin) *$/)) || newData.val() === data.val()"
+        },
+        "seniority": {
+          ".validate": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin) *$/)) || newData.val() === data.val()"
+        },
+        "zone": {
+          ".validate": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin) *$/)) || newData.val() === data.val()"
+        },
+        "state": {
+          ".validate": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin) *$/)) || newData.val() === data.val()"
+        },
+        "cityArea": {
+          ".validate": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin) *$/)) || newData.val() === data.val()"
+        }
       }
     },
-
     "departments": {
-      ".read": "auth !== null",
+      ".read": "auth != null",
       "$deptId": {
-        ".write": "auth !== null"
+        ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin) *$/))"
       }
     },
-
+    "master": {
+      ".read": "auth != null",
+      ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin) *$/))"
+    },
     "courses": {
-      ".read": "auth !== null",
-      ".indexOn": ["status", "departmentId", "createdBy"],
+      ".read": "auth != null",
+      ".indexOn": [
+        "status",
+        "departmentId",
+        "createdBy"
+      ],
       "$courseId": {
-        ".write": "auth !== null"
+        ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))"
       }
     },
-
     "courseVideos": {
-      ".read": "auth !== null",
+      ".read": "auth != null",
       "$courseId": {
-        ".write": "auth !== null"
+        ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))"
       }
     },
-
     "videos": {
-      ".read": "auth !== null",
+      ".read": "auth != null",
       "$videoId": {
-        ".write": "auth !== null"
+        ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))"
       }
     },
-
     "videoLibrary": {
-      ".read": "auth !== null",
+      ".read": "auth != null",
       "$videoId": {
-        ".write": "auth !== null"
+        ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))"
       }
     },
-
-    "questions": {
-      ".read": "auth !== null",
-      "$courseId": {
-        ".write": "auth !== null"
-      }
-    },
-
     "videoQuizzes": {
-      ".read": "auth !== null",
+      ".read": "auth != null",
       "$id": {
-        ".write": "auth !== null"
+        ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))"
       }
     },
-
+    "courseContentUpdates": {
+      ".read": "auth != null",
+      "$courseId": {
+        ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))"
+      }
+    },
+    "resources": {
+      ".read": "auth != null",
+      "$resourceId": {
+        ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))"
+      }
+    },
+    "questions": {
+      ".read": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))",
+      ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))"
+    },
+    "courseQuizzes": {
+      ".read": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))",
+      ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))"
+    },
+    "courseQuiz": {
+      ".read": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))",
+      ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))"
+    },
+    "quizzes": {
+      ".read": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))",
+      ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))"
+    },
+    "courseTests": {
+      ".read": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))",
+      ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))"
+    },
     "userAssignments": {
-      ".read": "auth !== null",
+      ".read": "auth != null",
       "$uid": {
-        ".write": "auth !== null"
+        ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))"
       }
     },
-
     "courseProgress": {
-      ".read": "auth !== null",
+      ".read": "auth != null",
       "$uid": {
-        ".write": "auth !== null"
+        ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/)) || (auth != null && auth.uid === $uid)",
+        "$courseId": {
+          "courseTestPassed": {
+            ".validate": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/)) || newData.val() === data.val()"
+          },
+          "courseTestCompleted": {
+            ".validate": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/)) || newData.val() === data.val()"
+          },
+          "passed": {
+            ".validate": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/)) || newData.val() === data.val()"
+          },
+          "score": {
+            ".validate": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/)) || newData.val() === data.val()"
+          },
+          "percentage": {
+            ".validate": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/)) || newData.val() === data.val()"
+          },
+          "correct": {
+            ".validate": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/)) || newData.val() === data.val()"
+          },
+          "totalMarks": {
+            ".validate": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/)) || newData.val() === data.val()"
+          },
+          "finalQuizAttemptId": {
+            ".validate": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/)) || newData.val() === data.val()"
+          },
+          "legacyAttemptId": {
+            ".validate": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/)) || newData.val() === data.val()"
+          },
+          "attemptId": {
+            ".validate": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/)) || newData.val() === data.val()"
+          }
+        }
       }
     },
-
     "videoProgress": {
-      ".read": "auth !== null",
+      ".read": "auth != null",
       "$uid": {
-        ".write": "auth !== null"
+        ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/)) || (auth != null && auth.uid === $uid)"
       }
     },
-
-    "completedCourses": {
-      ".read": "auth !== null",
+    "learningActivity": {
+      ".read": "auth != null",
       "$uid": {
-        ".write": "auth !== null"
+        ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/)) || (auth != null && auth.uid === $uid)"
       }
     },
-
     "quizAttempts": {
-      ".read": "auth !== null",
+      ".read": "auth != null",
       "$uid": {
-        ".write": "auth !== null"
+        ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))",
+        "$courseId": {
+          "$attemptId": {
+            ".write": "(auth != null && auth.uid === $uid) && $attemptId.beginsWith('practice_')",
+            ".validate": "!$attemptId.beginsWith('practice_') || newData.child('quizType').val() === 'practice'"
+          }
+        }
       }
     },
-
     "attempts": {
-      ".read": "auth !== null",
+      ".read": "auth != null",
       "$uid": {
-        ".write": "auth !== null"
+        ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))"
       }
     },
-
+    "completedCourses": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))"
+      }
+    },
     "results": {
-      ".read": "auth !== null",
+      ".read": "auth != null",
       "$uid": {
-        ".write": "auth !== null"
+        ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))"
       }
     },
-
     "certificates": {
-      ".read": "auth !== null",
+      ".read": "auth != null",
       "$uid": {
-        ".write": "auth !== null"
+        ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))"
       }
     },
-
+    "progress": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))"
+      }
+    },
+    "videoQuizAttempts": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))"
+      }
+    },
     "notifications": {
       "$uid": {
-        ".read": "auth !== null && auth.uid === $uid",
-        ".write": "auth !== null && auth.uid === $uid"
+        ".read": "(auth != null && auth.uid === $uid)",
+        ".write": "(auth != null && auth.uid === $uid) || (auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))",
+        "$notificationId": {
+          ".write": "auth != null && !data.exists() && newData.exists()",
+          ".validate": "newData.child('title').isString() && newData.child('message').isString()"
+        }
       }
     },
-
-    "learningActivity": {
-      ".read": "auth !== null",
-      "$uid": {
-        ".write": "auth !== null"
-      }
-    },
-
     "courseDiscussions": {
-      ".read": "auth !== null",
+      ".read": "auth != null",
       "$courseId": {
-        ".write": "auth !== null"
+        ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))",
+        "channels": {
+          "$channelId": {
+            "messages": {
+              "$messageId": {
+                ".write": "auth != null && !data.exists() && newData.child('senderId').val() === auth.uid",
+                ".validate": "newData.child('message').isString() && newData.child('message').val().length <= 5000"
+              }
+            },
+            "$field": {
+              ".write": "auth != null && $field !== 'messages'",
+              ".validate": "!newData.hasChildren()"
+            }
+          }
+        }
       }
     },
-
-    "courseContentUpdates": {
-      ".read": "auth !== null",
-      "$courseId": {
-        ".write": "auth !== null"
-      }
-    },
-
     "doubtThreads": {
-      ".read": "auth !== null",
-      "$threadId": {
-        ".write": "auth !== null"
-      }
+      ".read": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))",
+      ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))"
     },
-
     "doubtMessages": {
-      ".read": "auth !== null",
-      "$threadId": {
-        ".write": "auth !== null"
-      }
-    },
-
-    "master": {
-      ".read": "auth !== null",
-      ".write": "auth !== null"
-    },
-
-    "progress": {
-      ".read": "auth !== null",
-      "$uid": {
-        ".write": "auth !== null"
-      }
-    },
-
-    "videoQuizAttempts": {
-      ".read": "auth !== null",
-      "$uid": {
-        ".write": "auth !== null"
-      }
-    },
-
-    "resources": {
-      ".read": "auth !== null",
-      "$resourceId": {
-        ".write": "auth !== null"
-      }
+      ".read": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))",
+      ".write": "(auth != null && root.child('users').child(auth.uid).child('role').val().toLowerCase().matches(/^ *(super[ _-]*admin|admin|dep(artmen)?t[ _-]*admin) *$/))"
     }
   }
 }

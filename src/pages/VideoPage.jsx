@@ -543,16 +543,20 @@ function VideoPage() {
     const allVideosCompleted =
       lessons.length > 0 && completedVideos === lessons.length;
 
+    // Update only the video fields. Writing the whole node used to wipe
+    // the final-test result (courseTestPassed, score, ...) saved by the server.
+    const courseProgressBase = courseProgressForCoursePath(user.uid, courseId);
+
     await update(ref(database), {
-      [courseProgressForCoursePath(user.uid, courseId)]: {
-        courseId,
-        progressPercentage,
-        completedVideos,
-        totalVideos: lessons.length,
-        lastAccessedAt: nowIso,
-        completed: allVideosCompleted,
-        ...(allVideosCompleted && { completedAt: nowIso }),
-      },
+      [`${courseProgressBase}/courseId`]: courseId,
+      [`${courseProgressBase}/progressPercentage`]: progressPercentage,
+      [`${courseProgressBase}/completedVideos`]: completedVideos,
+      [`${courseProgressBase}/totalVideos`]: lessons.length,
+      [`${courseProgressBase}/lastAccessedAt`]: nowIso,
+      [`${courseProgressBase}/completed`]: allVideosCompleted,
+      ...(allVideosCompleted && {
+        [`${courseProgressBase}/completedAt`]: nowIso,
+      }),
     });
 
     const localDayKey = new Intl.DateTimeFormat("en-CA", {

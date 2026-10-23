@@ -81,12 +81,22 @@ function ManageUsers() {
     fetchDepartments();
   }, []);
 
+  // Department name -> id, so new and edited users also get a departmentId.
+  const departmentIdsRef = useRef({});
+  const departmentIdFor = (name) =>
+    departmentIdsRef.current[String(name || "").trim().toLowerCase()] || "";
+
   const fetchDepartments = async () => {
     const snap = await get(ref(database, "departments"));
     if (snap.exists()) {
       const data = snap.val();
-      const list = Object.entries(data).map(([id, item]) => item.departmentName).filter(Boolean);
+      const list = Object.values(data).map((item) => item?.departmentName).filter(Boolean);
       setDepartmentList([...new Set(list)].sort());
+      departmentIdsRef.current = Object.fromEntries(
+        Object.entries(data)
+          .filter(([, item]) => item?.departmentName)
+          .map(([id, item]) => [item.departmentName.trim().toLowerCase(), id])
+      );
     }
   };
 
@@ -233,6 +243,7 @@ function ManageUsers() {
         state: userData.state.trim(),
         cityArea: userData.cityArea.trim(),
         department: userData.department,
+        departmentId: departmentIdFor(userData.department),
         mustChangePassword: true,
         createdAt: new Date().toISOString(),
       });
@@ -268,6 +279,10 @@ function ManageUsers() {
       await update(ref(database, `users/${editingUserId}`), {
         role: oldUser?.role || "user",
         department: form.department || oldUser?.department || "",
+        departmentId:
+          departmentIdFor(form.department || oldUser?.department) ||
+          oldUser?.departmentId ||
+          "",
         name: form.name.trim(),
         designation: form.designation.trim(),
         seniority: form.seniority,
@@ -310,8 +325,7 @@ function ManageUsers() {
   const deleteUser = async (uid) => {
     if (!window.confirm("Remove this user and ALL their data from the system? This cannot be undone.")) return;
     try {
-      const idToken = await auth.currentUser.getIdToken();
-      const result = await deleteUserFully(uid, idToken);
+      const result = await deleteUserFully(uid);
       alert(result.message || "User deleted successfully.");
       fetchUsers();
     } catch (error) {

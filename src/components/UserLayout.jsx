@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
-import { Link, NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
+import PageOutlet from "./PageOutlet";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase";
 import { loadUserProfile } from "../lib/userAccess";
@@ -343,7 +344,7 @@ function UserLayout() {
           </div>
         )}
 
-        <Outlet />
+        <PageOutlet />
         {!location.pathname.includes("/video/") && (
           <ProfileCompletionBadge profileData={userData} profilePath="/profile" />
         )}

@@ -76,12 +76,13 @@ Administrators can manage training content, upload courses, create assessments m
 |---|---|
 | Frontend | React 18, React Router v7, Vite |
 | Styling | CSS3 |
-| Backend | Firebase Authentication, Firebase Realtime Database |
-| Storage | AWS S3 (video/file uploads) |
+| Backend | Firebase Authentication, Firebase Realtime Database, small PHP API (`public/api`) |
+| Storage | Cloudflare R2 (uploads via short-lived signed links from the API) |
 | PDF | jsPDF, html2canvas |
 | Excel | SheetJS (xlsx) |
 | PWA | Service Worker, Manifest |
-| Deployment | Vercel |
+| Hosting | Hostinger (static site + PHP) |
+| Tests | Node test runner, Firebase emulators, Playwright |
 
 ---
 
@@ -161,7 +162,7 @@ VITE_FIREBASE_PROJECT_ID=your_project_id
 VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
-VITE_DEFAULT_PASSWORD=portal@123
+VITE_DEFAULT_PASSWORD=choose_a_strong_temporary_password
 ```
 
 ### Development
@@ -181,6 +182,51 @@ npm run build
 ```bash
 npm run preview
 ```
+
+---
+
+## Server API (`public/api`)
+
+A few things must not run in the browser, so they live in small PHP files deployed with the site:
+
+| Endpoint | Who | What |
+|---|---|---|
+| `upload-url.php` | Staff (any user for their profile photo) | Returns a signed R2 upload link. Storage keys never reach the browser. |
+| `quiz.php` | Assigned learners, staff | Final test questions **without answers** |
+| `submit-quiz.php` | Assigned learners, staff | Grades the final test and saves the result, progress, completion and notifications |
+| `delete-user.php` | Admins (super admin for admins) | Deletes a login account and all of its data |
+
+Every call sends the user's Firebase ID token; the server checks it with Google and reads the role from `users/{uid}/role`.
+
+Secrets live in `public_html/lms-private/config.php` on the server (next to the `learnings` folder, never inside it and never in git). See `server/config.example.php`.
+
+## Security Rules
+
+`database.rules.json` is generated: edit `scripts/build-rules.mjs`, then run `npm run build:rules`.
+
+- Everyone signed in can read course content; only staff (super admin, admin, department admin) can change it.
+- Final test questions (answers) are readable by staff only.
+- Learners write only their own video progress, activity and practice quizzes. Final results and certificates are written by the server.
+- Users can edit their own profile but not their role, department or other protected fields.
+
+## Tests
+
+Needs Java 11+ (for the Firebase emulators), PHP 8 with curl and openssl, and `npm i -g firebase-tools`.
+
+```bash
+npm test            # everything
+npm run test:rules  # database rules (28 tests)
+npm run test:api    # PHP API against the emulators (21 tests)
+npm run test:e2e    # browser tests: every page for every role, quiz → certificate, phone layouts
+```
+
+Set `PHP_BIN` if `php` is not on your PATH. The tests use only local emulators and fake data.
+
+## Deploying
+
+1. `npm run build`, then upload the contents of `dist/` (it includes `api/` and `.htaccess`) to `public_html/learnings`.
+2. Deploy the rules **after** the new site is live: `firebase deploy --only database`.
+3. The server config in `public_html/lms-private/` is not touched by deploys.
 
 ---
 

@@ -169,6 +169,8 @@ function ManageDepartments() {
         });
       }
 
+      let departmentId = existingDept?.id || "";
+
       if (existingDept) {
         await update(ref(database, `departments/${existingDept.id}`), {
           departmentAdminId: admin.id,
@@ -181,6 +183,7 @@ function ManageDepartments() {
         });
       } else {
         const deptRef = push(ref(database, "departments"));
+        departmentId = deptRef.key;
         await set(deptRef, {
           departmentName: selectedDepartment,
           departmentType: selectedDepartment,
@@ -196,7 +199,8 @@ function ManageDepartments() {
 
       await update(ref(database, `users/${admin.id}`), {
         role: "departmentAdmin",
-        departmentId: existingDept?.id || "",
+        // Was always "" for brand-new departments, which broke department matching.
+        departmentId,
         department: selectedDepartment,
         departmentType: selectedDepartment,
       });
