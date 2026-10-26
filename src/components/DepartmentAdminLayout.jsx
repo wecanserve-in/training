@@ -1,410 +1,60 @@
-import { NavLink, useNavigate, useLocation } from "react-router-dom";
-import PageOutlet from "./PageOutlet";
-import { useState, useEffect, useRef } from "react";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { auth } from "../firebase";
-import { loadUserProfile } from "../lib/userAccess";
 import {
-  watchNotifications,
-  markNotificationRead,
-  markAllNotificationsRead,
-} from "../services/doubtService";
+  FiBarChart2,
+  FiBell,
+  FiBookOpen,
+  FiFileText,
+  FiHome,
+  FiLayers,
+  FiUsers,
+} from "react-icons/fi";
+import AppShell from "./AppShell";
 
-import "../styles/departmentadminlayout.css";
-
-import { FaBell, FaComments, FaReply, FaBookOpen, FaVideo, FaClock, FaTimesCircle, FaCheckCircle, FaAward } from "react-icons/fa";
-import ProfileCompletionBadge from "./ProfileCompletionBadge";
+const NAV = [
+  { to: "/department-admin", label: "Dashboard", icon: FiHome, end: true },
+  { to: "/department-admin/members", label: "Members", icon: FiUsers },
+  {
+    label: "Training",
+    icon: FiLayers,
+    children: [
+      { to: "/department-admin/courses", label: "Course Library" },
+      { to: "/department-admin/video-library", label: "Video Library" },
+      { to: "/department-admin/questions", label: "Questions" },
+      { to: "/department-admin/assignments", label: "Assign Course" },
+    ],
+  },
+  {
+    label: "Reports",
+    icon: FiBarChart2,
+    children: [
+      { to: "/department-admin/analytics", label: "Progress Report" },
+      { to: "/department-admin/test-logs", label: "Test Logs" },
+      { to: "/department-admin/assigned-users", label: "Assigned Users" },
+      { to: "/department-admin/all-certificates", label: "Certifications" },
+    ],
+  },
+  { to: "/department-admin/resources", label: "News & Resources", icon: FiFileText },
+  { to: "/department-admin/notifications", label: "Notifications", icon: FiBell, badge: "notifications" },
+  {
+    label: "My Learning",
+    icon: FiBookOpen,
+    children: [
+      { to: "/department-admin/assigned-courses", label: "My Courses" },
+      { to: "/department-admin/my-learnings", label: "My Progress" },
+      { to: "/department-admin/my-results", label: "My Results" },
+      { to: "/department-admin/certificates", label: "Certificates" },
+      { to: "/department-admin/profile", label: "Profile" },
+    ],
+  },
+];
 
 function DepartmentAdminLayout() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const notifDropdownRef = useRef(null);
-  const mobileNotifRef = useRef(null);
-
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [openTraining, setOpenTraining] = useState(false);
-  const [openReports, setOpenReports] = useState(false);
-  const [openMyLearning, setOpenMyLearning] = useState(false);
-  const [profile, setProfile] = useState(null);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [notifications, setNotifications] = useState([]);
-  const [notifOpen, setNotifOpen] = useState(false);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (loggedUser) => {
-      if (!loggedUser) {
-        navigate("/");
-        return;
-      }
-      try {
-        setProfile(await loadUserProfile(loggedUser));
-      } catch (error) {
-        console.error("Failed to load department admin profile:", error);
-        setProfile(null);
-      }
-    });
-    return () => unsubscribe();
-  }, [navigate]);
-
-  useEffect(() => {
-    if (!profile?.id) return;
-    const unsub = watchNotifications(profile.id, (notifs) => {
-      setNotifications(notifs);
-      setUnreadCount(notifs.filter((n) => !n.read).length);
-    });
-    return () => unsub();
-  }, [profile?.id]);
-
-  useEffect(() => {
-    const handleProfileUpdated = (e) => {
-      setProfile((prev) => ({ ...prev, ...e.detail }));
-    };
-    window.addEventListener("profile-updated", handleProfileUpdated);
-    return () => window.removeEventListener("profile-updated", handleProfileUpdated);
-  }, []);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      const clickedDesktop = notifDropdownRef.current?.contains(e.target);
-      const clickedMobile = mobileNotifRef.current?.contains(e.target);
-
-      if (!clickedDesktop && !clickedMobile) {
-        setNotifOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleLogout = async () => {
-    await signOut(auth);
-    navigate("/");
-  };
-
-  const closeSidebar = () => setSidebarOpen(false);
-  const toggleCollapse = () => setSidebarCollapsed((prev) => !prev);
-
-  const getInitials = () => {
-    const name = profile?.name || profile?.email || "DA";
-    return name
-      .split(" ")
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
-  };
-
-  const toggleNotifDropdown = () => {
-    setNotifOpen((prev) => !prev);
-  };
-
-  const handleNotifClick = async (notif) => {
-    if (!profile?.id) return;
-    if (!notif.read) {
-      await markNotificationRead(profile.id, notif.notificationId);
-    }
-    setNotifOpen(false);
-    if (notif.type === "course_completed") {
-      navigate("/department-admin/assigned-courses");
-    } else if (notif.courseId) {
-      navigate(`/department-admin/course/${notif.courseId}`);
-    }
-  };
-
-  const handleMarkAllRead = async () => {
-    if (!profile?.id) return;
-    await markAllNotificationsRead(profile.id);
-  };
-
-  const getNotificationIcon = (type) => {
-    if (type === "doubt_reply") return <FaReply />;
-    if (type === "doubt") return <FaComments />;
-    if (type === "course_discussion") return <FaComments />;
-    if (type === "course_assigned") return <FaBookOpen />;
-    if (type === "new_video" || type === "course_updated") return <FaVideo />;
-    if (type === "quiz_updated") return <FaClock />;
-    if (type === "course_removed") return <FaTimesCircle />;
-    if (type === "course_completed") return <FaCheckCircle />;
-    if (type === "certificate_ready") return <FaAward />;
-    return <FaBell />;
-  };
-
-  const formatTime = (dateStr) => {
-    if (!dateStr) return "";
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    if (diffMins < 1) return "Just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
-  };
-
-  const recentNotifications = notifications.slice(0, 8);
-
   return (
-    <div className={`dept-admin-layout ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
-      <div className="mobile-notification-wrapper" ref={mobileNotifRef}>
-        <div className="mobile-topbar">
-          <img src="/Logo.webp" alt="Logo" />
-          <div className="mobile-topbar-actions">
-            <button
-              className="notif-bell-mobile"
-              onClick={toggleNotifDropdown}
-              type="button"
-              aria-label="Open notifications"
-              aria-expanded={notifOpen}
-            >
-              <FaBell />
-              {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open navigation menu"
-            >
-              ☰
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile-only notification popup. Desktop popup remains unchanged below. */}
-        {notifOpen && (
-          <div className="notif-dropdown mobile-notif-dropdown">
-            <div className="notif-dropdown-header">
-              <h3>Notifications</h3>
-              {unreadCount > 0 && (
-                <button type="button" onClick={handleMarkAllRead}>
-                  Mark all read
-                </button>
-              )}
-            </div>
-
-            <div className="notif-dropdown-list">
-              {recentNotifications.length === 0 ? (
-                <div className="notif-dropdown-empty">
-                  <FaBell />
-                  <p>No notifications yet</p>
-                </div>
-              ) : (
-                recentNotifications.map((notif) => (
-                  <div
-                    className={`notif-dropdown-item ${!notif.read ? "unread" : ""}`}
-                    key={notif.notificationId}
-                    onClick={() => handleNotifClick(notif)}
-                  >
-                    <div className={`notif-dropdown-icon ${notif.type}`}>
-                      {getNotificationIcon(notif.type)}
-                    </div>
-
-                    <div className="notif-dropdown-content">
-                      <h4>{notif.title}</h4>
-                      <p>{notif.message}</p>
-                      <span>{formatTime(notif.createdAt)}</span>
-                    </div>
-
-                    {!notif.read && (
-                      <div className="notif-dropdown-dot"></div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div
-              className="notif-dropdown-footer"
-              onClick={() => {
-                navigate("/department-admin/notifications");
-                setNotifOpen(false);
-              }}
-            >
-              View all notifications
-            </div>
-          </div>
-        )}
-      </div>
-
-      {sidebarOpen && <div className="dept-sidebar-backdrop" onClick={closeSidebar} />}
-
-      <aside className={`dept-sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
-        <button type="button" className="dept-sidebar-close" onClick={closeSidebar} aria-label="Close navigation menu">×</button>
-
-        <div className="dept-sidebar-top">
-          <div className="dept-sidebar-logo-box">
-            <img src="/Logo.webp" alt="Logo" />
-          </div>
-          <button
-            type="button"
-            className="dept-sidebar-collapse-btn"
-            onClick={toggleCollapse}
-            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {sidebarCollapsed ? "›" : "‹"}
-          </button>
-        </div>
-
-        <div className="dept-sidebar-profile" onClick={() => navigate("profile")} style={{ cursor: "pointer" }}>
-          <div className="dept-profile-circle">
-            {profile?.photoURL ? (
-              <img src={profile.photoURL} alt={profile?.name} className="dept-profile-circle-img" />
-            ) : (
-              getInitials()
-            )}
-          </div>
-          <div className="dept-profile-text">
-            <h3>{profile?.name || "Department Admin"}</h3>
-            <p>{profile?.department || profile?.departmentType || "Dept Admin"}</p>
-          </div>
-        </div>
-
-        <nav className="dept-sidebar-menu">
-          <NavLink to="/department-admin" end onClick={closeSidebar}>
-            <span>Dashboard</span>
-          </NavLink>
-
-          <NavLink to="/department-admin/members" onClick={closeSidebar}>
-            <span>Members</span>
-          </NavLink>
-
-          <div className="dept-sidebar-dropdown">
-            <button
-              type="button"
-              className={`dept-dropdown-toggle ${openTraining ? "active-dropdown" : ""}`}
-              onClick={() => setOpenTraining((prev) => !prev)}
-            >
-              <span>Training</span>
-              <span className="dept-dropdown-arrow">{openTraining ? "▾" : "›"}</span>
-            </button>
-            {openTraining && (
-              <div className="dept-dropdown-submenu">
-                <NavLink to="/department-admin/courses" onClick={closeSidebar}>Course Library</NavLink>
-                <NavLink to="/department-admin/video-library" onClick={closeSidebar}>Video Library</NavLink>
-                <NavLink to="/department-admin/assignments" onClick={closeSidebar}>Assign Course</NavLink>
-              </div>
-            )}
-          </div>
-
-          <div className="dept-sidebar-dropdown">
-            <button
-              type="button"
-              className={`dept-dropdown-toggle ${openReports ? "active-dropdown" : ""}`}
-              onClick={() => setOpenReports((prev) => !prev)}
-            >
-              <span>Reports</span>
-              <span className="dept-dropdown-arrow">{openReports ? "▾" : "›"}</span>
-            </button>
-            {openReports && (
-              <div className="dept-dropdown-submenu">
-                <NavLink to="/department-admin/analytics" onClick={closeSidebar}>Progress Report</NavLink>
-                <NavLink to="/department-admin/test-logs" onClick={closeSidebar}>Test Logs</NavLink>
-                <NavLink to="/department-admin/assigned-users" onClick={closeSidebar}>Assigned Users</NavLink>
-                <NavLink to="/department-admin/all-certificates" onClick={closeSidebar}>Certifications</NavLink>
-              </div>
-            )}
-          </div>
-
-          <NavLink to="/department-admin/resources" onClick={closeSidebar}>
-            <span>News & Resources</span>
-          </NavLink>
-
-          <NavLink to="/department-admin/notifications" onClick={closeSidebar}>
-            <span>Notifications</span>
-            {unreadCount > 0 && <span className="doubt-nav-badge">{unreadCount}</span>}
-          </NavLink>
-
-          <div className="dept-sidebar-dropdown">
-            <button
-              type="button"
-              className={`dept-dropdown-toggle ${openMyLearning ? "active-dropdown" : ""}`}
-              onClick={() => setOpenMyLearning((prev) => !prev)}
-            >
-              <span>My Learning</span>
-              <span className="dept-dropdown-arrow">{openMyLearning ? "▾" : "›"}</span>
-            </button>
-            {openMyLearning && (
-              <div className="dept-dropdown-submenu">
-                <NavLink to="/department-admin/assigned-courses" onClick={closeSidebar}>My Courses</NavLink>
-                <NavLink to="/department-admin/my-learnings" onClick={closeSidebar}>My Progress</NavLink>
-                <NavLink to="/department-admin/my-results" onClick={closeSidebar}>My Results</NavLink>
-                <NavLink to="/department-admin/certificates" onClick={closeSidebar}>Certificates</NavLink>
-                <NavLink to="/department-admin/profile" onClick={closeSidebar}>Profile</NavLink>
-              </div>
-            )}
-          </div>
-        </nav>
-
-        <button type="button" className="dept-sidebar-logout" onClick={handleLogout}>
-          <span>Logout</span>
-        </button>
-      </aside>
-
-      <main className="dept-admin-page" ref={notifDropdownRef}>
-        <div className="page-topbar">
-          <div className="page-topbar-spacer"></div>
-          <button className="notif-bell" onClick={toggleNotifDropdown} type="button">
-            <FaBell />
-            {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
-          </button>
-
-          {notifOpen && (
-            <div className="notif-dropdown">
-              <div className="notif-dropdown-header">
-                <h3>Notifications</h3>
-                {unreadCount > 0 && (
-                  <button onClick={handleMarkAllRead}>Mark all read</button>
-                )}
-              </div>
-              <div className="notif-dropdown-list">
-                {recentNotifications.length === 0 ? (
-                  <div className="notif-dropdown-empty">
-                    <FaBell />
-                    <p>No notifications yet</p>
-                  </div>
-                ) : (
-                  recentNotifications.map((notif) => (
-                    <div
-                      className={`notif-dropdown-item ${!notif.read ? "unread" : ""}`}
-                      key={notif.notificationId}
-                      onClick={() => handleNotifClick(notif)}
-                    >
-                      <div className={`notif-dropdown-icon ${notif.type}`}>
-                        {getNotificationIcon(notif.type)}
-                      </div>
-                      <div className="notif-dropdown-content">
-                        <h4>{notif.title}</h4>
-                        <p>{notif.message}</p>
-                        <span>{formatTime(notif.createdAt)}</span>
-                      </div>
-                      {!notif.read && <div className="notif-dropdown-dot"></div>}
-                    </div>
-                  ))
-                )}
-              </div>
-              <div
-                className="notif-dropdown-footer"
-                onClick={() => {
-                  navigate("/department-admin/notifications");
-                  setNotifOpen(false);
-                }}
-              >
-                View all notifications
-              </div>
-            </div>
-          )}
-        </div>
-
-        <PageOutlet />
-        {!location.pathname.includes("/video/") && (
-          <ProfileCompletionBadge profileData={profile} profilePath="/department-admin/profile" />
-        )}
-      </main>
-    </div>
+    <AppShell
+      basePath="/department-admin"
+      homePath="/department-admin"
+      nav={NAV}
+      subtitleFor={(user) => user?.department || "Department Admin"}
+    />
   );
 }
 

@@ -305,14 +305,14 @@ function EditVideoLibrary() {
 
   return (
     <div className="video-library-page">
-      <div className="video-library-header">
+      <div className="video-library-header vl-header-stacked">
         <Link to={getLibraryPath()} className="vl-back-link">
           &larr; Back to Video Library
         </Link>
-        <span>
+        <div className="vl-header-text">
           <h1>Edit Video</h1>
           <p>Update title, description, thumbnail, and quiz questions.</p>
-        </span>
+        </div>
       </div>
 
       <form onSubmit={handleSave} className="edit-video-form">
@@ -332,18 +332,24 @@ function EditVideoLibrary() {
             <small>{videoData?.departmentType || ""}</small>
           </div>
 
-          <input
-            placeholder="Video Title *"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
+          <label className="vl-field">
+            <span className="vl-field-label">Video Title *</span>
+            <input
+              placeholder="e.g., Product Basics"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </label>
 
-          <textarea
-            placeholder="Short Description *"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows="3"
-          />
+          <label className="vl-field">
+            <span className="vl-field-label">Short Description *</span>
+            <textarea
+              placeholder="What will learners get from this video?"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows="3"
+            />
+          </label>
 
           <div className="tag-picker">
             <label>Tags</label>
@@ -362,7 +368,7 @@ function EditVideoLibrary() {
                 {tags.map((tag) => (
                   <span key={tag} className="tag-chip">
                     {tag}
-                    <button type="button" onClick={() => removeTag(tag)}>
+                    <button type="button" onClick={() => removeTag(tag)} aria-label={`Remove tag ${tag}`}>
                       &times;
                     </button>
                   </span>
@@ -434,6 +440,7 @@ function EditVideoLibrary() {
           <div className="edit-quiz-form">
             <textarea
               placeholder="Question"
+              aria-label="Question text"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               rows="2"
@@ -458,7 +465,7 @@ function EditVideoLibrary() {
               </div>
             </div>
 
-            <select value={correctAnswer} onChange={(e) => setCorrectAnswer(e.target.value)}>
+            <select value={correctAnswer} onChange={(e) => setCorrectAnswer(e.target.value)} aria-label="Correct answer">
               <option value="">Select Correct Answer</option>
               {optionA && <option value={optionA}>A: {optionA}</option>}
               {optionB && <option value={optionB}>B: {optionB}</option>}
@@ -493,10 +500,10 @@ function EditVideoLibrary() {
                       <span className="edit-question-num">{index + 1}</span>
                       <strong className="edit-question-text">{item.question}</strong>
                       <div className="edit-question-btns">
-                        <button type="button" className="edit-question-edit" onClick={() => startEditQuestion(index)} title="Edit">
+                        <button type="button" className="edit-question-edit" onClick={() => startEditQuestion(index)} title="Edit" aria-label={`Edit question ${index + 1}`}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                         </button>
-                        <button type="button" className="edit-question-remove" onClick={() => removeQuizQuestion(index)} title="Remove">
+                        <button type="button" className="edit-question-remove" onClick={() => removeQuizQuestion(index)} title="Remove" aria-label={`Remove question ${index + 1}`}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                         </button>
                       </div>
@@ -526,8 +533,8 @@ function EditVideoLibrary() {
         </div>
 
         {/* ─── Save Footer ─── */}
-        <div className="save-video-footer">
-          <Link to={getLibraryPath()} className="outline-action-btn" style={{ marginRight: 12 }}>
+        <div className="save-video-footer vl-edit-footer">
+          <Link to={getLibraryPath()} className="outline-action-btn vl-footer-cancel">
             Cancel
           </Link>
           <button type="submit" className="primary-library-btn final-save-btn" disabled={saving}>

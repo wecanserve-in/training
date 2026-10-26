@@ -550,7 +550,7 @@ const designations = useMemo(() => [...new Set(contextUsers.map((u) => u.designa
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
             Zone
           </label>
-          <select value={drillZone} onChange={(e) => drillIntoZone(e.target.value)}>
+          <select aria-label="Zone" value={drillZone} onChange={(e) => drillIntoZone(e.target.value)}>
             <option value="">— Select Zone —</option>
             {zones.map((z) => <option key={z.zone} value={z.zone}>{z.zone}</option>)}
           </select>
@@ -560,7 +560,7 @@ const designations = useMemo(() => [...new Set(contextUsers.map((u) => u.designa
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             State
           </label>
-          <select value={drillState} onChange={(e) => drillIntoState(e.target.value)} disabled={!drillZone}>
+          <select aria-label="State" value={drillState} onChange={(e) => drillIntoState(e.target.value)} disabled={!drillZone}>
             <option value="">— Select State —</option>
             {states.map((s) => <option key={s.name} value={s.name}>{s.name}</option>)}
           </select>
@@ -570,7 +570,7 @@ const designations = useMemo(() => [...new Set(contextUsers.map((u) => u.designa
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             City
           </label>
-          <select value={drillCity} onChange={(e) => drillIntoCity(e.target.value)} disabled={!drillState}>
+          <select aria-label="City" value={drillCity} onChange={(e) => drillIntoCity(e.target.value)} disabled={!drillState}>
             <option value="">— Select City —</option>
             {cities.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
           </select>
@@ -584,7 +584,7 @@ const designations = useMemo(() => [...new Set(contextUsers.map((u) => u.designa
             if (!z) return null;
             return (
               <div className="sa-detail-card" onClick={() => { setDrillLevel("zone"); setDrillState(""); setDrillCity(""); }}>
-                <button className="sa-dcard-remove" onClick={(e) => { e.stopPropagation(); setDrillZone(""); setDrillState(""); setDrillCity(""); setSearch(""); setDesignationFilter(""); bumpAnim(); }}>×</button>
+                <button type="button" className="sa-dcard-remove" aria-label="Clear this filter" onClick={(e) => { e.stopPropagation(); setDrillZone(""); setDrillState(""); setDrillCity(""); setSearch(""); setDesignationFilter(""); bumpAnim(); }}>×</button>
                 <div className="sa-dcard-avatar" style={{ background: getAvatarColor(0).bg, color: getAvatarColor(0).color }}>{z.zone.charAt(0).toUpperCase()}</div>
                 <div className="sa-dcard-body"><strong>{z.zone}</strong><span className="sa-dcard-tag">Zone</span><span className="sa-dcard-meta">{z.total} users • {z.rate}% completion</span></div>
               </div>
@@ -596,7 +596,7 @@ const designations = useMemo(() => [...new Set(contextUsers.map((u) => u.designa
             if (!s) return null;
             return (
               <div className="sa-detail-card" onClick={() => { setDrillLevel("state"); setDrillCity(""); }}>
-                <button className="sa-dcard-remove" onClick={(e) => { e.stopPropagation(); setDrillState(""); setDrillCity(""); setSearch(""); setDesignationFilter(""); bumpAnim(); }}>×</button>
+                <button type="button" className="sa-dcard-remove" aria-label="Clear this filter" onClick={(e) => { e.stopPropagation(); setDrillState(""); setDrillCity(""); setSearch(""); setDesignationFilter(""); bumpAnim(); }}>×</button>
                 <div className="sa-dcard-avatar" style={{ background: getAvatarColor(1).bg, color: getAvatarColor(1).color }}>{s.name.charAt(0).toUpperCase()}</div>
                 <div className="sa-dcard-body"><strong>{s.name}</strong><span className="sa-dcard-tag">State</span><span className="sa-dcard-meta">{s.total} users • {s.rate}% completion</span></div>
               </div>
@@ -608,7 +608,7 @@ const designations = useMemo(() => [...new Set(contextUsers.map((u) => u.designa
             if (!c) return null;
             return (
               <div className="sa-detail-card" onClick={() => setDrillLevel("city")}>
-                <button className="sa-dcard-remove" onClick={(e) => { e.stopPropagation(); setDrillCity(""); setSearch(""); setDesignationFilter(""); bumpAnim(); }}>×</button>
+                <button type="button" className="sa-dcard-remove" aria-label="Clear this filter" onClick={(e) => { e.stopPropagation(); setDrillCity(""); setSearch(""); setDesignationFilter(""); bumpAnim(); }}>×</button>
                 <div className="sa-dcard-avatar" style={{ background: getAvatarColor(2).bg, color: getAvatarColor(2).color }}>{c.name.charAt(0).toUpperCase()}</div>
                 <div className="sa-dcard-body"><strong>{c.name}</strong><span className="sa-dcard-tag">City</span><span className="sa-dcard-meta">{c.total} users • {c.rate}% completion</span></div>
               </div>
@@ -643,7 +643,7 @@ const designations = useMemo(() => [...new Set(contextUsers.map((u) => u.designa
               <div className="sa-filters-row">
                 <div className="sa-search-box">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-                  <input type="text" placeholder={`Search users in ${currentLabel}...`} value={search} onChange={(e) => setSearch(e.target.value)} />
+                  <input type="text" aria-label="Search users" placeholder={`Search users in ${currentLabel}...`} value={search} onChange={(e) => setSearch(e.target.value)} />
                 </div>
                 <select
   className="sa-filter-select"
@@ -763,7 +763,7 @@ const designations = useMemo(() => [...new Set(contextUsers.map((u) => u.designa
               <div className="sa-user-course-section">
                 <div className="sa-user-course-head">
                   <div><h3>Assigned Course Progress</h3><p>Course-wise progress for {selectedUser.name || "this user"}</p></div>
-                  <span>{selectedUserCourseRows.length} courses</span>
+                  <span>{selectedUserCourseRows.length} {selectedUserCourseRows.length === 1 ? "course" : "courses"}</span>
                 </div>
                 <div className="sa-user-course-list">
                   {selectedUserCourseRows.length === 0 ? (

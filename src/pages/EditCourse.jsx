@@ -1525,6 +1525,7 @@ function EditCourse() {
                         onClick={() => moveVideo(index, index - 1)}
                         disabled={index === 0}
                         title="Move up"
+                        aria-label="Move video up"
                       >
                         ↑
                       </button>
@@ -1535,6 +1536,7 @@ function EditCourse() {
                         onClick={() => moveVideo(index, index + 1)}
                         disabled={index === courseVideos.length - 1}
                         title="Move down"
+                        aria-label="Move video down"
                       >
                         ↓
                       </button>
@@ -1544,6 +1546,7 @@ function EditCourse() {
                         className="ec-remove-btn"
                         onClick={() => removeVideoFromCourse(video.id)}
                         title="Remove video"
+                        aria-label="Remove video from course"
                       >
                         ✕
                       </button>
@@ -1655,6 +1658,7 @@ function EditCourse() {
                             onClick={() => moveQuizQuestion(questionIndex, questionIndex - 1)}
                             disabled={questionIndex === 0}
                             title="Move question up"
+                            aria-label="Move question up"
                           >
                             ↑
                           </button>
@@ -1664,6 +1668,7 @@ function EditCourse() {
                             onClick={() => moveQuizQuestion(questionIndex, questionIndex + 1)}
                             disabled={questionIndex === quizQuestions.length - 1}
                             title="Move question down"
+                            aria-label="Move question down"
                           >
                             ↓
                           </button>
@@ -1761,6 +1766,7 @@ function EditCourse() {
                               }
                               disabled={question.options.length <= 2}
                               title="Remove option"
+                              aria-label={`Remove option ${String.fromCharCode(65 + optionIndex)}`}
                             >
                               ✕
                             </button>
@@ -1835,6 +1841,7 @@ function EditCourse() {
                   type="button"
                   onClick={() => setShowAddVideos(false)}
                   className="ec-sidebar-close"
+                  aria-label="Close video library"
                 >
                   ×
                 </button>

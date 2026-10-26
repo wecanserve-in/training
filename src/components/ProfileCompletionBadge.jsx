@@ -1,9 +1,25 @@
-import { useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import "../styles/profilecompletion.css";
 
+const DISMISS_KEY = "pcb-dismissed";
+
+const readDismissed = () => {
+  try {
+    return sessionStorage.getItem(DISMISS_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Small floating reminder to finish the profile.
+ * Can be hidden for the session, and is not shown on the profile page itself.
+ */
 function ProfileCompletionBadge({ profileData, profilePath = "/profile" }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [dismissed, setDismissed] = useState(readDismissed);
 
   const percent = useMemo(() => {
     if (!profileData) return 0;
@@ -14,7 +30,6 @@ function ProfileCompletionBadge({ profileData, profilePath = "/profile" }) {
       profileData.dob,
       profileData.gender,
       profileData.maritalStatus,
-      // profileData.nativePlace,
       profileData.residentialAddress,
       profileData.emergencyContact,
     ];
@@ -30,56 +45,62 @@ function ProfileCompletionBadge({ profileData, profilePath = "/profile" }) {
     return total > 0 ? Math.round((filled / total) * 100) : 0;
   }, [profileData]);
 
-  if (percent >= 100) return null;
+  const onProfilePage = location.pathname.endsWith("/profile");
+  const visible = Boolean(profileData) && percent < 100 && !dismissed && !onProfilePage;
 
-  const getColor = (pct) => {
-    if (pct < 30) return { ring: "#dc2626", bg: "#fef2f2", border: "#fecaca", text: "#dc2626", label: "#dc2626" };
-    if (pct < 60) return { ring: "#d97706", bg: "#fffbeb", border: "#fde68a", text: "#d97706", label: "#d97706" };
-    if (pct < 85) return { ring: "#ea580c", bg: "#fff7ed", border: "#fed7aa", text: "#ea580c", label: "#ea580c" };
-    return { ring: "#059669", bg: "#f0fdf4", border: "#bbf7d0", text: "#059669", label: "#059669" };
-  };
+  // Leave room at the bottom of pages so the badge never hides the last button.
+  useEffect(() => {
+    if (!visible) return undefined;
+    document.body.classList.add("has-pcb");
+    return () => document.body.classList.remove("has-pcb");
+  }, [visible]);
 
-  const colors = getColor(percent);
+  if (!visible) return null;
 
-  const radius = 22;
-  const stroke = 4;
+  const tone = percent < 30 ? "low" : percent < 60 ? "mid" : percent < 85 ? "high" : "done";
+
+  const radius = 14;
+  const stroke = 3;
   const normalizedRadius = radius - stroke;
   const circumference = normalizedRadius * 2 * Math.PI;
   const strokeDashoffset = circumference - (percent / 100) * circumference;
 
+  const dismiss = (event) => {
+    event.stopPropagation();
+    setDismissed(true);
+    try {
+      sessionStorage.setItem(DISMISS_KEY, "1");
+    } catch {
+      // Storage blocked: hide for this page view only.
+    }
+  };
+
   return (
-    <div
-      className="pcb-floating"
-      onClick={() => navigate(profilePath)}
-      title="Complete your profile"
-      style={{ background: colors.bg, borderColor: colors.border }}
-    >
-      <div className="pcb-ring-wrap">
-        <svg height={radius * 2} width={radius * 2} className="pcb-ring">
+    <div className={`pcb-floating pcb-${tone}`} role="complementary" aria-label="Profile completion">
+      <button type="button" className="pcb-main" onClick={() => navigate(profilePath)}>
+        <svg height={radius * 2} width={radius * 2} className="pcb-ring" aria-hidden="true">
+          <circle className="pcb-ring-track" fill="transparent" strokeWidth={stroke} r={normalizedRadius} cx={radius} cy={radius} />
           <circle
-            stroke="#e2e8f0"
-            fill="transparent"
-            strokeWidth={stroke}
-            r={normalizedRadius}
-            cx={radius}
-            cy={radius}
-          />
-          <circle
-            stroke={colors.ring}
+            className="pcb-ring-value"
             fill="transparent"
             strokeWidth={stroke}
             strokeLinecap="round"
-            strokeDasharray={circumference + " " + circumference}
-            style={{ strokeDashoffset, transition: "stroke-dashoffset 0.5s ease" }}
+            strokeDasharray={`${circumference} ${circumference}`}
+            style={{ strokeDashoffset }}
             r={normalizedRadius}
             cx={radius}
             cy={radius}
             transform={`rotate(-90 ${radius} ${radius})`}
           />
         </svg>
-        <span className="pcb-percent" style={{ color: colors.text }}>{percent}</span>
-      </div>
-      <span className="pcb-label" style={{ background: colors.label }}>Complete Your Profile</span>
+        <span className="pcb-text">
+          <strong>Complete your profile</strong>
+          <span>{percent}% done</span>
+        </span>
+      </button>
+      <button type="button" className="pcb-close" onClick={dismiss} aria-label="Hide profile reminder">
+        ×
+      </button>
     </div>
   );
 }

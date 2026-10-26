@@ -273,7 +273,7 @@ function ManageDepartments() {
       <div className="md-action-bar">
         <div className="md-search-box">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-          <input type="text" placeholder="Search departments, admins..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input type="text" aria-label="Search departments" placeholder="Search departments, admins..." value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <div className="md-action-bar-btns">
           <button className="md-btn md-btn-primary" onClick={() => openAssignModal()}>
@@ -299,7 +299,7 @@ function ManageDepartments() {
           <table>
             <thead>
               <tr>
-                <th style={{ width: 32 }}></th>
+                <th style={{ width: 32 }} aria-label="Show users"></th>
                 <th>Department</th>
                 <th>Type</th>
                 <th>Admin</th>
@@ -314,13 +314,15 @@ function ManageDepartments() {
                 return (
                   <Fragment key={dept.id}>
                     <tr className={isExpanded ? "md-row-open" : ""}>
-                      <td>
+                      <td className="md-td-expand">
                         <button
                           className="md-expand-btn"
                           onClick={() => setExpandedDept(isExpanded ? "" : dept.id)}
                           title={isExpanded ? "Hide users" : "Show users"}
+                          aria-label={`${isExpanded ? "Hide" : "Show"} users in ${dept.departmentName}`}
+                          aria-expanded={isExpanded}
                         >
-                          <svg
+                          <svg aria-hidden="true"
                             width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
                             style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
                           >
@@ -328,11 +330,11 @@ function ManageDepartments() {
                           </svg>
                         </button>
                       </td>
-                      <td className="md-td-name">{dept.departmentName}</td>
-                      <td>
+                      <td className="md-td-name" data-label="Department">{dept.departmentName}</td>
+                      <td className="md-td-type" data-label="Type">
                         <span className="md-type-badge">{dept.departmentType}</span>
                       </td>
-                      <td>
+                      <td className="md-td-admin" data-label="Admin">
                         <div className="md-admin-cell">
                           <div className="md-admin-avatar">
                             {dept.departmentAdminPhotoURL ? (
@@ -347,14 +349,14 @@ function ManageDepartments() {
                           </div>
                         </div>
                       </td>
-                      <td>{dept.departmentAdminDesignation || "-"}</td>
-                      <td>
+                      <td className="md-td-desig" data-label="Designation">{dept.departmentAdminDesignation || "-"}</td>
+                      <td className="md-td-actions" data-label="Actions">
                         <div className="md-actions">
-                          <button className="md-action-edit" onClick={() => openEditModal(dept)} title="Assign/Change Admin">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                          <button className="md-action-edit" onClick={() => openEditModal(dept)} title="Assign/Change Admin" aria-label={`Assign or change admin for ${dept.departmentName}`}>
+                            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                           </button>
-                          <button className="md-action-delete" onClick={() => deleteDepartment(dept)} title="Delete">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                          <button className="md-action-delete" onClick={() => deleteDepartment(dept)} title="Delete" aria-label={`Delete ${dept.departmentName}`}>
+                            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                           </button>
                         </div>
                       </td>
@@ -415,7 +417,7 @@ function ManageDepartments() {
                 <h2>{editingDepartment ? "Change Department Admin" : "Assign Department Admin"}</h2>
                 <p>{editingDepartment ? "Select a new admin for this department." : "Select a department and assign an admin."}</p>
               </div>
-              <button className="close-btn" onClick={resetAssignForm}>×</button>
+              <button type="button" className="close-btn" aria-label="Close" onClick={resetAssignForm}>×</button>
             </div>
 
             <form className="md-form" onSubmit={assignAdmin}>
@@ -467,7 +469,7 @@ function ManageDepartments() {
                 <h2>Create New Department</h2>
                 <p>Enter a name for the new department.</p>
               </div>
-              <button className="close-btn" onClick={resetCreateForm}>×</button>
+              <button type="button" className="close-btn" aria-label="Close" onClick={resetCreateForm}>×</button>
             </div>
 
             <form className="md-form" onSubmit={createDepartment}>

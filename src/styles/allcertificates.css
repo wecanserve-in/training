@@ -1,7 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
 .all-certificates-page {
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   min-height: 100vh;
   background: #f0faf5;
   position: relative;
@@ -132,7 +132,7 @@
   font-size: 0.82rem;
   color: #1e293b;
   background: transparent;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 .all-cert-search-bar input::placeholder {
@@ -153,7 +153,7 @@
   cursor: pointer;
   transition: 0.2s;
   white-space: nowrap;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 .all-cert-filter-toggle:hover {
@@ -191,7 +191,7 @@
   cursor: pointer;
   transition: 0.2s;
   white-space: nowrap;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 .all-cert-clear-btn:hover {
@@ -234,7 +234,7 @@
   font-size: 0.78rem;
   color: #1e293b;
   background: #f8fdf9;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   outline: none;
   transition: border-color 0.2s;
 }
@@ -626,5 +626,227 @@
 
   .all-cert-stat-info strong {
     font-size: 1rem;
+  }
+}
+/* =========================================================
+   Tablet / phone polish (scoped to .all-certificates-page)
+========================================================= */
+.all-certificates-page .all-cert-user-text {
+  min-width: 0;
+}
+
+.all-certificates-page .all-cert-user-text span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 1024px) {
+  .all-certificates-page {
+    padding: 16px 24px 28px;
+  }
+
+  .all-certificates-page .all-cert-search-bar,
+  .all-certificates-page .all-cert-filter-toggle,
+  .all-certificates-page .all-cert-clear-btn {
+    min-height: 44px;
+  }
+
+  .all-certificates-page .all-cert-filter-group select,
+  .all-certificates-page .all-cert-filter-group input {
+    min-height: 42px;
+  }
+
+  /* Table -> labelled certificate cards */
+  .all-certificates-page .all-cert-table-wrap {
+    overflow: visible;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .all-certificates-page .all-cert-table {
+    display: block;
+    min-width: 0;
+  }
+
+  .all-certificates-page .all-cert-table thead {
+    display: none;
+  }
+
+  .all-certificates-page .all-cert-table tbody {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .all-certificates-page .all-cert-table tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+    align-content: start;
+    padding: 14px;
+    border: 1px solid #e8f5ee;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+
+  .all-certificates-page .all-cert-table tbody tr:hover {
+    background: #fff;
+  }
+
+  .all-certificates-page .all-cert-table td {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    font-size: 0.85rem;
+    overflow-wrap: anywhere;
+  }
+
+  .all-certificates-page .all-cert-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 3px;
+    color: #94a3b8;
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+
+  .all-certificates-page td.acert-td-user {
+    grid-column: 1 / -1;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .all-certificates-page .all-cert-user-cell strong {
+    font-size: 0.92rem;
+  }
+
+  .all-certificates-page .all-cert-user-cell span {
+    font-size: 0.78rem;
+  }
+
+  .all-certificates-page td.acert-td-course {
+    grid-column: 1 / -1;
+  }
+
+  .all-certificates-page .all-cert-course-name {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .all-certificates-page .all-cert-department-name {
+    max-width: 100%;
+  }
+
+  .all-certificates-page td.acert-td-id {
+    grid-column: 1 / -1;
+  }
+
+  .all-certificates-page .all-cert-id {
+    font-size: 0.75rem;
+  }
+
+  .all-certificates-page td.acert-td-action {
+    grid-column: 1 / -1;
+  }
+
+  .all-certificates-page .all-cert-view-btn {
+    width: 100%;
+    min-height: 42px;
+    justify-content: center;
+    border: none;
+    font-family: inherit;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .all-certificates-page {
+    padding: 16px 16px 24px;
+  }
+
+  .all-certificates-page .all-cert-header h1 {
+    font-size: 1.3rem;
+  }
+
+  .all-certificates-page .all-cert-header p {
+    font-size: 0.88rem;
+  }
+
+  /* compact 2x2 stats instead of four stacked rows */
+  .all-certificates-page .all-cert-stats-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .all-certificates-page .all-cert-stat-card {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .all-certificates-page .all-cert-stat-icon {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+  }
+
+  .all-certificates-page .all-cert-stat-info span {
+    font-size: 0.66rem;
+    white-space: normal;
+  }
+
+  .all-certificates-page .all-cert-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .all-certificates-page .all-cert-search-bar {
+    flex: 1 1 100%;
+  }
+
+  .all-certificates-page .all-cert-filter-toggle,
+  .all-certificates-page .all-cert-clear-btn {
+    flex: 1 1 0;
+    justify-content: center;
+    font-size: 0.85rem;
+  }
+
+  .all-certificates-page .all-cert-search-bar input,
+  .all-certificates-page .all-cert-filter-group select,
+  .all-certificates-page .all-cert-filter-group input {
+    font-size: 16px;
+  }
+
+  .all-certificates-page .all-cert-filter-group label {
+    font-size: 0.72rem;
+  }
+
+  .all-certificates-page .all-cert-results-header span {
+    font-size: 0.88rem;
+  }
+
+  .all-certificates-page .all-cert-results-header small {
+    font-size: 0.8rem;
+  }
+
+  .all-certificates-page .all-cert-empty {
+    padding: 40px 16px;
+  }
+
+  .all-certificates-page .all-cert-empty p {
+    font-size: 0.88rem;
+  }
+
+  .all-certificates-page .all-cert-empty button {
+    min-height: 42px;
+    font-size: 0.85rem;
+  }
+
+  .all-certificates-page .all-cert-table tbody {
+    grid-template-columns: 1fr;
   }
 }

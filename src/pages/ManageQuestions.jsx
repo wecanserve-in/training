@@ -168,20 +168,22 @@ function ManageQuestions() {
       </div>
 
       <div className="filter-selection-card">
-        <label className="filter-select-label">Department:</label>
+        <label className="filter-select-label" htmlFor="mq-department">Department:</label>
 
         <div className="select-dropdown-wrapper">
           <input
+            id="mq-department"
             value={department || "All Accessible Courses"}
             className="admin-filter-select"
             disabled
           />
         </div>
 
-        <label className="filter-select-label">Course:</label>
+        <label className="filter-select-label" htmlFor="mq-course">Course:</label>
 
         <div className="select-dropdown-wrapper">
           <select
+            id="mq-course"
             value={selectedCourse}
             onChange={handleCourseChange}
             className="admin-filter-select"
@@ -230,6 +232,7 @@ function ManageQuestions() {
 
                   <div className="q-card-actions-row">
                     <button
+                      type="button"
                       onClick={() =>
                         navigate(
                           basePath
@@ -243,6 +246,7 @@ function ManageQuestions() {
                     </button>
 
                     <button
+                      type="button"
                       onClick={() => handleDelete(question.id)}
                       className="btn-item-action-delete"
                     >

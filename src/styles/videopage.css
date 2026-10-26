@@ -25,7 +25,7 @@
   padding: 0 24px 40px;
   background: var(--vp-bg);
   min-height: 100vh;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: var(--vp-text);
   margin-top: 2px;
 }
@@ -1253,7 +1253,6 @@ video::-webkit-media-controls-panel {
   }
 
   .video-hero-banner {
-    margin: 0 -16px 16px;
     padding: 14px 20px;
     flex-direction: column;
     align-items: flex-start;
@@ -1333,7 +1332,7 @@ video::-webkit-media-controls-panel {
   box-shadow: 0 4px 20px rgba(5, 150, 105, 0.35);
   transition: 0.25s;
   animation: vpFabIn 0.4s ease backwards;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   line-height: 1;
 }
 
@@ -1360,4 +1359,119 @@ video::-webkit-media-controls-panel {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+
+/* Keep the Discussion button clear of the profile reminder and the end of the page */
+body.has-pcb .vp-discuss-fab {
+  bottom: 84px;
+}
+
+@media (max-width: 600px) {
+  body.has-pcb .vp-discuss-fab {
+    bottom: 72px;
+  }
+
+  .vp-discuss-fab {
+    min-height: 44px;
+    box-shadow: 0 4px 14px rgba(5, 150, 105, 0.3);
+  }
+}
+
+.video-page-clean {
+  padding-bottom: 88px;
+}
+
+.video-duration-badge:empty,
+.video-list-thumb .thumb-duration:empty {
+  display: none;
+}
+
+/* ── Tablet & phone: one clean column on the layout's gutter ── */
+@media (max-width: 1024px) {
+  .video-page-clean {
+    max-width: none;
+    min-height: 0;
+    margin: 0;
+    padding: 0 8px 96px; /* + 16px layout gutter = 24px on tablet */
+  }
+
+  .video-hero-banner {
+    margin: 0 0 8px;
+    border-radius: 16px;
+  }
+
+  .video-back-btn {
+    min-height: 40px;
+    padding: 8px 0;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+  }
+
+  .video-title-meta-item { font-size: 0.8rem; }
+  .video-title-course { font-size: 0.85rem; flex-wrap: wrap; }
+  .video-title-course span { font-size: 0.72rem; }
+  .video-about-card p { font-size: 0.9rem; color: #64748b; }
+  .course-content-card h2 { font-size: 0.95rem; }
+  .video-list-item { padding: 10px 8px; }
+  .video-list-content strong { font-size: 0.875rem; }
+  .video-list-content span { font-size: 0.75rem; }
+  .progress-header h3 { font-size: 0.95rem; }
+  .progress-text { font-size: 0.8rem; }
+  .quiz-card h2 { font-size: 0.95rem; }
+  .quiz-card p { font-size: 0.85rem; color: #64748b; }
+  .quiz-btn { min-height: 44px; font-size: 0.9rem; }
+
+  /* the list is the whole column here, no need for an inner scroller */
+  .course-video-list { max-height: none; overflow: visible; }
+}
+
+@media (max-width: 600px) {
+  .video-page-clean {
+    padding: 0 0 96px;
+  }
+
+  .video-hero-banner {
+    padding: 14px 16px;
+    border-radius: 14px;
+  }
+
+  .video-hero-info h1 { font-size: 1rem; }
+  .video-hero-info p { font-size: 0.8rem; }
+  .video-hero-badge { font-size: 0.75rem; }
+
+  .video-clean-layout,
+  .video-main-area,
+  .video-side-area {
+    gap: 12px;
+  }
+
+  .video-player-card {
+    border-width: 1px;
+    border-radius: 12px;
+  }
+
+  .video-title-card,
+  .video-about-card,
+  .course-progress-card,
+  .quiz-card {
+    padding: 16px;
+  }
+
+  .course-content-card h2 { padding: 14px 16px; }
+  .course-video-list { padding: 8px; }
+
+  .video-title-left h1 { font-size: 1.05rem; }
+
+  /* duration is already in the meta line; keep only the completed badge */
+  .video-title-right .video-duration-badge { display: none; }
+  .video-title-right:empty { display: none; }
+
+  .modal-actions { flex-direction: column-reverse; }
+  .modal-actions button { width: 100%; min-height: 44px; }
+  .course-complete-modal { padding: 28px 20px; }
+  .quiz-modal-option { min-height: 48px; }
+  .quiz-modal-close { width: 40px; height: 40px; }
+  .quiz-modal-footer { padding: 14px 16px; gap: 10px; }
+  .quiz-modal-submit,
+  .quiz-modal-next { min-height: 44px; }
 }

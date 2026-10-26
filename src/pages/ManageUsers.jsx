@@ -35,6 +35,48 @@ function ManageUsers() {
   const [newDesigName, setNewDesigName] = useState("");
   const [isCreatingDesig, setIsCreatingDesig] = useState(false);
 
+  // "More" toolbar menu (secondary actions). UI-only state.
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreMenuRef = useRef(null);
+  const moreButtonRef = useRef(null);
+  const uploadInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!moreOpen) return undefined;
+    const handlePointer = (e) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target)) setMoreOpen(false);
+    };
+    const handleKey = (e) => {
+      if (e.key === "Escape") {
+        setMoreOpen(false);
+        moreButtonRef.current?.focus();
+        return;
+      }
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        const items = Array.from(moreMenuRef.current?.querySelectorAll('[role="menuitem"]') || []);
+        if (!items.length) return;
+        e.preventDefault();
+        const i = items.indexOf(document.activeElement);
+        const next = e.key === "ArrowDown" ? (i + 1) % items.length : (i - 1 + items.length) % items.length;
+        items[next].focus();
+      }
+    };
+    document.addEventListener("mousedown", handlePointer);
+    document.addEventListener("touchstart", handlePointer);
+    document.addEventListener("keydown", handleKey);
+    moreMenuRef.current?.querySelector('[role="menuitem"]')?.focus();
+    return () => {
+      document.removeEventListener("mousedown", handlePointer);
+      document.removeEventListener("touchstart", handlePointer);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [moreOpen]);
+
+  const runMoreAction = (action) => {
+    setMoreOpen(false);
+    action();
+  };
+
   const [uploadModal, setUploadModal] = useState({
     open: false,
     current: 0,
@@ -780,30 +822,60 @@ const filteredUsers = users
       <div className="mu-action-bar">
         <div className="mu-search-box">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-          <input type="text" placeholder="Search by name, email, designation, city..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          <input type="text" aria-label="Search users" placeholder="Search by name, email, designation, city..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
         </div>
         <div className="mu-action-buttons">
-          <button className="mu-btn mu-btn-outline" onClick={downloadTemplate}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Download Template
-          </button>
-          <label className="mu-btn mu-btn-outline">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Upload Excel
-            <input type="file" accept=".xlsx,.xls,.csv" onChange={handleFileChange} style={{ display: "none" }} />
-          </label>
-          <button className="mu-btn mu-btn-outline" onClick={() => setIsDesignationModalOpen(true)}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-            Manage Designation
-          </button>
           <button className="mu-btn mu-btn-primary" onClick={() => { setEditingUserId(null); resetForm(); setShowForm(true); }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Add New User
           </button>
-          <button className="mu-btn mu-btn-green" onClick={downloadUsersDetail}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Download Users Detail
-          </button>
+
+          <div className="mu-more" ref={moreMenuRef}>
+            <button
+              type="button"
+              ref={moreButtonRef}
+              className={`mu-btn mu-btn-outline mu-more-btn ${moreOpen ? "is-open" : ""}`}
+              aria-haspopup="menu"
+              aria-expanded={moreOpen}
+              aria-controls="mu-more-menu"
+              onClick={() => setMoreOpen((open) => !open)}
+            >
+              More
+              <svg className="mu-more-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+
+            {moreOpen && (
+              <div className="mu-more-menu" id="mu-more-menu" role="menu" aria-label="More user actions">
+                <button type="button" role="menuitem" className="mu-more-item" onClick={() => runMoreAction(downloadTemplate)}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Download Template
+                </button>
+                <button type="button" role="menuitem" className="mu-more-item" onClick={() => runMoreAction(() => uploadInputRef.current?.click())}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  Upload Excel
+                </button>
+                <button type="button" role="menuitem" className="mu-more-item" onClick={() => runMoreAction(() => setIsDesignationModalOpen(true))}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                  Manage Designation
+                </button>
+                <button type="button" role="menuitem" className="mu-more-item" onClick={() => runMoreAction(downloadUsersDetail)}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Download Users Detail
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Kept outside the menu so it stays mounted while the file picker is open */}
+          <input
+            ref={uploadInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleFileChange}
+            style={{ display: "none" }}
+            tabIndex={-1}
+            aria-hidden="true"
+          />
         </div>
       </div>
 
@@ -895,39 +967,41 @@ const filteredUsers = users
             <tbody>
               {filteredUsers.map((user, idx) => (
                 <tr key={user.id}>
-                  <td className="mu-td-idx">{idx + 1}</td>
-                  <td className="mu-td-name">{user.name}</td>
-                  <td className="mu-td-email">{user.email}</td>
-                  <td>
+                  <td className="mu-td-idx" data-label="#">{idx + 1}</td>
+                  <td className="mu-td-name" data-label="Name">{user.name}</td>
+                  <td className="mu-td-email" data-label="Email">{user.email}</td>
+                  <td className="mu-td-role" data-label="Role">
                     <span className="mu-role-badge" style={roleBadgeColor(user.role)}>
                       {getRoleLabel(user.role)}
                     </span>
                   </td>
-                  <td>{user.department || "-"}</td>
-                  <td>{user.designation || "-"}</td>
-                  <td>
-                    <span className="mu-badge" style={seniorityColor(user.seniority)}>
-                      {user.seniority || "-"}
-                    </span>
+                  <td data-label="Department">{user.department || "-"}</td>
+                  <td data-label="Designation">{user.designation || "-"}</td>
+                  <td data-label="Seniority">
+                    {user.seniority ? (
+                      <span className="mu-badge" style={seniorityColor(user.seniority)}>
+                        {user.seniority}
+                      </span>
+                    ) : "-"}
                   </td>
-                  <td>{user.zone || "-"}</td>
-                  <td>{user.state || "-"}</td>
-                  <td>{user.cityArea || "-"}</td>
-                  <td>
+                  <td data-label="Zone">{user.zone || "-"}</td>
+                  <td data-label="State">{user.state || "-"}</td>
+                  <td data-label="City">{user.cityArea || "-"}</td>
+                  <td className="mu-td-actions" data-label="Actions">
                     {normalizeRole(user.role) !== "superadmin" ? (
                     <div className="mu-actions">
-                      <button className="mu-action-edit" onClick={() => startEditUser(user)} title="Edit">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                      <button className="mu-action-edit" onClick={() => startEditUser(user)} title="Edit" aria-label={`Edit ${user.name || user.email}`}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                       </button>
-                      <button className="mu-action-reset" onClick={() => resetUserPassword(user.email)} title="Reset Password">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                      <button className="mu-action-reset" onClick={() => resetUserPassword(user.email)} title="Reset Password" aria-label={`Reset password for ${user.name || user.email}`}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
                       </button>
-                      <button className="mu-action-delete" onClick={() => deleteUser(user.id)} title="Delete">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      <button className="mu-action-delete" onClick={() => deleteUser(user.id)} title="Delete" aria-label={`Delete ${user.name || user.email}`}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                       </button>
                     </div>
                     ) : (
-                      <span style={{ color: "#94a3b8", fontSize: "0.75rem" }}>Protected</span>
+                      <span className="mu-protected" style={{ color: "#94a3b8", fontSize: "0.75rem" }}>Protected</span>
                     )}
                   </td>
                 </tr>
@@ -946,10 +1020,10 @@ const filteredUsers = users
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Manage Designations</h2>
-              <button className="close-btn" onClick={() => setIsDesignationModalOpen(false)}>×</button>
+              <button type="button" className="close-btn" aria-label="Close" onClick={() => setIsDesignationModalOpen(false)}>×</button>
             </div>
             <div className="designation-input-row">
-              <input placeholder="Type new designation..." value={newDesignation} onChange={(e) => setNewDesignation(e.target.value)} />
+              <input aria-label="New designation" placeholder="Type new designation..." value={newDesignation} onChange={(e) => setNewDesignation(e.target.value)} />
               <button className="mu-btn mu-btn-primary" onClick={addDesignation}>Add</button>
             </div>
             <div className="designations-list">
@@ -957,7 +1031,7 @@ const filteredUsers = users
               {designations.map((item) => (
                 <div key={item.id} className="designation-item">
                   <span>{item.name}</span>
-                  <button className="delete-icon-btn" onClick={() => removeDesignation(item.id)}>🗑</button>
+                  <button type="button" className="delete-icon-btn" aria-label={`Delete designation ${item.name}`} onClick={() => removeDesignation(item.id)}>🗑</button>
                 </div>
               ))}
             </div>
@@ -1010,7 +1084,7 @@ const filteredUsers = users
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Create New Department</h2>
-              <button className="close-btn" onClick={() => { setShowCreateDeptModal(false); setNewDeptName(""); }}>×</button>
+              <button type="button" className="close-btn" aria-label="Close" onClick={() => { setShowCreateDeptModal(false); setNewDeptName(""); }}>×</button>
             </div>
             <div className="designation-input-row">
               <input
@@ -1035,7 +1109,7 @@ const filteredUsers = users
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Create New Designation</h2>
-              <button className="close-btn" onClick={() => { setShowCreateDesigModal(false); setNewDesigName(""); }}>×</button>
+              <button type="button" className="close-btn" aria-label="Close" onClick={() => { setShowCreateDesigModal(false); setNewDesigName(""); }}>×</button>
             </div>
             <div className="designation-input-row">
               <input

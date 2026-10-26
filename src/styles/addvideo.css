@@ -1,7 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 
 .admin-form-container {
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   width: 100%;
   max-width: 1100px;
   margin: 0 auto;
@@ -16,11 +16,11 @@
 }
 
 /* ─── Nav Back ─── */
-.admin-nav-back-row {
+.admin-form-container .admin-nav-back-row {
   margin-bottom: 14px;
 }
 
-.btn-admin-back {
+.admin-form-container .btn-admin-back {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -33,18 +33,18 @@
   font-weight: 600;
   font-size: 0.82rem;
   cursor: pointer;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   text-decoration: none;
   transition: all 0.15s;
 }
 
-.btn-admin-back:hover {
+.admin-form-container .btn-admin-back:hover {
   background: #f0fdf4;
   border-color: #059669;
 }
 
 /* ─── Card ─── */
-.admin-form-card {
+.admin-form-container .admin-form-card {
   background: #fff;
   border: 1px solid #e8f5ee;
   border-radius: 14px;
@@ -53,14 +53,14 @@
 }
 
 /* ─── Title ─── */
-.admin-form-title {
+.admin-form-container .admin-form-title {
   margin: 0;
   font-size: 1.3rem;
   font-weight: 700;
   color: #111827;
 }
 
-.admin-form-subtitle {
+.admin-form-container .admin-form-subtitle {
   margin: 4px 0 20px;
   color: #94a3b8;
   font-size: 0.85rem;
@@ -68,24 +68,24 @@
 }
 
 /* ─── Form ─── */
-.admin-core-form {
+.admin-form-container .admin-core-form {
   display: grid;
   gap: 16px;
 }
 
-.admin-input-group {
+.admin-form-container .admin-input-group {
   display: grid;
   gap: 6px;
 }
 
-.admin-field-label {
+.admin-form-container .admin-field-label {
   color: #334155;
   font-size: 0.82rem;
   font-weight: 600;
 }
 
-.admin-form-input,
-.admin-form-textarea {
+.admin-form-container .admin-form-input,
+.admin-form-container .admin-form-textarea {
   width: 100%;
   border: 1px solid #e8f5ee;
   border-radius: 8px;
@@ -93,56 +93,56 @@
   color: #1e293b;
   font-size: 0.85rem;
   font-weight: 500;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   outline: none;
   transition: 0.2s;
   box-sizing: border-box;
 }
 
-.admin-form-input {
+.admin-form-container .admin-form-input {
   height: 42px;
   padding: 0 12px;
 }
 
-.admin-form-textarea {
+.admin-form-container .admin-form-textarea {
   min-height: 80px;
   padding: 10px 12px;
   resize: vertical;
 }
 
-.admin-form-input:focus,
-.admin-form-textarea:focus {
+.admin-form-container .admin-form-input:focus,
+.admin-form-container .admin-form-textarea:focus {
   border-color: #059669;
   background: #fff;
   box-shadow: 0 0 0 2px rgba(5,150,105,0.1);
 }
 
-.admin-form-input:disabled {
+.admin-form-container .admin-form-input:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.admin-form-row-split {
+.admin-form-container .admin-form-row-split {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
 }
 
-.field-hint-text {
+.admin-form-container .field-hint-text {
   font-size: 0.72rem;
   color: #94a3b8;
   margin: 0;
 }
 
 /* ─── Submit ─── */
-.admin-form-submit-zone {
+.admin-form-container .admin-form-submit-zone {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 8px;
 }
 
-.btn-admin-submit-form {
+.admin-form-container .btn-admin-submit-form {
   height: 44px;
   border: none;
   border-radius: 10px;
@@ -152,17 +152,17 @@
   font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   box-shadow: 0 4px 12px rgba(5,150,105,0.2);
   transition: all 0.15s;
 }
 
-.btn-admin-submit-form:hover {
+.admin-form-container .btn-admin-submit-form:hover {
   transform: translateY(-1px);
   box-shadow: 0 6px 16px rgba(5,150,105,0.3);
 }
 
-.btn-admin-submit-form:disabled {
+.admin-form-container .btn-admin-submit-form:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
@@ -170,30 +170,74 @@
 
 /* ─── Mobile ─── */
 @media (max-width: 700px) {
-  .admin-form-row-split {
+  .admin-form-container .admin-form-row-split {
     grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 480px) {
+/* "/videos/" prefix + path input sit on one line */
+.admin-form-container .prefix-input-wrapper {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.admin-form-container .route-fixed-prefix {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 1px solid #e8f5ee;
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  background: #f0fdf4;
+  color: #047857;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.admin-form-container .prefix-input-wrapper .admin-form-input {
+  min-width: 0;
+  border-radius: 0 8px 8px 0;
+}
+
+.admin-form-container .btn-admin-back:focus-visible,
+.admin-form-container .btn-admin-submit-form:focus-visible {
+  outline: 2px solid #047857;
+  outline-offset: 2px;
+}
+
+@media (max-width: 1024px) {
+  .admin-form-container { padding: 0 8px 24px; }
+  .admin-form-container .btn-admin-back { min-height: 40px; }
+}
+
+@media (max-width: 600px) {
   .admin-form-container {
-    padding: 8px;
+    padding: 0 0 20px;
   }
 
-  .admin-form-card {
+  .admin-form-container .admin-form-card {
     padding: 16px;
+    border-radius: 12px;
   }
 
-  .admin-form-submit-zone {
+  .admin-form-container .admin-form-title { font-size: 1.2rem; }
+  .admin-form-container .field-hint-text { font-size: 0.8rem; }
+
+  /* 16px stops iOS zoom-on-focus */
+  .admin-form-container .admin-form-input,
+  .admin-form-container .admin-form-textarea { font-size: 16px; }
+
+  .admin-form-container .admin-form-submit-zone {
     flex-direction: column;
   }
 
-  .btn-admin-submit-form {
+  .admin-form-container .btn-admin-submit-form {
     width: 100%;
     justify-content: center;
   }
 }
-
 
 .video-upload-progress-wrapper {
   margin-top: 14px;
@@ -224,14 +268,14 @@
   transition: width 0.25s ease;
 }
 
-.btn-admin-submit-form:disabled,
-.admin-form-input:disabled,
-.admin-form-textarea:disabled {
+.admin-form-container .btn-admin-submit-form:disabled,
+.admin-form-container .admin-form-input:disabled,
+.admin-form-container .admin-form-textarea:disabled {
   cursor: not-allowed;
   opacity: 0.65;
 }
 
-.admin-form-loading {
+.admin-form-container .admin-form-loading {
   padding: 30px 15px;
   text-align: center;
   font-weight: 600;

@@ -405,6 +405,7 @@ function AddQuestion() {
             accept=".xlsx,.xls,.csv"
             onChange={(e) => setExcelFile(e.target.files[0])}
             className="excel-file-input"
+            aria-label="Excel question file"
           />
 
           <button

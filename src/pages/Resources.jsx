@@ -377,28 +377,30 @@ function Resources() {
                   </div>
 
                   {/* Explicit Action Buttons */}
-                  <div className="resource-actions" style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+                  <div className="resource-actions">
                     <button 
-                      className="view-btn" 
+                      type="button"
+                      className="view-btn"
                       onClick={() => window.open(resource.fileUrl, "_blank")}
-                      style={{ flex: 1, padding: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}
                     >
                       <FaEye /> View
                     </button>
                     
                     <button 
-                      className="download-btn" 
+                      type="button"
+                      className="download-btn"
                       onClick={() => handleForceDownload(resource.fileUrl, resource.fileName)}
-                      style={{ flex: 1, padding: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', backgroundColor: '#059669', color: 'white', border: 'none', borderRadius: '4px' }}
                     >
                       <FaDownload /> Download
                     </button>
 
                     {canDelete && (
                       <button 
-                        className="resource-delete-btn" 
+                        type="button"
+                        className="resource-delete-btn"
                         onClick={() => handleDelete(resource.id)}
-                        style={{ padding: '8px', cursor: 'pointer', color: 'red', border: '1px solid red', borderRadius: '4px', background: 'transparent' }}
+                        aria-label="Delete resource"
+                        title="Delete resource"
                       >
                         <FaTrash />
                       </button>

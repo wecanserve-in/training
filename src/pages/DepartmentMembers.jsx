@@ -610,13 +610,14 @@ const selectedUserCourses = useMemo(() => {
         <input
           type="text"
           placeholder="Search members by name, email, designation..."
+          aria-label="Search members"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
       <div className="dm-table-card">
-        <table className="dm-table">
+        <table className="dm-table" aria-label="Department members">
           <thead>
             <tr>
               <th>#</th>
@@ -654,12 +655,13 @@ const selectedUserCourses = useMemo(() => {
                         </div>
                       </div>
                     </td>
-                    <td className="dm-td-email">{user.email || "-"}</td>
-                    <td>{getDesignation(user)}</td>
-                    <td className="dm-td-count"><strong>{stats.assigned || 0}</strong></td>
-                    <td className="dm-td-count"><strong>{stats.completed || 0}</strong></td>
-                    <td>
+                    <td className="dm-td-email" data-label="Email">{user.email || "-"}</td>
+                    <td className="dm-td-desig" data-label="Designation">{getDesignation(user)}</td>
+                    <td className="dm-td-count" data-label="Assigned"><strong>{stats.assigned || 0}</strong></td>
+                    <td className="dm-td-count" data-label="Completed"><strong>{stats.completed || 0}</strong></td>
+                    <td className="dm-td-action">
                       <button
+                        type="button"
                         className="dm-view-btn"
                         onClick={() => setSelectedUserId(user.id)}
                       >

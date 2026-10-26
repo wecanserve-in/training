@@ -1184,10 +1184,12 @@ function VideoPage() {
                   <span>Video Lesson</span>
                 </p>
                 <div className="video-title-meta">
-                  <div className="video-title-meta-item">
-                    <span className="icon">🕐</span>
-                    {formatTime(videoDuration)}
-                  </div>
+                  {formatTime(videoDuration) && (
+                    <div className="video-title-meta-item">
+                      <span className="icon">🕐</span>
+                      {formatTime(videoDuration)}
+                    </div>
+                  )}
                   <div className="video-title-meta-item">
                     <span className="icon">📊</span>
                     {watchPercent}% watched
@@ -1199,9 +1201,11 @@ function VideoPage() {
                 </div>
               </div>
               <div className="video-title-right">
-                <div className="video-duration-badge">
-                  {formatTime(videoDuration)}
-                </div>
+                {formatTime(videoDuration) && (
+                  <div className="video-duration-badge">
+                    {formatTime(videoDuration)}
+                  </div>
+                )}
                 {isVideoCompleted && (
                   <div className="video-completed-badge">✓ Completed</div>
                 )}

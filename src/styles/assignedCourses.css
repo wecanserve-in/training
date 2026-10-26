@@ -1,7 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
 .assigned-courses-page {
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   min-height: 100vh;
   background: #f0faf5;
   position: relative;
@@ -357,11 +357,78 @@
   .assigned-stats-row { grid-template-columns: repeat(2, 1fr); }
 }
 
-@media (max-width: 600px) {
-  .assigned-courses-page { padding: 12px; }
-  .assigned-stats-row { grid-template-columns: 1fr 1fr; }
-  .assigned-filter-bar { flex-direction: column; }
+@media (max-width: 1024px) {
+  .assigned-courses-page {
+    min-height: 0;
+    padding: 0 8px 24px; /* + 16px layout gutter = 24px on tablet */
+  }
+  .assigned-header h1 { font-size: 1.4rem; }
+  .assigned-header p { font-size: 0.875rem; color: #64748b; }
+  .assigned-stat-info span {
+    font-size: 0.78rem;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #64748b;
+  }
   .assigned-filter-bar input,
-  .assigned-filter-bar select { min-width: 100%; }
-  .assigned-courses-grid { grid-template-columns: 1fr; }
+  .assigned-filter-bar select,
+  .assigned-filter-bar button { height: 44px; }
+  .assigned-course-card {
+    display: flex;
+    flex-direction: column;
+  }
+  .assigned-course-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding: 14px;
+  }
+  .assigned-course-content h3 { font-size: 0.95rem; }
+  .assigned-course-desc { font-size: 0.8rem; color: #64748b; }
+  .assigned-progress strong { font-size: 0.8rem; }
+  .assigned-status-pill { font-size: 0.72rem; }
+  .assigned-action-btn {
+    margin-top: auto;
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .assigned-courses-page { padding: 0 0 16px; }
+  .assigned-stats-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .assigned-stat-card { padding: 12px; gap: 10px; }
+  .assigned-stat-icon { width: 36px; height: 36px; }
+
+  /* search on its own row, status + clear below */
+  .assigned-filter-bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+  .assigned-filter-bar input {
+    grid-column: 1 / -1;
+    flex: none;
+    width: 100%;
+    min-width: 0;
+  }
+  .assigned-filter-bar select {
+    width: 100%;
+    min-width: 0;
+  }
+  /* 16px stops iOS Safari from zooming into the field */
+  .assigned-filter-bar input,
+  .assigned-filter-bar select { font-size: 1rem; }
+  .assigned-filter-bar button { padding: 0 20px; font-size: 0.9rem; }
+
+  .assigned-courses-grid { grid-template-columns: 1fr; gap: 12px; }
+
+  /* letter placeholders don't need a full 16:9 tile on a phone */
+  .assigned-course-thumb:has(.assigned-course-placeholder) {
+    aspect-ratio: auto;
+    height: 120px;
+  }
 }

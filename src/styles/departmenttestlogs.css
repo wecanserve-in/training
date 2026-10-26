@@ -11,7 +11,7 @@
   overflow-x: hidden;
   background: #f0faf5;
   color: #0f2544;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 /* =========================================
@@ -368,7 +368,7 @@
   place-items: center;
   background: #f0faf5;
   color: #64748b;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 0.95rem;
   font-weight: 600;
 }
@@ -410,13 +410,13 @@
    RESPONSIVE
 ========================================= */
 
-@media (max-width: 850px) {
+@media (max-width: 1024px) {
   .department-test-logs-page {
-    padding: 14px;
+    padding: 20px 24px;
   }
 
   .department-course-filter-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
     padding: 15px;
   }
@@ -424,19 +424,127 @@
   .department-test-content-card {
     padding: 16px;
   }
+
+  /* Table -> labelled result cards */
+  .department-test-logs-page .department-results-table-card {
+    overflow: visible;
+    border: none;
+    background: transparent;
+  }
+
+  .department-test-logs-page .department-results-table-scroll {
+    overflow: visible;
+  }
+
+  .department-test-logs-page .department-clean-results-table {
+    display: block;
+    min-width: 0;
+  }
+
+  .department-test-logs-page .department-clean-results-table thead {
+    display: none;
+  }
+
+  .department-test-logs-page .department-clean-results-table tbody {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .department-test-logs-page .department-clean-results-table tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    align-content: start;
+    padding: 14px;
+    border: 1px solid #e2ebe6;
+    border-radius: 14px;
+    background: #ffffff;
+  }
+
+  .department-test-logs-page .department-clean-results-table tbody tr:hover {
+    background: #ffffff;
+  }
+
+  .department-test-logs-page .department-clean-results-table td {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    font-size: 0.88rem;
+  }
+
+  .department-test-logs-page .department-clean-results-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 3px;
+    color: #8b98ad;
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+
+  .department-test-logs-page td.dtl-td-user {
+    grid-column: 1 / 3;
+  }
+
+  .department-test-logs-page td.dtl-td-status {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .department-test-logs-page .department-result-status {
+    min-width: 0;
+  }
+
+  .department-test-logs-page .department-result-user {
+    min-width: 0;
+  }
+
+  .department-test-logs-page .department-result-user > div:last-child {
+    min-width: 0;
+  }
+
+  .department-test-logs-page .department-result-user strong {
+    font-size: 0.92rem;
+    overflow-wrap: anywhere;
+  }
+
+  .department-test-logs-page .department-result-user small {
+    max-width: 100%;
+    font-size: 0.78rem;
+  }
+
+  .department-test-logs-page td.dtl-td-course {
+    grid-column: 1 / -1;
+    padding-top: 12px;
+    border-top: 1px solid #edf2ef;
+  }
+
+  .department-test-logs-page .department-course-name {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .department-test-logs-page td.department-result-date {
+    grid-column: 1 / -1;
+    white-space: normal;
+  }
 }
 
-@media (max-width: 520px) {
+@media (max-width: 600px) {
   .department-test-logs-page {
-    padding: 12px;
+    padding: 16px;
   }
 
   .department-test-page-header h1 {
-    font-size: 1.25rem;
+    font-size: 1.3rem;
   }
 
   .department-test-page-header p {
-    font-size: 0.76rem;
+    font-size: 0.88rem;
     line-height: 1.5;
   }
 
@@ -446,6 +554,32 @@
   }
 
   .department-course-filter-row {
+    grid-template-columns: 1fr;
     padding: 12px;
+  }
+
+  .department-course-select-wrapper label,
+  .department-results-search-wrapper label {
+    font-size: 0.82rem;
+  }
+
+  .department-course-select select,
+  .department-results-search input {
+    font-size: 16px;
+  }
+
+  .department-results-empty,
+  .department-no-course {
+    min-height: 200px;
+    padding: 32px 16px;
+  }
+
+  .department-results-empty p,
+  .department-no-course p {
+    font-size: 0.88rem;
+  }
+
+  .department-test-logs-page .department-clean-results-table tbody {
+    grid-template-columns: 1fr;
   }
 }

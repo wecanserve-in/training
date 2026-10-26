@@ -1,252 +1,290 @@
 /* ==========================================================================
-   Admin Assessment Pools Management Console Layout Stylesheet
+   Manage Course Questions
+   All rules are scoped to .manage-questions-container: CSS stays loaded after
+   navigation, and names like .option-letter are also used by the quiz page.
    ========================================================================== */
 
 .manage-questions-container {
   width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 40px 24px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: #f8fafc;
+  padding: 16px 24px 40px;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: #1e293b;
   min-height: 100vh;
   box-sizing: border-box;
 }
 
-/* Header Area Components Matrix elements alignment */
-.q-header-row {
+/* Header */
+.manage-questions-container .q-header-row {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  border-bottom: 2px solid #e2e8f0;
-  padding-bottom: 24px;
-  margin-bottom: 32px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 20px;
+  margin-bottom: 24px;
   gap: 24px;
 }
 
-.back-link-wrapper {
-  margin-bottom: 8px;
+.manage-questions-container .back-link-wrapper {
+  margin-bottom: 6px;
 }
 
-.btn-q-back {
-  font-size: 0.9rem;
+.manage-questions-container .btn-q-back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  font-size: 0.875rem;
   font-weight: 600;
-  color: #64748b;
+  color: #475569;
   text-decoration: none;
   transition: color 0.15s ease;
 }
 
-.btn-q-back:hover {
-  color: #2563eb;
+.manage-questions-container .btn-q-back:hover {
+  color: #047857;
 }
 
-.q-main-title {
-  font-size: 2rem;
-  font-weight: 800;
+.manage-questions-container .q-main-title {
+  font-size: 1.6rem;
+  font-weight: 700;
   color: #0f172a;
   margin: 0 0 6px 0;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.02em;
 }
 
-.q-subtitle {
-  font-size: 0.975rem;
-  color: #64748b;
-  margin: 0;
-}
-
-.btn-q-create-new {
-  padding: 12px 24px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #ffffff;
-  background-color: #2563eb;
-  border-radius: 8px;
-  text-decoration: none;
-  transition: background-color 0.15s ease;
-  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.15);
-  white-space: nowrap;
-}
-
-.btn-q-create-new:hover {
-  background-color: #1d4ed8;
-}
-
-/* Dropdown Filtering Area Box block styling layout rules */
-.filter-selection-card {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 32px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.01);
-}
-
-.filter-select-label {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #334155;
-  white-space: nowrap;
-}
-
-.select-dropdown-wrapper {
-  width: 100%;
-  max-width: 500px;
-}
-
-.admin-filter-select {
-  width: 100%;
-  padding: 12px 16px;
-  font-size: 0.975rem;
-  color: #0f172a;
-  background-color: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-  background-repeat: no-repeat;
-  background-position: right 16px center;
-  background-size: 16px;
-  padding-right: 40px;
-  transition: border-color 0.15s ease;
-}
-
-.admin-filter-select:focus {
-  outline: none;
-  border-color: #2563eb;
-}
-
-/* Fallback Workspace State Prompt Layout Elements */
-.workspace-status-card {
-  background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 60px 40px;
-  text-align: center;
-  max-width: 600px;
-  margin: 40px auto;
-}
-
-.workspace-status-card h3 {
-  font-size: 1.25rem;
-  color: #1e293b;
-  margin: 0 0 10px 0;
-}
-
-.workspace-status-card p {
+.manage-questions-container .q-subtitle {
   font-size: 0.95rem;
   color: #64748b;
   margin: 0;
   line-height: 1.5;
 }
 
-/* Master Rendered Question Loop Card Layout UI rules */
-.pool-count-indicator {
+.manage-questions-container .btn-q-create-new {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 22px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #ffffff;
+  background-color: #059669;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
+  white-space: nowrap;
+}
+
+.manage-questions-container .btn-q-create-new:hover {
+  background-color: #047857;
+}
+
+/* Filters */
+.manage-questions-container .filter-selection-card {
+  background-color: #ffffff;
+  border: 1px solid #e8f5ee;
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+}
+
+.manage-questions-container .filter-select-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #334155;
+  white-space: nowrap;
+}
+
+.manage-questions-container .select-dropdown-wrapper {
+  width: 100%;
+  max-width: 500px;
+}
+
+.manage-questions-container .admin-filter-select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 40px 10px 14px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: #0f172a;
+  background-color: #ffffff;
+  border: 1px solid #d5e3dc;
+  border-radius: 8px;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 16px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.manage-questions-container .admin-filter-select:focus {
+  outline: none;
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.12);
+}
+
+/* Read-only department field: no dropdown arrow */
+.manage-questions-container input.admin-filter-select {
+  background-image: none;
+  background-color: #f8fafc;
+  color: #334155;
+  cursor: default;
+  padding-right: 14px;
+  box-sizing: border-box;
+}
+
+/* Empty / info states */
+.manage-questions-container .workspace-status-card {
+  background-color: #ffffff;
+  border: 1px solid #e8f5ee;
+  border-radius: 14px;
+  padding: 48px 32px;
+  text-align: center;
+  max-width: 600px;
+  margin: 32px auto;
+}
+
+.manage-questions-container .workspace-status-card h3 {
+  font-size: 1.15rem;
+  color: #1e293b;
+  margin: 0 0 8px 0;
+}
+
+.manage-questions-container .workspace-status-card p {
+  font-size: 0.95rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Question cards */
+.manage-questions-container .pool-count-indicator {
   font-size: 0.95rem;
   color: #475569;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
-.question-item-card {
+.manage-questions-container .question-item-card {
   background-color: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 32px;
-  margin-bottom: 24px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.01);
+  border: 1px solid #e8f5ee;
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
 }
 
-.q-card-upper-row {
+.manage-questions-container .q-card-upper-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
-.q-index-badge {
-  font-size: 0.8rem;
+.manage-questions-container .q-index-badge {
+  font-size: 0.78rem;
   font-weight: 700;
-  background-color: #f1f5f9;
-  color: #475569;
+  background-color: #f0fdf4;
+  color: #047857;
   padding: 4px 10px;
-  border-radius: 4px;
+  border-radius: 6px;
   text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
-.q-card-actions-row {
+.manage-questions-container .q-card-actions-row {
   display: flex;
   gap: 8px;
 }
 
-.btn-item-action-edit,
-.btn-item-action-delete {
-  padding: 6px 12px;
-  font-size: 0.85rem;
+.manage-questions-container .btn-item-action-edit,
+.manage-questions-container .btn-item-action-delete {
+  min-height: 36px;
+  padding: 6px 14px;
+  font-family: inherit;
+  font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 8px;
   transition: all 0.15s ease;
 }
 
-.btn-item-action-edit {
-  color: #2563eb;
-  background-color: #ffffff;
-  border: 1px solid #cbd5e1;
+.manage-questions-container .btn-item-action-edit {
+  color: #047857;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
 }
 
-.btn-item-action-edit:hover {
-  background-color: #eff6ff;
-  border-color: #3b82f6;
+.manage-questions-container .btn-item-action-edit:hover {
+  background-color: #dcfce7;
+  border-color: #059669;
 }
 
-.btn-item-action-delete {
+.manage-questions-container .btn-item-action-delete {
   color: #dc2626;
   background-color: #ffffff;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #fecaca;
 }
 
-.btn-item-action-delete:hover {
+.manage-questions-container .btn-item-action-delete:hover {
   background-color: #fef2f2;
   border-color: #f87171;
 }
 
-.q-card-body-text {
-  font-size: 1.2rem;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0 0 24px 0;
-  line-height: 1.4;
+.manage-questions-container button:focus-visible,
+.manage-questions-container a:focus-visible {
+  outline: 2px solid #047857;
+  outline-offset: 2px;
 }
 
-/* Multiple-choice Options Render Matrix layout system rules */
-.q-card-options-matrix {
+.manage-questions-container .q-card-body-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 16px 0;
+  line-height: 1.45;
+}
+
+/* Options */
+.manage-questions-container .q-card-options-matrix {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: 10px;
 }
 
-.q-option-pill-display {
+.manage-questions-container .q-option-pill-display {
   display: flex;
   align-items: center;
-  padding: 14px 18px;
+  padding: 12px 14px;
   background-color: #f8fafc;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 0.95rem;
   color: #334155;
   gap: 12px;
+  min-width: 0;
 }
 
-.option-letter {
+.manage-questions-container .option-string {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.manage-questions-container .option-letter {
   font-size: 0.75rem;
-  font-weight: 800;
+  font-weight: 700;
   background-color: #e2e8f0;
   color: #475569;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -254,72 +292,118 @@
   flex-shrink: 0;
 }
 
-/* Correct target answer highlighting configuration style overrides */
-.q-option-pill-display.valid-target-key {
+.manage-questions-container .q-option-pill-display.valid-target-key {
   background-color: #f0fdf4;
   border-color: #bbf7d0;
   color: #166534;
 }
 
-.valid-target-key .option-letter {
-  background-color: #bbf7d0;
-  color: #166534;
+.manage-questions-container .valid-target-key .option-letter {
+  background-color: #059669;
+  color: #ffffff;
 }
 
-.key-checkmark-tag {
+.manage-questions-container .key-checkmark-tag {
   margin-left: auto;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #166534;
   background-color: #dcfce7;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: 6px;
   text-transform: uppercase;
+  flex-shrink: 0;
 }
 
-/* Responsive Overrides layout parameters */
+/* Responsive */
+@media (max-width: 1024px) {
+  .manage-questions-container {
+    padding: 0 8px 32px;
+  }
+}
+
 @media (max-width: 768px) {
-  .q-header-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-  .btn-q-create-new {
-    width: 100%;
-    text-align: center;
-  }
-  .filter-selection-card {
+  .manage-questions-container .q-header-row {
     flex-direction: column;
     align-items: stretch;
+    gap: 16px;
   }
-  .select-dropdown-wrapper {
+  .manage-questions-container .btn-q-create-new {
+    width: 100%;
+  }
+  .manage-questions-container .filter-selection-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .manage-questions-container .filter-select-label:not(:first-child) {
+    margin-top: 8px;
+  }
+  .manage-questions-container .select-dropdown-wrapper {
     max-width: 100%;
   }
-  .q-card-options-matrix {
+  .manage-questions-container .q-card-options-matrix {
     grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 600px) {
   .manage-questions-container {
-    padding: 16px 12px;
+    padding: 0 0 24px;
   }
 
-  .q-main-title {
-    font-size: 1.5rem;
+  .manage-questions-container .btn-q-back {
+    min-height: 40px;
   }
 
-  .question-item-card {
-    padding: 20px 16px;
+  .manage-questions-container .q-main-title {
+    font-size: 1.35rem;
   }
 
-  .q-card-body-text {
+  .manage-questions-container .q-subtitle {
+    font-size: 0.875rem;
+  }
+
+  .manage-questions-container .filter-selection-card {
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  /* 16px stops iOS zoom-on-focus */
+  .manage-questions-container .admin-filter-select {
+    font-size: 16px;
+  }
+
+  .manage-questions-container .question-item-card {
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .manage-questions-container .q-card-body-text {
     font-size: 1rem;
   }
 
-  .q-card-upper-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
+  .manage-questions-container .q-card-upper-row {
+    flex-wrap: wrap;
+  }
+
+  .manage-questions-container .q-card-actions-row {
+    width: 100%;
+  }
+
+  .manage-questions-container .btn-item-action-edit,
+  .manage-questions-container .btn-item-action-delete {
+    flex: 1;
+    min-height: 40px;
+  }
+
+  .manage-questions-container .q-option-pill-display {
+    padding: 10px 12px;
+    font-size: 0.9rem;
+  }
+
+  .manage-questions-container .workspace-status-card {
+    padding: 32px 16px;
+    margin: 16px auto;
   }
 }

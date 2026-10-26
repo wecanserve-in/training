@@ -291,7 +291,7 @@ function DepartmentCourses() {
                     <span className="dc-dept-badge">{course.department || "General"}</span>
                     <span className="dc-meta-item">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-                      {videoCount} videos
+                      {videoCount} {videoCount === 1 ? "video" : "videos"}
                     </span>
                     {Number(course.totalQuestions || 0) > 0 && (
                       <span className="dc-meta-item dc-quiz-badge">
@@ -303,14 +303,17 @@ function DepartmentCourses() {
                 </div>
 
                 <div className="dc-course-actions">
-                  <button className="dc-action-edit" onClick={(e) => { e.stopPropagation(); navigate(editLink); }} title="Edit">
+                  <button type="button" className="dc-action-edit" aria-label={`Edit ${course.title || "course"}`} onClick={(e) => { e.stopPropagation(); navigate(editLink); }} title="Edit">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                    <span className="dc-action-label">Edit</span>
                   </button>
-                  <button className="dc-action-assign" onClick={(e) => { e.stopPropagation(); navigate(assignLink); }} title="Assign">
+                  <button type="button" className="dc-action-assign" aria-label={`Assign ${course.title || "course"}`} onClick={(e) => { e.stopPropagation(); navigate(assignLink); }} title="Assign">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                    <span className="dc-action-label">Assign</span>
                   </button>
-                  <button className="dc-action-delete" onClick={(e) => { e.stopPropagation(); deleteCourse(course.id); }} title="Delete">
+                  <button type="button" className="dc-action-delete" aria-label={`Delete ${course.title || "course"}`} onClick={(e) => { e.stopPropagation(); deleteCourse(course.id); }} title="Delete">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    <span className="dc-action-label">Delete</span>
                   </button>
                 </div>
               </div>

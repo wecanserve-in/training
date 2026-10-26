@@ -2,7 +2,7 @@
 
 /* ─── Base ─── */
 .sa-page {
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   min-height: 100vh;
   background: #f0faf5;
   padding: 0 24px 28px;
@@ -474,7 +474,7 @@
 }
 
 .sa-search-box:focus-within { border-color: #059669; }
-.sa-search-box input { border: none; outline: none; background: transparent; font-size: 0.82rem; color: #1e293b; width: 100%; font-family: "Inter", sans-serif; }
+.sa-search-box input { border: none; outline: none; background: transparent; font-size: 0.82rem; color: #1e293b; width: 100%; font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 .sa-search-box input::placeholder { color: #94a3b8; }
 
 .sa-filter-select {
@@ -482,7 +482,7 @@
   border: 1px solid #e8f5ee;
   border-radius: 8px;
   font-size: 0.78rem;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   background: #fff;
   color: #334155;
   cursor: pointer;
@@ -507,7 +507,7 @@
   font-weight: 600;
   cursor: pointer;
   border: none;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   white-space: nowrap;
   transition: all 0.15s;
 }
@@ -990,4 +990,142 @@
   .sa-user-detail-body { padding-left: 16px; padding-right: 16px; }
   .sa-user-progress-summary { grid-template-columns: repeat(2, 1fr); }
   .sa-user-course-title-row { flex-direction: column; gap: 8px; }
+}
+
+/* =========================================================
+   DEPARTMENT ANALYTICS PAGE — tablet / phone polish
+   Scoped to .dap-page (the .sa-* classes are shared with the
+   other analytics pages).
+========================================================= */
+@media (hover: none) {
+  .dap-page .sa-dcard-remove {
+    opacity: 1;
+    width: 24px;
+    height: 24px;
+    top: -8px;
+    right: -8px;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .dap-page { padding: 0 24px 28px; }
+
+  .dap-page .sa-hero { flex-wrap: wrap; gap: 14px; }
+  .dap-page .sa-select-group select,
+  .dap-page .sa-filter-select,
+  .dap-page .sa-search-box { min-height: 42px; }
+  .dap-page .sa-btn { min-height: 42px; justify-content: center; }
+
+  .dap-page .dept-card-info h3 { font-size: 0.95rem; }
+  .dap-page .dept-card-info span { font-size: 0.8rem; }
+  .dap-page .dept-card-stats span { font-size: 0.66rem; }
+  .dap-page .dept-card-stats strong { font-size: 0.95rem; }
+  .dap-page .sa-dcard-meta { font-size: 0.78rem; }
+  .dap-page .sa-dcard-tag { font-size: 0.66rem; }
+
+  /* User report table -> labelled, tappable cards */
+  .dap-page .sa-users-final-section .sa-card { padding: 14px; }
+  .dap-page .sa-table-wrap { overflow: visible; }
+  .dap-page .dap-users-table { display: block; min-width: 0; }
+  .dap-page .dap-users-table thead { display: none; }
+  .dap-page .dap-users-table tbody {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .dap-page .dap-users-table tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px 12px;
+    align-content: start;
+    padding: 14px;
+    border: 1px solid #e8f5ee;
+    border-radius: 12px;
+    background: #fff;
+    animation: saFadeIn 0.3s ease both;
+  }
+  .dap-page .dap-users-table tr.sa-user-clickable-row:hover,
+  .dap-page .dap-users-table tr.sa-user-clickable-row:focus-visible {
+    border-color: #059669;
+    background: #f0fdf4;
+    outline: none;
+  }
+  .dap-page .dap-users-table td,
+  .dap-page .sa-user-clickable-row:hover td,
+  .dap-page .sa-user-clickable-row:hover td:first-child {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-size: 0.85rem;
+  }
+  .dap-page .dap-users-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 3px;
+    color: #94a3b8;
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+  .dap-page .dap-users-table td.sa-td-idx { display: none; }
+  .dap-page .dap-users-table td.sa-td-name { grid-column: 1 / -1; font-size: 0.95rem; }
+  .dap-page .dap-users-table td.sa-td-email {
+    grid-column: 1 / -1;
+    margin-top: -6px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #64748b;
+    font-size: 0.82rem;
+  }
+  .dap-page .dap-users-table td.dap-td-desig { grid-column: 1 / -1; }
+  .dap-page .dap-users-table td.dap-td-zone { grid-column: span 1; }
+  .dap-page .dap-users-table td.dap-td-state { grid-column: span 2; }
+  .dap-page .dap-users-table td.dap-td-pct { grid-column: 1 / -1; }
+  .dap-page .dap-users-table .sa-pct-bar { flex: 1; width: auto; }
+  .dap-page .dap-users-table td.sa-empty { grid-column: 1 / -1; }
+  .dap-page .dap-users-table tr:has(> td.sa-empty) {
+    grid-column: 1 / -1;
+    display: block;
+    padding: 0;
+    border: none;
+    background: transparent;
+  }
+}
+
+@media (max-width: 768px) {
+  .dap-page .sa-filters-row { display: grid; grid-template-columns: 1fr 1fr; }
+  .dap-page .sa-filters-row .sa-search-box { grid-column: 1 / -1; }
+  .dap-page .sa-filter-select { width: 100%; }
+  .dap-page .sa-click-hint { white-space: normal; }
+}
+
+@media (max-width: 600px) {
+  .dap-page { padding: 0 16px 20px; }
+  .dap-page .sa-hero { padding: 18px 16px; }
+  .dap-page .sa-hero h1 { font-size: 1.2rem; }
+  .dap-page .sa-hero p { font-size: 0.88rem; }
+  .dap-page .sa-hero-stat span { font-size: 0.75rem; }
+  .dap-page .sa-hero-right { width: 100%; justify-content: space-between; }
+  .dap-page .sa-selector-row { padding: 12px 14px; }
+  .dap-page .sa-select-group select,
+  .dap-page .sa-filter-select,
+  .dap-page .sa-search-box input { font-size: 16px; }
+  .dap-page .sa-filters-row { grid-template-columns: 1fr; }
+  .dap-page .sa-kpi span { font-size: 0.7rem; }
+  .dap-page .sa-table-head h2 { font-size: 1rem; }
+  .dap-page .sa-table-head p { font-size: 0.82rem; }
+  .dap-page .dap-users-table tbody { grid-template-columns: 1fr; }
+  .dap-page .sa-user-detail-close { width: 40px; height: 40px; }
+  .dap-page .sa-user-location-grid span,
+  .dap-page .sa-user-summary-card span { font-size: 0.72rem; }
+  .dap-page .sa-user-location-grid strong,
+  .dap-page .sa-user-course-title-row h4 { font-size: 0.9rem; }
+  .dap-page .sa-user-course-title-row p,
+  .dap-page .sa-user-course-extra span { font-size: 0.75rem; }
 }

@@ -1,63 +1,129 @@
-/* ═══════════════════════════════════════════
-   Profile Completion Floating Badge
-   ═══════════════════════════════════════════ */
+/* Floating "Complete your profile" reminder (ProfileCompletionBadge.jsx) */
+
 .pcb-floating {
+  --pcb-color: #dc2626;
+  --pcb-bg: #fef2f2;
+  --pcb-border: #fecaca;
+
   position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 9999;
+  right: 20px;
+  bottom: 20px;
+  z-index: 800; /* below menus, drawers and dialogs */
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
+  padding: 4px 4px 4px 6px;
+  border: 1px solid var(--pcb-border);
+  border-radius: 999px;
+  background: var(--pcb-bg);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.12);
+  font-family: inherit;
+}
+
+.pcb-mid {
+  --pcb-color: #d97706;
+  --pcb-bg: #fffbeb;
+  --pcb-border: #fde68a;
+}
+
+.pcb-high {
+  --pcb-color: #ea580c;
+  --pcb-bg: #fff7ed;
+  --pcb-border: #fed7aa;
+}
+
+.pcb-done {
+  --pcb-color: #059669;
+  --pcb-bg: #f0fdf4;
+  --pcb-border: #bbf7d0;
+}
+
+.pcb-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 4px 8px 4px 4px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #1e293b;
+  text-align: left;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  padding: 12px 14px 10px;
-  border-radius: 16px;
-  border: 1.5px solid;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(8px);
 }
 
-.pcb-floating:hover {
-  transform: scale(1.08);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
-}
-
-.pcb-ring-wrap {
-  position: relative;
-  width: 48px;
-  height: 48px;
+.pcb-main:hover .pcb-text strong {
+  text-decoration: underline;
 }
 
 .pcb-ring {
   display: block;
+  flex-shrink: 0;
 }
 
-.pcb-percent {
-  position: absolute;
-  inset: 0;
+.pcb-ring-track {
+  stroke: #e2e8f0;
+}
+
+.pcb-ring-value {
+  stroke: var(--pcb-color);
+  transition: stroke-dashoffset 0.5s ease;
+}
+
+.pcb-text {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.72rem;
-  font-weight: 800;
+  flex-direction: column;
+  line-height: 1.2;
 }
 
-.pcb-label {
-  color: #fff;
-  font-size: 0.62rem;
+.pcb-text strong {
+  font-size: 13px;
   font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 20px;
-  white-space: nowrap;
-  letter-spacing: 0.01em;
+}
+
+.pcb-text span {
+  font-size: 12px;
+  color: var(--pcb-color);
+  font-weight: 600;
+}
+
+.pcb-close {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #64748b;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pcb-close:hover {
+  background: rgba(15, 23, 42, 0.06);
+  color: #1e293b;
+}
+
+/* Space at the bottom of every page while the reminder is shown */
+body.has-pcb #root {
+  padding-bottom: 72px;
 }
 
 @media (max-width: 600px) {
   .pcb-floating {
-    bottom: 16px;
-    right: 16px;
-    padding: 10px 12px 8px;
+    right: 12px;
+    bottom: 12px;
+  }
+
+  .pcb-text strong {
+    font-size: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pcb-ring-value {
+    transition: none;
   }
 }

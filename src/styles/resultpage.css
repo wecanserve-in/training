@@ -8,7 +8,7 @@
   justify-content: center;
   align-items: center;
   padding: 20px;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 /* ── SHELL ── */
@@ -319,5 +319,42 @@
 
   .result-score-circle strong {
     font-size: 1.3rem;
+  }
+}
+
+/* ── Tablet & phone refinements ── */
+@media (max-width: 1024px) {
+  .result-page-container {
+    min-height: 0;
+    align-items: flex-start;
+    padding: 8px 8px 24px;
+  }
+
+  .result-back-btn {
+    min-height: 40px;
+    padding: 8px 0;
+    font-size: 0.9rem;
+  }
+
+  .result-stats-grid span { font-size: 0.75rem; color: #64748b; }
+  .result-course-type { font-size: 0.82rem; }
+  .result-message { font-size: 0.9rem; }
+
+  .primary-btn,
+  .secondary-btn {
+    height: auto;
+    min-height: 44px;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .result-page-container {
+    padding: 0 0 16px;
+  }
+
+  .result-shell {
+    padding: 20px 16px;
+    border-radius: 16px;
   }
 }

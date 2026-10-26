@@ -2,7 +2,7 @@
 
 /* ─── Base ─── */
 .manage-users-page {
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   min-height: 100vh;
   background: #f0faf5;
   padding: 0 24px 28px;
@@ -111,7 +111,7 @@
   font-size: 0.85rem;
   color: #1e293b;
   width: 100%;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 .mu-search-box input::placeholder {
@@ -123,6 +123,80 @@
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+/* ─── "More" menu (secondary toolbar actions) ─── */
+.mu-more {
+  position: relative;
+}
+
+.mu-more-btn.is-open {
+  background: #f0fdf4;
+  border-color: #059669;
+}
+
+.mu-more-caret {
+  transition: transform 0.2s;
+}
+
+.mu-more-btn.is-open .mu-more-caret {
+  transform: rotate(180deg);
+}
+
+.mu-more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  min-width: 240px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #fff;
+  border: 1px solid #e8f5ee;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+  animation: muMenuIn 0.14s ease-out;
+}
+
+@keyframes muMenuIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.mu-more-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #334155;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mu-more-item svg {
+  flex-shrink: 0;
+  color: #059669;
+}
+
+.mu-more-item:hover,
+.mu-more-item:focus-visible {
+  background: #f0fdf4;
+  color: #065f46;
+  outline: none;
+}
+
+.mu-more-item:focus-visible {
+  box-shadow: inset 0 0 0 2px #059669;
 }
 
 /* ─── Buttons ─── */
@@ -137,7 +211,7 @@
   cursor: pointer;
   transition: all 0.2s;
   border: none;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   white-space: nowrap;
 }
 
@@ -227,7 +301,7 @@
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   font-size: 0.85rem;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   background: #fff;
   color: #1e293b;
   transition: border-color 0.2s;
@@ -421,86 +495,111 @@
   background: #fee2e2;
 }
 
-/* ─── Modals ─── */
-.modal-overlay {
+
+.mu-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ─── Modals (scoped: these generic names are used by other pages too) ─── */
+.manage-users-page .modal-overlay {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
+  inset: 0;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 16px;
   z-index: 1000;
   backdrop-filter: blur(4px);
 }
 
-.modal-content {
-  background: white;
+.manage-users-page .modal-content {
+  background: #fff;
   padding: 24px;
   border-radius: 14px;
-  width: 90%;
+  width: 100%;
   max-width: 450px;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
   border: 1px solid #e8f5ee;
+  box-sizing: border-box;
 }
 
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.modal-header h2 {
+.manage-users-page .modal-content h2 {
   margin: 0;
   font-size: 1.1rem;
   font-weight: 600;
+  color: #1e293b;
 }
 
-.close-btn {
+.manage-users-page .modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.manage-users-page .close-btn {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: -6px -8px -6px 0;
   background: none;
   border: none;
+  border-radius: 8px;
   font-size: 1.5rem;
   cursor: pointer;
   color: #64748b;
   line-height: 1;
 }
 
-.close-btn:hover {
+.manage-users-page .close-btn:hover {
   color: #1e293b;
+  background: #f1f5f9;
 }
 
-.designation-input-row {
+.manage-users-page .designation-input-row {
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
 }
 
-.designation-input-row input {
+.manage-users-page .designation-input-row input {
   flex: 1;
+  min-width: 0;
   padding: 9px 12px;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   font-size: 0.85rem;
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
-.designation-input-row input:focus {
+.manage-users-page .designation-input-row input:focus {
   border-color: #059669;
   outline: none;
 }
 
-.designations-list {
+.manage-users-page .designations-list {
   max-height: 300px;
   overflow-y: auto;
   border-top: 1px solid #f1f5f9;
   padding-top: 12px;
 }
 
-.designation-item {
+.manage-users-page .designation-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 12px;
+  gap: 10px;
+  padding: 6px 6px 6px 12px;
   background: #f8fdf9;
   border: 1px solid #e8f5ee;
   border-radius: 8px;
@@ -508,20 +607,24 @@
   font-size: 0.85rem;
 }
 
-.delete-icon-btn {
+.manage-users-page .delete-icon-btn {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 8px;
   background: none;
   border: none;
   cursor: pointer;
   opacity: 0.6;
 }
 
-.delete-icon-btn:hover {
+.manage-users-page .delete-icon-btn:hover {
   opacity: 1;
-  color: red;
+  background: #fee2e2;
 }
 
-/* ─── Progress Bar ─── */
-.progress-bar {
+/* ─── Upload progress modal ─── */
+.manage-users-page .progress-bar {
   height: 6px;
   background: #e2e8f0;
   border-radius: 100px;
@@ -529,169 +632,280 @@
   overflow: hidden;
 }
 
-.progress-fill {
+.manage-users-page .progress-fill {
   height: 100%;
   background: linear-gradient(90deg, #059669, #34d399);
   transition: width 0.3s;
 }
 
-.stats-row {
+.manage-users-page .stats-row {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
+  gap: 8px;
   font-size: 0.82rem;
   font-weight: 600;
 }
 
-.mt-3 { margin-top: 16px; }
-.w-100 { width: 100%; }
-.text-center { text-align: center; }
-.text-muted { color: #94a3b8; font-size: 0.85rem; }
+.manage-users-page .error-summary h3 {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  color: #1e293b;
+}
 
-/* ─── Responsive ─── */
+.manage-users-page .error-list {
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.manage-users-page .error-item {
+  padding: 8px 10px;
+  border: 1px solid #fee2e2;
+  border-radius: 8px;
+  background: #fef2f2;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.manage-users-page .error-details span {
+  display: block;
+  color: #64748b;
+}
+
+.manage-users-page .error-reason,
+.manage-users-page .error-suggestion {
+  margin: 4px 0 0;
+  color: #b91c1c;
+}
+
+.manage-users-page .error-suggestion {
+  color: #64748b;
+}
+
+.manage-users-page .mt-3 { margin-top: 16px; }
+.manage-users-page .w-100 { width: 100%; justify-content: center; }
+.manage-users-page .text-muted { color: #94a3b8; font-size: 0.85rem; }
+
 /* =========================================================
-   MOBILE RESPONSIVE
+   TABLET (≤1024px)
+   Side gutter: layout padding (12px) + 12px here = 24px.
    ========================================================= */
-
-@media (max-width: 768px) {
-
+@media (max-width: 1024px) {
   .manage-users-page {
-    width: 100%;
-    max-width: 100%;
-    padding: 0 12px 20px;
     margin-top: 0;
-    overflow-x: hidden;
+    padding: 0 8px 24px; /* + 16px from the app frame = 24px */
+    min-height: 0;
   }
 
-  /* =========================
-     HERO
-     ========================= */
-
+  /* Hero */
   .mu-hero {
-    width: 100%;
-    margin: 0 0 12px;
-    padding: 16px;
-    border-radius: 14px;
-
     flex-direction: column;
     align-items: stretch;
-    gap: 14px;
+    gap: 16px;
+    padding: 20px 24px;
   }
 
-  .mu-hero-content {
-    width: 100%;
-  }
-
-  .mu-hero-content h1 {
-    font-size: 1.15rem;
-    line-height: 1.25;
-  }
-
-  .mu-hero-content p {
-    font-size: 0.72rem;
-    line-height: 1.35;
-  }
-
-  /* Stats stay in one clean row */
   .mu-hero-stats {
-    width: 100%;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
   }
 
   .mu-hero-stat {
     min-width: 0;
-    gap: 5px;
   }
 
   .mu-hero-stat-icon {
-    width: 30px;
-    height: 30px;
-    min-width: 30px;
-    border-radius: 8px;
-  }
-
-  .mu-hero-stat strong {
-    font-size: 0.85rem;
+    flex-shrink: 0;
   }
 
   .mu-hero-stat span {
-    font-size: 0.58rem;
-    line-height: 1.15;
+    display: block;
+    line-height: 1.3;
   }
 
-
-  /* =========================
-     SEARCH + ACTIONS
-     ========================= */
-
+  /* Search + toolbar: search grows, "Add New User" + "More" on the right */
   .mu-action-bar {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-    margin-bottom: 12px;
+    flex-wrap: nowrap;
   }
 
   .mu-search-box {
-    width: 100%;
     max-width: none;
-    min-height: 36px;
-    padding: 7px 11px;
-  }
-
-  .mu-search-box input {
     min-width: 0;
-    font-size: 0.75rem;
+    min-height: 44px;
+    box-sizing: border-box;
   }
 
-  /* IMPORTANT:
-     Buttons arranged in proper rows */
   .mu-action-buttons {
-    width: 100%;
-    display: grid;
-
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-
-    align-items: stretch;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
   }
 
   .mu-action-buttons .mu-btn {
-    width: 100%;
-    min-width: 0;
-    min-height: 34px;
-
+    min-height: 44px;
     justify-content: center;
+    box-sizing: border-box;
+  }
 
-    padding: 7px 6px;
+}
 
-    font-size: 0.68rem;
-    line-height: 1.1;
+/* Tablet only: table scrolls sideways with # and name pinned
+   (kept out of the phone range so it cannot leak into the cards) */
+@media (min-width: 601px) and (max-width: 1024px) {
+  .mu-table-wrap {
+    -webkit-overflow-scrolling: touch;
+  }
 
+  .mu-table-wrap td {
     white-space: nowrap;
   }
 
-  /* Make Add New User full width */
-  .mu-action-buttons .mu-btn-primary {
-    grid-column: 1 / -1;
+  .mu-table-wrap th:nth-child(1),
+  .mu-table-wrap td:nth-child(1),
+  .mu-table-wrap th:nth-child(2),
+  .mu-table-wrap td:nth-child(2) {
+    position: sticky;
+    z-index: 1;
+    background: #fff;
   }
 
-  /* Make Download Users Detail full width */
-  .mu-action-buttons .mu-btn-green {
-    grid-column: 1 / -1;
+  .mu-table-wrap th:nth-child(1),
+  .mu-table-wrap th:nth-child(2) {
+    background: #f8fdf9;
   }
 
+  .mu-table-wrap th:nth-child(1),
+  .mu-table-wrap td:nth-child(1) {
+    left: 0;
+    width: 44px;
+    min-width: 44px;
+    box-sizing: border-box;
+  }
 
-  /* =========================
-     FORM
-     ========================= */
+  .mu-table-wrap th:nth-child(2),
+  .mu-table-wrap td:nth-child(2) {
+    left: 44px;
+    box-shadow: 1px 0 0 #e8f5ee;
+  }
 
+  .mu-table-wrap tr:hover td:nth-child(1),
+  .mu-table-wrap tr:hover td:nth-child(2) {
+    background: #f8fdf9;
+  }
+
+  .mu-table-wrap .mu-empty {
+    position: static;
+    white-space: normal;
+  }
+
+}
+
+@media (max-width: 1024px) {
+  /* Touch-friendly action icons */
+  .mu-actions button {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+  }
+}
+
+/* =========================================================
+   PHONE (≤600px)
+   Side gutter: layout padding (12px) + 4px here = 16px.
+   ========================================================= */
+@media (max-width: 600px) {
+  .manage-users-page {
+    padding: 0 0 16px; /* the app frame gives 16px */
+  }
+
+  /* Hero */
+  .mu-hero {
+    padding: 18px 16px;
+    margin-bottom: 12px;
+    border-radius: 14px;
+  }
+
+  .mu-hero-content h1 {
+    font-size: 1.2rem;
+  }
+
+  .mu-hero-content p {
+    font-size: 0.82rem;
+  }
+
+  .mu-hero-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mu-hero-stat-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .mu-hero-stat strong {
+    font-size: 1rem;
+  }
+
+  .mu-hero-stat span {
+    font-size: 0.75rem;
+  }
+
+  /* Search on its own row; 16px text avoids iOS zoom-on-focus */
+  .mu-action-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .mu-search-box input {
+    font-size: 16px;
+  }
+
+  /* "Add New User" fills the row, "More" sits beside it;
+     the menu opens as a full-width list under both */
+  .mu-action-buttons {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .mu-action-buttons .mu-btn {
+    font-size: 0.875rem;
+  }
+
+  .mu-more {
+    position: static;
+  }
+
+  .mu-more-btn {
+    height: 100%;
+  }
+
+  .mu-more-menu {
+    left: 0;
+    right: 0;
+    min-width: 0;
+  }
+
+  .mu-more-item {
+    min-height: 48px;
+    font-size: 0.9rem;
+  }
+
+  /* Add / edit form */
   .mu-form-card {
-    width: 100%;
-    padding: 14px;
+    padding: 16px;
     border-radius: 12px;
+  }
+
+  .mu-form-header {
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
   .mu-form-grid {
@@ -699,648 +913,201 @@
     gap: 10px;
   }
 
+  .mu-form-grid input,
+  .mu-form-grid .nice-select {
+    font-size: 16px;
+    min-height: 44px;
+  }
+
   .mu-form-actions {
-    width: 100%;
-    flex-direction: column;
+    flex-direction: column-reverse;
     align-items: stretch;
   }
 
   .mu-form-actions .mu-btn {
-    width: 100%;
     justify-content: center;
+    min-height: 44px;
   }
 
-
-  /* =========================
-     USERS TABLE
-     ========================= */
-
-  .mu-table-card {
-    width: 100%;
-    border-radius: 12px;
-  }
-
+  /* Table → labelled cards */
   .mu-table-header {
-    padding: 13px 12px;
-  }
-
-  .mu-table-header h2 {
-    font-size: 0.9rem;
-  }
-
-  .mu-table-header p {
-    font-size: 0.68rem;
+    padding: 14px 16px;
   }
 
   .mu-table-wrap {
-    width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .mu-table-wrap table {
-    width: 100%;
-    min-width: 0;
-    table-layout: fixed;
-  }
-
-  .mu-table-wrap th {
-    padding: 8px 8px;
-    font-size: 0.6rem;
-  }
-
-  .mu-table-wrap td {
-    padding: 9px 8px;
-    font-size: 0.68rem;
-    word-break: break-word;
-  }
-
-  .mu-td-email {
-    font-size: 0.62rem;
-    word-break: break-all;
-  }
-
-  .mu-td-name {
-    font-size: 0.68rem;
-  }
-
-  .mu-td-idx {
-    font-size: 0.62rem;
-  }
-
-  .mu-actions {
-    gap: 2px;
-  }
-
-  .mu-actions button {
-    width: 26px;
-    height: 26px;
-  }
-
-
-  /* =========================
-     MODALS
-     ========================= */
-
-  .modal-overlay {
+    overflow: visible;
     padding: 12px;
   }
 
-  .modal-content {
-    width: 100%;
-    max-width: 450px;
-    max-height: calc(100vh - 24px);
-    overflow-y: auto;
-    padding: 18px;
-  }
-
-  .modal-header {
-    margin-bottom: 15px;
-  }
-
-  .modal-header h2 {
-    font-size: 1rem;
-  }
-
-  .designation-input-row {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .designation-input-row input {
+  .mu-table-wrap table,
+  .mu-table-wrap tbody {
+    display: block;
     width: 100%;
   }
-}
 
-
-/* =========================================================
-   SMALL PHONES
-   ========================================================= */
-
-@media (max-width: 480px) {
-
-  .manage-users-page {
-    padding-left: 10px;
-    padding-right: 10px;
+  .mu-table-wrap thead {
+    display: none;
   }
 
-  /* HERO */
-
-  .mu-hero {
+  .mu-table-wrap tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
     padding: 14px;
+    margin-bottom: 10px;
+    border: 1px solid #e8f5ee;
+    border-radius: 12px;
+    background: #fff;
   }
 
-  .mu-hero-content h1 {
-    font-size: 1.05rem;
+  .mu-table-wrap tr:last-child {
+    margin-bottom: 0;
   }
 
-  .mu-hero-content p {
-    font-size: 0.68rem;
-  }
-
-  .mu-hero-stats {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 4px;
-  }
-
-  .mu-hero-stat {
-    gap: 4px;
-  }
-
-  .mu-hero-stat-icon {
-    width: 27px;
-    height: 27px;
-    min-width: 27px;
-  }
-
-  .mu-hero-stat strong {
-    font-size: 0.78rem;
-  }
-
-  .mu-hero-stat span {
-    font-size: 0.52rem;
-  }
-
-
-  /* BUTTONS */
-
-  .mu-action-buttons {
-    grid-template-columns: 1fr 1fr;
-    gap: 5px;
-  }
-
-  .mu-action-buttons .mu-btn {
-    min-height: 32px;
-    padding: 6px 4px;
-    font-size: 0.62rem;
-  }
-
-
-  /* TABLE */
-
-  .mu-table-header {
-    padding: 12px 10px;
-  }
-
-  .mu-table-wrap th {
-    padding: 7px 6px;
-    font-size: 0.55rem;
+  .mu-table-wrap tr:hover {
+    background: #fff;
   }
 
   .mu-table-wrap td {
-    padding: 8px 6px;
-    font-size: 0.62rem;
+    position: static;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    width: auto;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    font-size: 0.875rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
-  .mu-td-email {
-    font-size: 0.57rem;
+  .mu-table-wrap tr:hover td:nth-child(1),
+  .mu-table-wrap tr:hover td:nth-child(2) {
+    background: transparent;
   }
 
-  .mu-td-name {
-    font-size: 0.63rem;
-  }
-}
-
-
-/* =========================================================
-   VERY SMALL PHONES
-   ========================================================= */
-
-@media (max-width: 360px) {
-
-  .manage-users-page {
-    padding-left: 8px;
-    padding-right: 8px;
-  }
-
-  .mu-action-buttons {
-    gap: 4px;
-  }
-
-  .mu-action-buttons .mu-btn {
-    font-size: 0.58rem;
-    padding-left: 3px;
-    padding-right: 3px;
-  }
-
-  .mu-hero-stat-icon {
-    width: 25px;
-    height: 25px;
-    min-width: 25px;
-  }
-
-  .mu-hero-stat strong {
+  .mu-table-wrap td::before {
+    content: attr(data-label);
     font-size: 0.72rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
   }
 
-  .mu-hero-stat span {
-    font-size: 0.48rem;
+  .mu-table-wrap td > span {
+    align-self: flex-start;
+  }
+
+  .mu-table-wrap .mu-td-idx {
+    display: none;
+  }
+
+  .mu-table-wrap .mu-td-name {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+    font-size: 1rem;
+  }
+
+  .mu-table-wrap .mu-td-role {
+    grid-column: 2;
+    grid-row: 1;
+    align-items: flex-end;
+    align-self: center;
+  }
+
+  .mu-table-wrap .mu-td-role > span {
+    align-self: flex-end;
+  }
+
+  .mu-table-wrap .mu-td-email {
+    grid-column: 1 / -1;
+    margin-top: -6px;
+    font-size: 0.85rem;
+  }
+
+  .mu-table-wrap .mu-td-name::before,
+  .mu-table-wrap .mu-td-role::before,
+  .mu-table-wrap .mu-td-email::before,
+  .mu-table-wrap .mu-td-actions::before,
+  .mu-table-wrap .mu-empty::before {
+    content: none;
+  }
+
+  .mu-table-wrap .mu-td-actions {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    justify-content: flex-end;
+    padding-top: 10px;
+    border-top: 1px solid #f1f5f9;
+  }
+
+  .mu-actions {
+    gap: 8px;
+  }
+
+
+  .mu-actions .mu-action-edit { background: #eff6ff; }
+  .mu-actions .mu-action-reset { background: #fffbeb; }
+  .mu-actions .mu-action-delete { background: #fef2f2; }
+
+  .mu-table-wrap .mu-empty {
+    grid-column: 1 / -1;
+    padding: 20px 8px !important;
+    text-align: center;
+    align-items: center;
+  }
+
+  .mu-table-wrap tr:has(.mu-empty) {
+    border: none;
+    padding: 0;
+  }
+
+  /* Modals */
+  .manage-users-page .modal-content {
+    padding: 18px 16px;
+  }
+
+  .manage-users-page .designation-input-row {
+    flex-direction: column;
+  }
+
+  .manage-users-page .designation-input-row input {
+    font-size: 16px;
+    min-height: 44px;
+  }
+
+  .manage-users-page .designation-input-row .mu-btn {
+    justify-content: center;
+    min-height: 44px;
   }
 }
 
-
-/* =========================================================
-   FINAL MOBILE WIDTH FIX
-   ========================================================= */
-
-@media (max-width: 768px) {
-
-  html,
-  body,
-  #root {
-    width: 100% !important;
-    min-width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow-x: hidden !important;
+/* Tablet + desktop table: names stay on one line and the Actions
+   column stays pinned on the right while the table scrolls */
+@media (min-width: 601px) {
+  .mu-table-wrap .mu-td-name {
+    white-space: nowrap;
   }
 
-  .super-layout {
-    width: 100vw !important;
-    min-width: 100vw !important;
-    max-width: 100vw !important;
-
-    margin: 0 !important;
-    padding: 0 !important;
-
-    overflow-x: hidden !important;
+  .mu-table-wrap th:last-child,
+  .mu-table-wrap td.mu-td-actions {
+    position: sticky;
+    right: 0;
+    z-index: 1;
+    background: #fff;
+    box-shadow: -1px 0 0 #e8f5ee;
   }
 
-  .super-page {
-    width: 100% !important;
-    max-width: none !important;
-    min-width: 0 !important;
-
-    margin-left: 0 !important;
-
-    padding: 10px !important;
-
-    overflow-x: hidden !important;
+  .mu-table-wrap th:last-child {
+    background: #f8fdf9;
   }
 
-  .manage-users-page {
-    width: 100% !important;
-    max-width: none !important;
-    min-width: 0 !important;
-
-    margin: 0 !important;
-    padding: 0 10px 20px !important;
-
-    box-sizing: border-box !important;
-  }
-
-  .mobile-topbar {
-    width: 100% !important;
-    box-sizing: border-box !important;
-  }
-}
-
-/* =========================================================
-   FINAL MOBILE FULL WIDTH FIX
-   ========================================================= */
-
-@media screen and (max-width: 768px) {
-
-  /* ---------- GLOBAL ---------- */
-
-  html,
-  body {
-    width: 100vw !important;
-    min-width: 100vw !important;
-    max-width: 100vw !important;
-
-    margin: 0 !important;
-    padding: 0 !important;
-
-    overflow-x: hidden !important;
-  }
-
-  #root {
-    width: 100vw !important;
-    min-width: 100vw !important;
-    max-width: 100vw !important;
-
-    margin: 0 !important;
-    padding: 0 !important;
-
-    overflow-x: hidden !important;
-  }
-
-
-  /* ---------- SUPER ADMIN WRAPPER ---------- */
-
-  .super-layout {
-    width: 100vw !important;
-    min-width: 100vw !important;
-    max-width: 100vw !important;
-
-    min-height: 100vh !important;
-
-    margin: 0 !important;
-    padding: 0 !important;
-
-    overflow-x: hidden !important;
-  }
-
-
-  /* ---------- MOBILE HEADER ---------- */
-
-  .mobile-notification-wrapper {
-    width: 100vw !important;
-    max-width: 100vw !important;
-    min-width: 0 !important;
-
-    margin: 0 !important;
-    padding: 0 !important;
-
-    box-sizing: border-box !important;
-  }
-
-  .mobile-topbar {
-    width: 100vw !important;
-    max-width: 100vw !important;
-
-    height: 56px !important;
-
-    margin: 0 !important;
-
-    padding: 0 12px !important;
-
-    box-sizing: border-box !important;
-  }
-
-
-  /* ---------- MAIN CONTENT ---------- */
-
-  .super-page {
-    width: 100vw !important;
-    max-width: 100vw !important;
-    min-width: 0 !important;
-
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-
-    padding: 10px !important;
-
-    box-sizing: border-box !important;
-
-    overflow-x: hidden !important;
-  }
-
-
-  /* ---------- MANAGE USERS ---------- */
-
-  .manage-users-page {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-
-    margin: 0 !important;
-
-    padding: 0 !important;
-
-    box-sizing: border-box !important;
-
-    overflow-x: hidden !important;
-  }
-
-
-  /* ---------- HERO ---------- */
-
-  .manage-users-page .mu-hero {
-    width: 100% !important;
-    max-width: 100% !important;
-
-    margin: 0 0 10px !important;
-
-    box-sizing: border-box !important;
-  }
-
-
-  /* ---------- SEARCH ---------- */
-
-  .manage-users-page .mu-action-bar {
-    width: 100% !important;
-    max-width: 100% !important;
-
-    box-sizing: border-box !important;
-  }
-
-  .manage-users-page .mu-search-box {
-    width: 100% !important;
-    max-width: 100% !important;
-
-    box-sizing: border-box !important;
-  }
-
-
-  /* ---------- BUTTONS ---------- */
-
-  .manage-users-page .mu-action-buttons {
-    width: 100% !important;
-    max-width: 100% !important;
-
-    display: grid !important;
-
-    grid-template-columns:
-      minmax(0, 1fr)
-      minmax(0, 1fr) !important;
-
-    gap: 6px !important;
-
-    box-sizing: border-box !important;
-  }
-
-  .manage-users-page .mu-action-buttons .mu-btn {
-    width: 100% !important;
-    min-width: 0 !important;
-
-    box-sizing: border-box !important;
-
-    justify-content: center !important;
-  }
-
-  .manage-users-page .mu-action-buttons .mu-btn-primary,
-  .manage-users-page .mu-action-buttons .mu-btn-green {
-    grid-column: 1 / -1 !important;
-  }
-
-
-  /* ---------- TABLE CARD ---------- */
-
-  .manage-users-page .mu-table-card {
-    width: 100% !important;
-    max-width: 100% !important;
-
-    margin: 0 !important;
-
-    box-sizing: border-box !important;
-
-    overflow: hidden !important;
-  }
-
-
-  /* ---------- TABLE ---------- */
-
-  .manage-users-page .mu-table-wrap {
-    width: 100% !important;
-    max-width: 100% !important;
-
-    overflow-x: auto !important;
-
-    box-sizing: border-box !important;
-  }
-
-  .manage-users-page .mu-table-wrap table {
-    width: 100% !important;
-
-    min-width: 0 !important;
-
-    table-layout: fixed !important;
-
-    box-sizing: border-box !important;
-  }
-
-
-  /* # */
-  .manage-users-page .mu-table-wrap th:nth-child(1),
-  .manage-users-page .mu-table-wrap td:nth-child(1) {
-    width: 9% !important;
-    text-align: center !important;
-  }
-
-  /* NAME */
-  .manage-users-page .mu-table-wrap th:nth-child(2),
-  .manage-users-page .mu-table-wrap td:nth-child(2) {
-    width: 27% !important;
-  }
-
-  /* EMAIL */
-  .manage-users-page .mu-table-wrap th:nth-child(3),
-  .manage-users-page .mu-table-wrap td:nth-child(3) {
-    width: 64% !important;
-  }
-
-
-  /* Hide secondary columns on phone */
-
-  .manage-users-page .mu-table-wrap th:nth-child(4),
-  .manage-users-page .mu-table-wrap td:nth-child(4),
-
-  .manage-users-page .mu-table-wrap th:nth-child(5),
-  .manage-users-page .mu-table-wrap td:nth-child(5),
-
-  .manage-users-page .mu-table-wrap th:nth-child(6),
-  .manage-users-page .mu-table-wrap td:nth-child(6),
-
-  .manage-users-page .mu-table-wrap th:nth-child(7),
-  .manage-users-page .mu-table-wrap td:nth-child(7),
-
-  .manage-users-page .mu-table-wrap th:nth-child(8),
-  .manage-users-page .mu-table-wrap td:nth-child(8),
-
-  .manage-users-page .mu-table-wrap th:nth-child(9),
-  .manage-users-page .mu-table-wrap td:nth-child(9),
-
-  .manage-users-page .mu-table-wrap th:nth-child(10),
-  .manage-users-page .mu-table-wrap td:nth-child(10),
-
-  .manage-users-page .mu-table-wrap th:nth-child(11),
-  .manage-users-page .mu-table-wrap td:nth-child(11) {
-    display: none !important;
-  }
-
-
-  /* ---------- TABLE TEXT ---------- */
-
-  .manage-users-page .mu-table-wrap th {
-    padding: 9px 7px !important;
-
-    font-size: 0.56rem !important;
-
-    white-space: nowrap !important;
-  }
-
-  .manage-users-page .mu-table-wrap td {
-    padding: 10px 7px !important;
-
-    font-size: 0.68rem !important;
-
-    vertical-align: middle !important;
-  }
-
-  .manage-users-page .mu-td-name {
-    font-size: 0.68rem !important;
-    font-weight: 600 !important;
-
-    white-space: normal !important;
-    overflow-wrap: anywhere !important;
-  }
-
-  .manage-users-page .mu-td-email {
-    font-size: 0.60rem !important;
-
-    white-space: normal !important;
-    overflow-wrap: anywhere !important;
-    word-break: break-word !important;
-  }
-
-
-  /* ---------- MOBILE SIDEBAR ---------- */
-
-  .super-sidebar {
-    width: min(280px, 85vw) !important;
-
-    max-width: 280px !important;
-
-    left: 0 !important;
-  }
-
-}
-
-
-/* =========================================================
-   VERY SMALL PHONES
-   ========================================================= */
-
-@media screen and (max-width: 360px) {
-
-  .super-page {
-    padding: 8px !important;
-  }
-
-  .manage-users-page {
-    padding: 0 !important;
-  }
-
-  .mobile-topbar {
-    padding: 0 9px !important;
-  }
-
-  .manage-users-page .mu-hero {
-    padding: 13px !important;
-  }
-
-  .manage-users-page .mu-action-buttons {
-    gap: 5px !important;
-  }
-
-  .manage-users-page .mu-action-buttons .mu-btn {
-    min-height: 32px !important;
-    padding: 6px 4px !important;
-    font-size: 0.60rem !important;
-  }
-
-  .manage-users-page .mu-table-wrap th {
-    padding: 8px 5px !important;
-  }
-
-  .manage-users-page .mu-table-wrap td {
-    padding: 9px 5px !important;
-  }
-
-  .manage-users-page .mu-td-email {
-    font-size: 0.56rem !important;
+  .mu-table-wrap tr:hover td.mu-td-actions {
+    background: #f8fdf9;
   }
 }

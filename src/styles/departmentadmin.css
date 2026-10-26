@@ -1,17 +1,31 @@
-.dept-dash-stat-cards {
-  grid-template-columns: repeat(4, 1fr);
+/* Desktop only: tablet/phone grids live in superadmin.css (.admin-dash) */
+@media (min-width: 1025px) {
+  .dept-dash-stat-cards {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .dept-dash-stat-cards .stat-card {
+    padding: 16px 18px;
+  }
+
+  .dept-dash-stat-cards .stat-card-info strong {
+    font-size: 1.35rem;
+  }
+
+  .dept-dash-stat-cards .stat-card-info span {
+    font-size: 0.7rem;
+  }
 }
 
-.dept-dash-stat-cards .stat-card {
-  padding: 16px 18px;
+/* Long department names in the user list wrap instead of overflowing */
+.dept-admin-user-list .department-progress-top > div {
+  min-width: 0;
 }
 
-.dept-dash-stat-cards .stat-card-info strong {
-  font-size: 1.35rem;
-}
-
-.dept-dash-stat-cards .stat-card-info span {
-  font-size: 0.7rem;
+.dept-label-small {
+  color: #94a3b8;
+  font-weight: 500;
+  font-size: 0.85em;
 }
 
 .dept-table-wrap {

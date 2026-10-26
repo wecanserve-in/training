@@ -5,7 +5,7 @@
   min-height: 100vh;
   background: #f0faf5;
   padding: 20px 24px;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 .dm-loading {
@@ -539,58 +539,148 @@
 }
 
 /* ─── Responsive ─── */
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .dm-page {
-    padding: 14px;
+    padding: 20px 24px;
   }
 
-  .dm-table thead {
+  .dm-search-box input {
+    font-size: 16px;
+  }
+
+  .dm-search-box {
+    min-height: 44px;
+  }
+
+  /* Table -> labelled member cards */
+  .dm-table-card {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  .dm-page .dm-table thead {
     display: none;
   }
 
-  .dm-table,
-  .dm-table tbody,
-  .dm-table tr,
-  .dm-table td {
+  .dm-page .dm-table,
+  .dm-page .dm-table tbody {
     display: block;
     width: 100%;
   }
 
-  .dm-table tr {
-    padding: 12px 16px;
-    border-bottom: 1px solid #f1f5f9;
+  .dm-page .dm-table tbody {
     display: grid;
-    grid-template-columns: auto 1fr auto;
-    gap: 4px 10px;
-    align-items: center;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
   }
 
-  .dm-td-idx {
+  .dm-page .dm-table tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px 12px;
+    align-items: start;
+    width: auto;
+    padding: 16px;
+    background: #fff;
+    border: 1px solid #e8f5ee;
+    border-radius: 14px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  }
+
+  .dm-page .dm-table tbody tr:hover {
+    background: #fff;
+  }
+
+  .dm-page .dm-table td {
+    display: block;
+    width: auto;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    white-space: normal;
+    text-align: left;
+  }
+
+  .dm-page .dm-table td.dm-td-idx {
     display: none;
   }
 
-  .dm-td-name {
+  .dm-page .dm-table td.dm-td-name {
     grid-column: 1 / -1;
     min-width: 0;
   }
 
-  .dm-td-email {
-    grid-column: 1 / -1;
-    font-size: 0.75rem !important;
+  .dm-page .dm-name-cell strong {
+    font-size: 0.95rem;
+    overflow-wrap: anywhere;
   }
 
-  .dm-table td:nth-child(4) {
+  .dm-page .dm-mini-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 0.9rem;
+  }
+
+  .dm-page .dm-table td.dm-td-email {
+    grid-column: 1 / -1;
+    font-size: 0.85rem !important;
+    overflow-wrap: anywhere;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .dm-page .dm-table td.dm-td-email::before {
     display: none;
   }
 
-  .dm-td-count {
-    text-align: center;
+  .dm-page .dm-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 3px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: #94a3b8;
   }
 
-  .dm-view-btn {
+  .dm-page .dm-table td.dm-td-desig {
+    font-size: 0.88rem;
+    color: #334155;
+    overflow-wrap: anywhere;
+  }
+
+  .dm-page .dm-table td.dm-td-count strong {
+    font-size: 1.05rem;
+  }
+
+  .dm-page .dm-table td.dm-td-action {
     grid-column: 1 / -1;
+  }
+
+  .dm-page .dm-view-btn {
+    width: 100%;
+    min-height: 42px;
     justify-content: center;
-    margin-top: 4px;
+    font-size: 0.88rem;
+  }
+
+  .dm-page .dm-table td.dm-empty {
+    grid-column: 1 / -1;
+    background: #fff;
+    border: 1px solid #e8f5ee;
+    border-radius: 14px;
+  }
+
+  .dm-page .dm-table tr:has(> td.dm-empty) {
+    grid-column: 1 / -1;
+    display: block;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    background: transparent;
   }
 
   .dm-modal {
@@ -603,13 +693,52 @@
   }
 
   .dm-detail-stats {
-    grid-template-columns: repeat(3, 1fr) !important;
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
 @media (max-width: 600px) {
+  .dm-page {
+    padding: 16px;
+  }
+
+  .dm-header h1 {
+    font-size: 1.3rem;
+  }
+
+  .dm-header p {
+    font-size: 0.9rem;
+  }
+
+  .dm-page .dm-table tbody {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .dm-modal-header {
+    padding: 14px 16px;
+  }
+
+  .dm-modal-close {
+    width: 40px;
+    height: 40px;
+  }
+
+  .dm-modal-body {
+    padding: 16px;
+    gap: 14px;
+  }
+
   .dm-detail-stats {
-    grid-template-columns: repeat(2, 1fr) !important;
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dm-detail-stat span {
+    font-size: 0.72rem;
+  }
+
+  .dm-course-section {
+    padding: 14px;
   }
 
   .dm-course-row {
@@ -632,9 +761,11 @@
   .dm-profile-card {
     flex-direction: column;
     text-align: center;
+    padding: 16px;
   }
 
   .dm-profile-meta {
     justify-content: center;
+    flex-wrap: wrap;
   }
 }

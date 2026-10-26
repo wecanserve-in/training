@@ -633,7 +633,7 @@ function DepartmentAdminDashboard() {
   }
 
   return (
-    <div className="super-dashboard">
+    <div className="super-dashboard admin-dash">
       <section className="dash-hero">
         <div className="hero-content">
           <h1>{departmentName || "Department"} Overview</h1>
@@ -779,7 +779,7 @@ function DepartmentAdminDashboard() {
                   <div>
                     <h3>{item.zone} Zone</h3>
                     <span>
-                      {item.userCount} users &bull; {item.completed} of {item.assigned} completed
+                      {item.userCount} {item.userCount === 1 ? "user" : "users"} &bull; {item.completed} of {item.assigned} completed
                     </span>
                   </div>
                 </div>
@@ -872,7 +872,7 @@ function DepartmentAdminDashboard() {
               <h2>Test Performance</h2>
               <p>Course test &amp; video quiz results</p>
             </div>
-            <span>View All</span>
+            <span className="insight-view-all">View All</span>
           </div>
 
           <div className="test-mini-grid">

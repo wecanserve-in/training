@@ -424,10 +424,10 @@ function DepartmentAnalyticsPage() {
 
   const currentLabel = drillDept || "All Departments";
 
-  if (loading) return <div className="sa-page"><div className="sa-loading">Loading department analytics...</div></div>;
+  if (loading) return <div className="sa-page dap-page"><div className="sa-loading">Loading department analytics...</div></div>;
 
   return (
-    <div className="sa-page">
+    <div className="sa-page dap-page">
 
       {/* Hero */}
       <section className="sa-hero">
@@ -472,7 +472,7 @@ function DepartmentAnalyticsPage() {
             if (!d) return null;
             return (
               <div className="sa-detail-card">
-                <button className="sa-dcard-remove" onClick={() => { setDrillDept(""); setSearch(""); setDesignationFilter(""); bumpAnim(); }}>&times;</button>
+                <button type="button" className="sa-dcard-remove" aria-label="Clear department selection" onClick={() => { setDrillDept(""); setSearch(""); setDesignationFilter(""); bumpAnim(); }}>&times;</button>
                 <div className="sa-dcard-avatar" style={{ background: getAvatarColor(0).bg, color: getAvatarColor(0).color }}>{d.name.charAt(0).toUpperCase()}</div>
                 <div className="sa-dcard-body">
                   <strong>{d.name}</strong>
@@ -551,9 +551,9 @@ function DepartmentAnalyticsPage() {
               <div className="sa-filters-row">
                 <div className="sa-search-box">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-                  <input type="text" placeholder={`Search users in ${currentLabel}...`} value={search} onChange={(e) => setSearch(e.target.value)} />
+                  <input type="text" aria-label="Search users" placeholder={`Search users in ${currentLabel}...`} value={search} onChange={(e) => setSearch(e.target.value)} />
                 </div>
-                <select className="sa-filter-select" value={designationFilter} onChange={(e) => setDesignationFilter(e.target.value)}>
+                <select className="sa-filter-select" aria-label="Filter by designation" value={designationFilter} onChange={(e) => setDesignationFilter(e.target.value)}>
                   <option value="">All Designations</option>
                   {designations.map((d) => <option key={d} value={d}>{d}</option>)}
                 </select>
@@ -573,7 +573,7 @@ function DepartmentAnalyticsPage() {
                 <span className="sa-click-hint">Click a row to view details</span>
               </div>
               <div className="sa-table-wrap">
-                <table>
+                <table className="dap-users-table" aria-label="Department user report">
                   <thead>
                     <tr>
                       <th>#</th>
@@ -615,13 +615,13 @@ function DepartmentAnalyticsPage() {
                           <td className="sa-td-idx">{idx + 1}</td>
                           <td className="sa-td-name"><strong className="sa-user-row-name">{u.name || "-"}</strong></td>
                           <td className="sa-td-email">{u.email || "-"}</td>
-                          <td>{u.designation || "-"}</td>
-                          <td>{getVal(u, ["zone", "Zone", "zoneName"]) || "-"}</td>
-                          <td>{getVal(u, ["state", "State", "stateName"]) || "-"}</td>
-                          <td>{assigned}</td>
-                          <td><strong>{comp}</strong></td>
-                          <td>{getCertificateCount(u)}</td>
-                          <td>
+                          <td className="dap-td-desig" data-label="Designation">{u.designation || "-"}</td>
+                          <td className="dap-td-zone" data-label="Zone">{getVal(u, ["zone", "Zone", "zoneName"]) || "-"}</td>
+                          <td className="dap-td-state" data-label="State">{getVal(u, ["state", "State", "stateName"]) || "-"}</td>
+                          <td className="dap-td-num" data-label="Assigned">{assigned}</td>
+                          <td className="dap-td-num" data-label="Completed"><strong>{comp}</strong></td>
+                          <td className="dap-td-num" data-label="Certs">{getCertificateCount(u)}</td>
+                          <td className="dap-td-pct" data-label="Completion">
                             <div className="sa-pct-cell">
                               <div className="sa-pct-bar"><span style={{ width: `${pct}%` }} /></div>
                               <strong>{pct}%</strong>
@@ -678,7 +678,7 @@ function DepartmentAnalyticsPage() {
                     <h3>Assigned Course Progress</h3>
                     <p>Course-wise progress for {selectedUser.name || "this user"}</p>
                   </div>
-                  <span>{selectedUserCourseRows.length} courses</span>
+                  <span>{selectedUserCourseRows.length} {selectedUserCourseRows.length === 1 ? "course" : "courses"}</span>
                 </div>
 
                 <div className="sa-user-course-list">

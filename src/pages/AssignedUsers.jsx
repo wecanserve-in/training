@@ -411,7 +411,7 @@ function AssignedUsers() {
             <div className="au-filters">
               <div className="au-search-box">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-                <input type="text" placeholder="Search name, email..." value={search} onChange={(e) => setSearch(e.target.value)} />
+                <input type="text" aria-label="Search assigned users" placeholder="Search name, email..." value={search} onChange={(e) => setSearch(e.target.value)} />
               </div>
               <div className="au-status-pills">
                 <button className={`au-pill ${statusFilter === "" ? "active" : ""}`} onClick={() => setStatusFilter("")}>All</button>
@@ -443,7 +443,7 @@ function AssignedUsers() {
               <h2>Assigned Users ({filteredUsers.length})</h2>
             </div>
             <div className="au-table-wrap">
-              <table>
+              <table className="au-users-table" aria-label="Assigned users">
                 <thead>
                   <tr>
                     <th>#</th>
@@ -464,16 +464,16 @@ function AssignedUsers() {
                       <td className="au-td-idx">{idx + 1}</td>
                       <td className="au-td-name"><strong>{u.name || "-"}</strong></td>
                       <td className="au-td-email">{u.email || "-"}</td>
-                      <td>{u.designation || "-"}</td>
-                      <td>{getVal(u, ["zone", "Zone"]) || "-"}</td>
-                      <td>{getVal(u, ["state", "State"]) || "-"}</td>
-                      <td>
+                      <td className="au-td-desig" data-label="Designation">{u.designation || "-"}</td>
+                      <td className="au-td-zone" data-label="Zone">{getVal(u, ["zone", "Zone"]) || "-"}</td>
+                      <td className="au-td-state" data-label="State">{getVal(u, ["state", "State"]) || "-"}</td>
+                      <td className="au-td-status">
                         <span className={`au-status-badge au-status-${u.status}`}>
                           {getStatusLabel(u.status)}
                         </span>
                       </td>
-                      <td>
-                        <button className="au-unassign-btn" onClick={(e) => { e.stopPropagation(); unassignUser(u.id, selectedCourseId, u.name || "this user"); }}>
+                      <td className="au-td-action">
+                        <button type="button" className="au-unassign-btn" onClick={(e) => { e.stopPropagation(); unassignUser(u.id, selectedCourseId, u.name || "this user"); }}>
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>
                           Unassign
                         </button>

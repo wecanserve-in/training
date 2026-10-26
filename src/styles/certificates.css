@@ -1,7 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
 .certificates-page {
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   min-height: 100vh;
   background: #f0faf5;
   position: relative;
@@ -245,10 +245,54 @@
   .certificate-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-@media (max-width: 700px) {
-  .certificates-page { padding: 12px; }
-  .certificates-header { flex-direction: column; gap: 8px; }
-  .cert-stats-row { grid-template-columns: 1fr; }
-  .certificate-grid { grid-template-columns: 1fr; }
+.certificates-page .certificate-content a {
+  display: block;
+  text-decoration: none;
 }
 
+.certificate-meta {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 1024px) {
+  .certificates-page {
+    min-height: 0;
+    padding: 0 8px 24px; /* + 16px layout gutter = 24px on tablet */
+  }
+  .certificates-header p { font-size: 0.875rem; color: #64748b; }
+  .cert-stat-info span {
+    font-size: 0.78rem;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #64748b;
+  }
+  .certificate-content { padding: 14px 16px 16px; }
+  .certificate-content h2 { font-size: 0.95rem; }
+  .certificate-meta span { font-size: 0.82rem; color: #64748b; }
+  .certificate-id { font-size: 0.75rem; padding: 4px 10px; }
+  .download-certificate-btn {
+    height: auto;
+    min-height: 44px;
+    font-size: 0.875rem;
+    border-radius: 10px;
+  }
+}
+
+@media (max-width: 700px) {
+  .certificates-header { flex-direction: column; gap: 8px; }
+  .certificate-grid { grid-template-columns: 1fr; gap: 12px; }
+}
+
+@media (max-width: 600px) {
+  .certificates-page { padding: 0 0 16px; }
+  /* three small stat tiles in one row instead of three full-width bars */
+  .cert-stats-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .cert-stat-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px;
+  }
+  .cert-stat-icon { width: 34px; height: 34px; }
+  .cert-stat-info span { font-size: 0.75rem; line-height: 1.25; }
+}

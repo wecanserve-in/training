@@ -389,7 +389,9 @@ function Dashboard() {
 
   const certificatesIssuedCount = useMemo(() => {
     if (!userData) return 0;
-    return getUserCertificateCount(userData, completedCourses);
+    // completedCourses holds only this user's records; the helper expects them keyed by user.
+    const userKey = userData.uid || userData.id;
+    return getUserCertificateCount(userData, { [userKey]: completedCourses });
   }, [userData, completedCourses]);
 
   const videosWatchedCount = useMemo(() => {
@@ -592,7 +594,7 @@ function Dashboard() {
   }
 
   return (
-    <div className="super-dashboard">
+    <div className="super-dashboard learner-dashboard">
       <section className="dash-hero">
         <div className="hero-content">
           <h1>Hi, {userData?.name || "Learner"}</h1>

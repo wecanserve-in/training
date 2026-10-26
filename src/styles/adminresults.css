@@ -6,7 +6,7 @@
   padding: 0 24px 30px;
   background: #f0faf5;
   color: #1e293b;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 .admin-log-loading {
@@ -248,11 +248,16 @@
 }
 
 /* Filters */
+.log-control-card > * {
+  min-width: 0;
+}
+
 .log-control-card {
   display: grid;
+  /* Fits ~910px, so it stays on one row on a 1280px laptop with the sidebar open */
   grid-template-columns:
-    minmax(250px, 1.7fr)
-    repeat(5, minmax(135px, 0.7fr))
+    minmax(200px, 1.6fr)
+    repeat(5, minmax(110px, 1fr))
     auto;
   gap: 9px;
   margin-bottom: 14px;
@@ -767,5 +772,300 @@
   .log-table-title-row {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+/* =========================================================
+   Tablet / phone polish (scoped to .admin-log-page)
+========================================================= */
+.admin-log-page .log-user-text {
+  min-width: 0;
+}
+
+@media (max-width: 1024px) {
+  .admin-log-page {
+    padding: 0 24px 28px;
+  }
+
+  .admin-log-page .log-control-card {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .admin-log-page .log-search-box {
+    grid-column: 1 / -1;
+  }
+
+  .admin-log-page .log-search-box input,
+  .admin-log-page .log-control-card select,
+  .admin-log-page .log-reset-btn {
+    height: 42px;
+  }
+
+  .admin-log-page .log-control-card select,
+  .admin-log-page .log-reset-btn {
+    font-size: 0.82rem;
+  }
+
+  .admin-log-page .log-summary-card span {
+    font-size: 0.7rem;
+  }
+
+  .admin-log-page .log-summary-card p {
+    font-size: 0.75rem;
+  }
+
+  /* Table -> labelled attempt cards */
+  .admin-log-page .log-table-card {
+    overflow: visible;
+  }
+
+  .admin-log-page .log-table-wrapper {
+    overflow: visible;
+    padding: 14px;
+  }
+
+  .admin-log-page .admin-log-table {
+    display: block;
+    min-width: 0;
+  }
+
+  .admin-log-page .admin-log-table thead {
+    display: none;
+  }
+
+  .admin-log-page .admin-log-table tbody {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .admin-log-page .admin-log-table tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px 12px;
+    align-content: start;
+    padding: 14px;
+    border: 1px solid #e0eee7;
+    border-radius: 12px;
+    background: #ffffff;
+  }
+
+  .admin-log-page .admin-log-table td,
+  .admin-log-page .admin-log-table tbody tr:hover td {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    font-size: 0.85rem;
+    overflow-wrap: anywhere;
+  }
+
+  .admin-log-page .admin-log-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 4px;
+    color: #94a3b8;
+    font-size: 0.66rem;
+    font-weight: 650;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+
+  .admin-log-page .admin-log-table td.log-index-cell {
+    display: none;
+  }
+
+  /* user spans the card; status pill pinned top-right */
+  .admin-log-page .admin-log-table td.lr-td-user {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    padding-right: 84px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #edf2ef;
+  }
+
+  .admin-log-page .admin-log-table td.lr-td-status {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+    position: relative;
+    z-index: 1;
+  }
+
+  .admin-log-page .log-user-cell {
+    min-width: 0;
+  }
+
+  .admin-log-page .log-user-cell strong,
+  .admin-log-page .log-user-cell small {
+    max-width: 100%;
+  }
+
+  .admin-log-page .log-user-cell strong {
+    font-size: 0.9rem;
+  }
+
+  .admin-log-page .log-user-cell small {
+    font-size: 0.78rem;
+  }
+
+  .admin-log-page .log-user-cell em {
+    font-size: 0.72rem;
+  }
+
+  .admin-log-page .admin-log-table td.lr-td-dept {
+    grid-column: 1 / -1;
+  }
+
+  .admin-log-page .admin-log-table td.lr-td-course,
+  .admin-log-page .admin-log-table td.lr-td-test {
+    grid-column: 1 / -1;
+  }
+
+  .admin-log-page .log-department-pill {
+    max-width: 100%;
+    font-size: 0.75rem;
+  }
+
+  .admin-log-page .log-course-name,
+  .admin-log-page .log-test-cell strong {
+    max-width: 100%;
+    white-space: normal;
+    font-size: 0.85rem;
+  }
+
+  .admin-log-page .log-test-cell {
+    min-width: 0;
+  }
+
+  .admin-log-page .log-test-cell small {
+    font-size: 0.72rem;
+  }
+
+  .admin-log-page .log-type-chip,
+  .admin-log-page .log-attempt-chip,
+  .admin-log-page .log-correct-chip,
+  .admin-log-page .log-status {
+    font-size: 0.75rem;
+  }
+
+  .admin-log-page .admin-log-table td.lr-td-score {
+    grid-column: 1 / -1;
+  }
+
+  .admin-log-page .log-score-cell {
+    min-width: 0;
+  }
+
+  .admin-log-page .log-score-track {
+    flex: 1;
+    width: auto;
+  }
+
+  .admin-log-page .log-score-cell strong {
+    font-size: 0.85rem;
+  }
+
+  .admin-log-page .admin-log-table td.log-date-cell {
+    grid-column: 1 / -1;
+    min-width: 0;
+    font-size: 0.82rem;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 600px) {
+  .admin-log-page {
+    padding: 0 16px 24px;
+  }
+
+  .admin-log-page .admin-log-hero {
+    padding: 20px 18px;
+  }
+
+  .admin-log-page .admin-log-hero p {
+    font-size: 0.88rem;
+  }
+
+  .admin-log-page .admin-log-back {
+    min-height: 40px;
+    margin-bottom: 4px;
+    font-size: 0.85rem;
+  }
+
+  /* compact 2x2 summary */
+  .admin-log-page .log-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .admin-log-page .log-summary-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    min-height: 0;
+    padding: 12px;
+  }
+
+  .admin-log-page .log-summary-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .admin-log-page .log-summary-card h2 {
+    font-size: 1.2rem;
+  }
+
+  .admin-log-page .log-control-card {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-log-page .log-reset-btn {
+    grid-column: 1 / -1;
+  }
+
+  .admin-log-page .log-search-box input,
+  .admin-log-page .log-control-card select {
+    font-size: 16px;
+  }
+
+  .admin-log-page .log-table-title-row h2 {
+    font-size: 1rem;
+  }
+
+  .admin-log-page .log-table-title-row p {
+    font-size: 0.82rem;
+  }
+
+  .admin-log-page .log-table-wrapper {
+    padding: 12px;
+  }
+
+  .admin-log-page .admin-log-table tbody {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-log-page .empty-log-state p {
+    font-size: 0.88rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .admin-log-page .admin-log-back {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+  }
+}
+
+/* Laptops: two tidy rows so no filter label gets clipped */
+@media (min-width: 1025px) and (max-width: 1500px) {
+  .admin-log-page .log-control-card {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .admin-log-page .log-control-card > :first-child {
+    grid-column: span 2;
   }
 }

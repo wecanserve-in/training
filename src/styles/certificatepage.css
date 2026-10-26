@@ -2,7 +2,7 @@
 
 /* ── BASE ── */
 .cert-page-container {
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   min-height: 100vh;
   background: #f0faf5;
   position: relative;
@@ -336,26 +336,74 @@
 }
 
 /* ── RESPONSIVE ── */
+/* The certificate is a fixed 1600x1100 element scaled down with transform.
+   Each step below keeps the scaled width (1600 * scale) inside the frame,
+   and the frame height follows (1100 * scale + 25px top margin). */
 @media (max-width: 1100px) {
   .cert-info-strip { grid-template-columns: repeat(3, 1fr); }
 }
 
+@media (max-width: 1024px) {
+  .cert-page-container {
+    min-height: 0;
+    padding: 0 8px 24px; /* + 16px layout gutter = 24px on tablet */
+  }
+  .cert-back-btn { height: 40px; font-size: 0.85rem; }
+  .cert-info-item span {
+    font-size: 0.72rem;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #64748b;
+  }
+  .cert-info-item strong { font-size: 0.875rem; }
+  .cert-footer-left strong { font-size: 0.95rem; }
+  .cert-footer-left span { font-size: 0.8rem; color: #64748b; }
+  .btn-cert-primary { height: 46px; }
+}
+
 @media (max-width: 900px) {
-  .cert-page-container { padding: 12px; }
   .cert-info-strip { grid-template-columns: repeat(2, 1fr); }
   .cert-canvas-preview-frame { height: calc(1100px * 0.42 + 25px); }
-  .cert-canvas-element { transform: scale(0.42) !important; transform-origin: top center !important; }
-  .cert-canvas-element:hover { transform: scale(0.425) translateY(-4px) !important; }
-  .cert-trigger-footer { flex-direction: column; gap: 12px; }
+  .cert-canvas-element,
+  .cert-canvas-element:hover { transform: scale(0.42) !important; transform-origin: top center !important; }
+  .cert-trigger-footer { flex-direction: column; align-items: stretch; gap: 12px; }
   .btn-cert-primary { width: 100%; justify-content: center; }
 }
 
-@media (max-width: 600px) {
-  .cert-info-strip { grid-template-columns: 1fr; }
-  .cert-info-item { padding: 10px; }
-  .cert-canvas-preview-frame { height: calc(1100px * 0.35 + 25px); }
-  .cert-canvas-element { transform: scale(0.35) !important; }
-  .cert-canvas-element:hover { transform: scale(0.355) translateY(-4px) !important; }
-  .cert-header-bar { flex-direction: column; align-items: flex-start; gap: 8px; }
+@media (max-width: 768px) {
+  .cert-canvas-preview-frame { height: calc(1100px * 0.34 + 25px); }
+  .cert-canvas-element,
+  .cert-canvas-element:hover { transform: scale(0.34) !important; }
 }
 
+@media (max-width: 600px) {
+  .cert-page-container { padding: 0 0 16px; }
+  .cert-header-bar { gap: 12px; }
+  .cert-page-title { font-size: 1.1rem; }
+
+  /* name, course and ID get a full row; score and date share one */
+  .cert-info-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .cert-info-item:nth-child(1),
+  .cert-info-item:nth-child(2),
+  .cert-info-item:nth-child(5) { grid-column: 1 / -1; }
+  .cert-info-item { padding: 10px 12px; }
+
+  /* the corner pill would sit on top of the small preview */
+  .cert-canvas-preview-frame::after { display: none; }
+  .cert-canvas-preview-frame { height: calc(1100px * 0.24 + 25px); border-radius: 12px; }
+  .cert-canvas-element,
+  .cert-canvas-element:hover { transform: scale(0.24) !important; }
+  .cert-trigger-footer { padding: 14px 16px; }
+}
+
+@media (max-width: 430px) {
+  .cert-canvas-preview-frame { height: calc(1100px * 0.21 + 25px); }
+  .cert-canvas-element,
+  .cert-canvas-element:hover { transform: scale(0.21) !important; }
+}
+
+@media (max-width: 375px) {
+  .cert-canvas-preview-frame { height: calc(1100px * 0.175 + 25px); }
+  .cert-canvas-element,
+  .cert-canvas-element:hover { transform: scale(0.175) !important; }
+}

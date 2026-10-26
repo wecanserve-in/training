@@ -1,7 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
 .my-results-page {
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   min-height: 100vh;
   background: #f0faf5;
   position: relative;
@@ -207,14 +207,111 @@
   .results-stats-row { grid-template-columns: repeat(2, 1fr); }
 }
 
-@media (max-width: 800px) {
-  .my-results-page { padding: 12px; }
-  .my-results-header { flex-direction: column; gap: 8px; }
-  .results-stats-row { grid-template-columns: 1fr 1fr; }
-  .results-table-card { overflow-x: auto; }
-  .clean-results-table { min-width: 680px; }
+@media (max-width: 1024px) {
+  .my-results-page {
+    min-height: 0;
+    padding: 0 8px 24px; /* + 16px layout gutter = 24px on tablet */
+  }
+  .my-results-header p { font-size: 0.875rem; color: #64748b; }
+  .results-stat-info span {
+    font-size: 0.78rem;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #64748b;
+  }
+  .clean-results-table td { font-size: 0.875rem; }
+  .download-cert-btn,
+  .retry-course-btn {
+    min-height: 40px;
+    padding: 8px 16px;
+    font-size: 0.82rem;
+  }
 }
 
-@media (max-width: 480px) {
-  .results-stats-row { grid-template-columns: 1fr; }
+@media (max-width: 800px) {
+  .my-results-header { flex-direction: column; gap: 8px; }
+}
+
+/* Phone: each result becomes a labelled card instead of a squashed table */
+@media (max-width: 600px) {
+  .my-results-page { padding: 0 0 16px; }
+  .results-stats-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .results-stat-card { padding: 12px; gap: 10px; }
+  .results-stat-icon { width: 36px; height: 36px; }
+
+  .results-table-card {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    overflow: visible;
+  }
+  .results-table-card .results-empty {
+    background: #fff;
+    border: 1px solid #e8f5ee;
+    border-radius: 12px;
+  }
+
+  .clean-results-table,
+  .clean-results-table tbody {
+    display: block;
+    width: 100%;
+  }
+  .clean-results-table thead { display: none; }
+
+  .clean-results-table tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    background: #fff;
+    border: 1px solid #e8f5ee;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+  .clean-results-table tr:hover { background: #fff; }
+
+  .clean-results-table td {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0;
+    border: none;
+    font-size: 0.9rem;
+  }
+  .clean-results-table td::before {
+    content: attr(data-label);
+    color: #64748b;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+  .clean-results-table td.result-course-cell {
+    grid-column: 1 / -1;
+    font-size: 1rem;
+    font-weight: 600;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .clean-results-table td.result-course-cell::before,
+  .clean-results-table td.result-action-cell::before {
+    display: none;
+  }
+  .clean-results-table td.result-action-cell {
+    grid-column: 1 / -1;
+    margin-top: 4px;
+  }
+  .clean-results-table .result-status { align-self: flex-start; }
+  .clean-results-table .download-cert-btn,
+  .clean-results-table .retry-course-btn {
+    width: 100%;
+    min-height: 44px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+  }
+}
+
+/* Tablet: keep the table, scroll sideways if it doesn't fit */
+@media (min-width: 601px) and (max-width: 800px) {
+  .results-table-card { overflow-x: auto; }
+  .clean-results-table { min-width: 680px; }
 }

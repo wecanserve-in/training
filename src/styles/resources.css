@@ -1,7 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
 .resources-page {
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   min-height: 100vh;
   background: #f0faf5;
   padding: 12px 24px 28px;
@@ -246,6 +246,8 @@
 
 .resources-search input {
   flex: 1;
+  min-width: 0;
+  align-self: stretch;
   border: none;
   outline: none;
   font-size: 0.82rem;
@@ -488,14 +490,113 @@
   border-color: #fca5a5;
 }
 
+/* ── CARD ACTIONS ── */
+.resource-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.resource-card .resource-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.resource-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 14px;
+}
+
+.resource-actions .view-btn,
+.resource-actions .download-btn {
+  flex: 1;
+  min-height: 38px;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.resource-actions .view-btn {
+  background: #fff;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+
+.resource-actions .view-btn:hover {
+  background: #f0fdf4;
+  border-color: #059669;
+}
+
+.resource-actions .download-btn {
+  background: #059669;
+  color: #fff;
+  border: 1px solid #059669;
+}
+
+.resource-actions .download-btn:hover {
+  background: #047857;
+  border-color: #047857;
+}
+
+.resource-actions .resource-delete-btn {
+  margin-top: 0;
+  min-width: 38px;
+  min-height: 38px;
+  justify-content: center;
+  padding: 8px 10px;
+  border-radius: 10px;
+}
+
 /* ── RESPONSIVE ── */
+@media (max-width: 1024px) {
+  .resources-page {
+    min-height: 0;
+    padding: 0 8px 24px; /* + 16px layout gutter = 24px on tablet */
+  }
+  .resources-header p { font-size: 0.875rem; color: #64748b; }
+  .resources-search,
+  .resources-filter-bar select { height: 44px; }
+  .resource-body h3 { font-size: 0.95rem; }
+  .resource-body > p { font-size: 0.82rem; color: #64748b; }
+  .resource-meta span { font-size: 0.75rem; }
+  .resource-uploader strong { font-size: 0.8rem; }
+  .resource-footer small { font-size: 0.75rem; }
+  .role-badge { font-size: 0.65rem; }
+  .resource-actions .view-btn,
+  .resource-actions .download-btn,
+  .resource-actions .resource-delete-btn { min-height: 44px; font-size: 0.875rem; }
+  .upload-field input { height: 44px; }
+  .upload-submit-btn { min-height: 44px; }
+  .upload-card-header button { width: 40px; height: 40px; }
+}
+
 @media (max-width: 768px) {
-  .resources-page { padding: 12px; }
   .resources-header { flex-direction: column; gap: 10px; }
-  .resources-upload-btn { width: 100%; justify-content: center; }
+  .resources-upload-btn { width: 100%; justify-content: center; height: 44px; }
   .upload-form-row { grid-template-columns: 1fr; }
-  .resources-filter-bar { flex-direction: column; }
-  .resources-search { min-width: 100%; }
+  .upload-submit-btn { align-self: stretch; }
+  .resources-filter-bar { flex-direction: column; align-items: stretch; }
+  /* flex:1 in a column collapses the field's height */
+  .resources-search { flex: none; width: 100%; min-width: 0; }
   .resources-filter-bar select { width: 100%; }
   .resources-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
+  .resources-page { padding: 0 0 16px; }
+  .resource-preview { height: 120px; }
+  /* 16px keeps iOS Safari from zooming into the field */
+  .resources-search input,
+  .resources-filter-bar select,
+  .upload-field input { font-size: 1rem; }
 }

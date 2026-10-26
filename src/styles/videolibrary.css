@@ -1,7 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
 .video-library-page {
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   width: 100%;
   max-width: 1100px;
   margin: 0 auto;
@@ -145,7 +145,7 @@
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   transition: all 0.15s;
 }
 
@@ -230,7 +230,7 @@
   padding: 9px 12px;
   outline: none;
   transition: 0.2s;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   box-sizing: border-box;
 }
 
@@ -281,7 +281,7 @@
   color: #1e293b;
   font-size: 0.82rem;
   font-weight: 500;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   outline: none;
   transition: all 0.2s;
 }
@@ -365,7 +365,7 @@
   font-size: 0.72rem;
   font-weight: 500;
   cursor: pointer;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   transition: all 0.15s;
 }
 
@@ -553,7 +553,7 @@
   font-weight: 600;
   font-size: 0.75rem;
   cursor: pointer;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   margin-top: 6px;
   transition: all 0.15s;
 }
@@ -605,7 +605,7 @@
   font-size: 0.82rem;
   padding: 9px 12px;
   outline: none;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   transition: 0.2s;
   box-sizing: border-box;
 }
@@ -625,7 +625,7 @@
   font-weight: 600;
   font-size: 0.82rem;
   cursor: pointer;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   transition: background 0.15s;
 }
 
@@ -676,7 +676,7 @@
   font-weight: 600;
   font-size: 0.72rem;
   cursor: pointer;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 /* ─── Save Footer ─── */
@@ -695,7 +695,7 @@
   font-weight: 600;
   font-size: 0.95rem;
   cursor: pointer;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   box-shadow: 0 4px 12px rgba(5,150,105,0.2);
   transition: all 0.15s;
 }
@@ -728,7 +728,7 @@
   background: rgba(0,0,0,0.5);
   display: grid;
   place-items: center;
-  z-index: 999;
+  z-index: 1100;
 }
 
 .upload-modal-card {
@@ -802,7 +802,7 @@
   background: rgba(0,0,0,0.4);
   display: grid;
   place-items: center;
-  z-index: 999;
+  z-index: 1100;
 }
 
 .error-modal {
@@ -840,20 +840,20 @@
   font-weight: 600;
   font-size: 0.82rem;
   cursor: pointer;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 /* ─── Success Modal ─── */
-.success-modal-overlay {
+.video-library-page .success-modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.4);
   display: grid;
   place-items: center;
-  z-index: 999;
+  z-index: 1100;
 }
 
-.success-modal {
+.video-library-page .success-modal {
   background: #fff;
   border-radius: 14px;
   padding: 24px;
@@ -862,7 +862,7 @@
   width: 90%;
 }
 
-.success-check {
+.video-library-page .success-check {
   width: 48px;
   height: 48px;
   border-radius: 50%;
@@ -875,10 +875,10 @@
   margin: 0 auto 10px;
 }
 
-.success-modal h3 { margin: 0 0 4px; font-size: 1rem; }
-.success-modal p { margin: 0 0 14px; color: #64748b; font-size: 0.82rem; }
+.video-library-page .success-modal h3 { margin: 0 0 4px; font-size: 1rem; }
+.video-library-page .success-modal p { margin: 0 0 14px; color: #64748b; font-size: 0.82rem; }
 
-.success-modal button {
+.video-library-page .success-modal button {
   height: 36px;
   border: none;
   border-radius: 8px;
@@ -888,10 +888,63 @@
   font-weight: 600;
   font-size: 0.82rem;
   cursor: pointer;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 /* ─── Responsive ─── */
+/* Option inputs sit inside a bordered row: drop the generic card-input chrome */
+.video-library-page .video-library-card .edit-option-field input {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  padding: 10px 0;
+  min-height: 0;
+}
+
+/* ─── Labelled fields ─── */
+.video-library-page .vl-field {
+  display: grid;
+  gap: 5px;
+}
+
+.video-library-page .vl-field-label {
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* Edit header: back link above the title (avoids side-by-side squeeze) */
+.video-library-page .video-library-header.vl-header-stacked {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.video-library-page .vl-header-stacked .vl-back-link { margin-bottom: 4px; }
+.video-library-page .vl-header-text { position: relative; z-index: 1; }
+
+.video-library-page button:focus-visible,
+.video-library-page a:focus-visible,
+.video-library-page .vertical-upload-box:focus-within .upload-placeholder {
+  outline: 2px solid #047857;
+  outline-offset: 2px;
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 1024px) {
+  .video-library-page { padding: 0 8px 16px; }
+  .video-library-page .suggested-tag-btn { height: 34px; padding: 0 12px; font-size: 0.8rem; }
+  .video-library-page .tag-chip { height: 32px; }
+  .video-library-page .tag-chip button { width: 24px; height: 24px; }
+  .video-library-page .vl-back-link { display: inline-flex; align-items: center; min-height: 40px; }
+  .video-library-page .outline-action-btn { min-height: 40px; }
+  .video-library-page .add-question-btn { height: 44px; }
+  .video-library-page .library-question-row button { height: 36px; }
+  .video-library-page .edit-question-edit,
+  .video-library-page .edit-question-remove { width: 40px; height: 40px; }
+  .video-library-page .upload-placeholder:hover { transform: none; }
+}
+
 @media (max-width: 900px) {
   .video-upload-layout {
     grid-template-columns: 1fr;
@@ -907,6 +960,7 @@
 }
 
 @media (max-width: 600px) {
+  .video-library-page { padding: 0 0 12px; }
   .video-form-grid,
   .quiz-options-grid {
     grid-template-columns: 1fr;
@@ -915,8 +969,34 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
+    padding: 16px;
   }
-  .view-library-btn { width: 100%; justify-content: center; }
+  .video-library-header h1 { font-size: 1.2rem; }
+  .view-library-btn { width: 100%; justify-content: center; height: 44px; }
+  .video-library-page .video-library-card { padding: 14px; }
+  .video-library-page .form-step-title p,
+  .video-library-page .upload-flow-content p { font-size: 0.8rem; }
+  .video-library-page .vl-field-label,
+  .video-library-page .tag-picker > label { font-size: 0.85rem; }
+
+  /* 16px controls stop iOS zoom-on-focus */
+  .video-library-page .video-library-card input[type="text"],
+  .video-library-page .video-library-card input:not([type]),
+  .video-library-page .video-library-card textarea,
+  .video-library-page .video-library-card select,
+  .video-library-page .quiz-options-grid input,
+  .video-library-page .tag-input,
+  .video-library-page .video-library-card .edit-option-field input { font-size: 16px; min-height: 44px; }
+  .video-library-page .video-library-card input:not([type]),
+  .video-library-page .video-library-card select { min-height: 44px; }
+
+  .video-library-page .upload-placeholder { min-height: 120px; padding: 20px 16px; }
+  .video-library-page .library-question-row { align-items: flex-start; gap: 10px; }
+  .video-library-page .department-type-pill { flex-wrap: wrap; }
+  .video-library-page .department-type-pill small { margin-left: 0; width: 100%; }
+  .upload-modal-card,
+  .error-modal,
+  .video-library-page .success-modal { max-height: calc(100vh - 32px); overflow-y: auto; }
 }
 
 /* ═══════════════════════════════════════════
@@ -1231,6 +1311,31 @@
   white-space: nowrap;
 }
 
+/* Edit-video footer: Cancel + Save on one line, aligned with the cards */
+.edit-video-form .vl-edit-footer {
+  display: flex;
+  gap: 12px;
+  max-width: 700px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.edit-video-form .vl-footer-cancel {
+  width: auto;
+  height: 44px;
+  margin: 0;
+  padding: 0 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.edit-video-form .vl-edit-footer .final-save-btn { flex: 1; }
+
 @media (max-width: 600px) {
   .edit-center-card {
     max-width: 100%;
@@ -1242,4 +1347,9 @@
     grid-template-columns: 1fr;
     padding-left: 0;
   }
+  .video-library-page .edit-quiz-actions { flex-wrap: wrap; }
+  .video-library-page .edit-quiz-actions .add-question-btn { flex: 1 1 160px; }
+  .video-library-page .edit-cancel-btn { min-height: 44px; }
+  .video-library-page .edit-question-card { padding: 12px; }
+  .edit-video-form .vl-footer-cancel { padding: 0 16px; }
 }

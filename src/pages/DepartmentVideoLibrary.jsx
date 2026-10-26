@@ -497,7 +497,7 @@ const getCorrectOptionIndex = (question, options) => {
             {typeOptions.map((t) => (<option key={t} value={t}>{t}</option>))}
           </select>
           {(search || filterDepartment || filterType) && (
-            <button className="vl-btn vl-btn-clear" onClick={() => { setSearch(""); setFilterDepartment(""); setFilterType(""); }}>Clear</button>
+            <button type="button" className="vl-btn vl-btn-clear" onClick={() => { setSearch(""); setFilterDepartment(""); setFilterType(""); }}>Clear</button>
           )}
         </div>
       </div>
@@ -534,7 +534,7 @@ const getCorrectOptionIndex = (question, options) => {
                 role="button"
                 tabIndex={0}
                 onClick={() => setSelectedVideo(video)}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedVideo(video); } }}
+                onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setSelectedVideo(video); } }}
               >
                 <div className="vl-video-thumb">
                   {thumbnailUrl ? (
@@ -584,11 +584,14 @@ const getCorrectOptionIndex = (question, options) => {
                       className="vl-edit-btn"
                       onClick={(e) => { e.stopPropagation(); navigate(getEditPath(video.id)); }}
                       title="Edit"
+                      aria-label={`Edit ${video.title || "video"}`}
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                      <span className="vl-action-label">Edit</span>
                     </button>
-                    <button type="button" className="vl-delete-btn" onClick={(e) => deleteVideo(e, video.id)} title="Delete">
+                    <button type="button" className="vl-delete-btn" onClick={(e) => deleteVideo(e, video.id)} title="Delete" aria-label={`Delete ${video.title || "video"}`}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      <span className="vl-action-label">Delete</span>
                     </button>
                   </div>
                 )}
@@ -602,7 +605,7 @@ const getCorrectOptionIndex = (question, options) => {
       {selectedVideo && (
         <div className="modal-overlay" onClick={() => setSelectedVideo(null)}>
           <div className="vl-preview-modal" onClick={(e) => e.stopPropagation()}>
-            <button type="button" className="vl-modal-close" onClick={() => setSelectedVideo(null)}>×</button>
+            <button type="button" className="vl-modal-close" onClick={() => setSelectedVideo(null)} aria-label="Close preview">×</button>
 
             <div className="vl-preview-area">
               {getVideoUrl(selectedVideo) ? (

@@ -972,7 +972,7 @@ function DepartmentTestLogs() {
               </div>
             ) : (
               <div className="department-results-table-scroll">
-                <table className="department-clean-results-table">
+                <table className="department-clean-results-table" aria-label="Final test attempts">
                   <thead>
                     <tr>
                       <th>User</th>
@@ -988,7 +988,7 @@ function DepartmentTestLogs() {
                   <tbody>
                     {filteredRows.map((result) => (
                       <tr key={result.id}>
-                        <td>
+                        <td className="dtl-td-user">
                           <div className="department-result-user">
                             <div className="department-user-avatar">
                               {result.userName
@@ -1016,23 +1016,23 @@ function DepartmentTestLogs() {
                           </div>
                         </td>
 
-                        <td>
+                        <td className="dtl-td-course" data-label="Course">
                           <span className="department-course-name">
                             {result.courseTitle}
                           </span>
                         </td>
 
-                        <td>
+                        <td className="dtl-td-score" data-label="Score">
                           <strong className="department-score-value">
                             {formatScore(result.score)}
                           </strong>
                         </td>
 
-                        <td>{result.correct}</td>
+                        <td className="dtl-td-num" data-label="Correct">{result.correct}</td>
 
-                        <td>{result.total}</td>
+                        <td className="dtl-td-num" data-label="Total">{result.total}</td>
 
-                        <td>
+                        <td className="dtl-td-status">
                           <span
                             className={`department-result-status ${
                               result.passed
@@ -1046,7 +1046,7 @@ function DepartmentTestLogs() {
                           </span>
                         </td>
 
-                        <td className="department-result-date">
+                        <td className="department-result-date" data-label="Date">
                           {formatDate(
                             result.submittedAt
                           )}

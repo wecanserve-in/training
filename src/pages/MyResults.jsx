@@ -4,7 +4,7 @@ import { auth, database } from "../firebase";
 import { useNavigate } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import useBasePath from "../hooks/useBasePath";
-import { flattenAttempts, hasCertificate } from "../utils/trainingAnalytics";
+import { flattenAttempts } from "../utils/trainingAnalytics";
 import "../styles/myresults.css";
 
 import {
@@ -75,7 +75,8 @@ function MyResults() {
   const totalAttempts = results.length;
   const passedCount = results.filter((r) => r.passed).length;
   const failedCount = results.filter((r) => !r.passed).length;
-  const certificatesCount = results.filter((r) => hasCertificate(r)).length;
+  // One certificate per course passed (attempt records don't carry an attemptId field).
+  const certificatesCount = new Set(results.filter((r) => r.passed).map((r) => r.courseId)).size;
 
   if (loading) {
     return <h2 className="results-loading">Loading My Results...</h2>;
@@ -149,17 +150,17 @@ function MyResults() {
             <tbody>
               {results.map((result) => (
                 <tr key={result.id}>
-                  <td>{result.courseTitle || "Training Course"}</td>
-                  <td><strong>{result.score}%</strong></td>
-                  <td>{result.correct || 0}</td>
-                  <td>{result.total || 0}</td>
-                  <td>
+                  <td className="result-course-cell" data-label="Course">{result.courseTitle || "Training Course"}</td>
+                  <td data-label="Score"><strong>{result.score}%</strong></td>
+                  <td data-label="Correct">{result.correct || 0}</td>
+                  <td data-label="Total">{result.total || 0}</td>
+                  <td data-label="Status">
                     <span className={`result-status ${result.passed ? "passed" : "failed"}`}>
                       {result.passed ? "Passed" : "Failed"}
                     </span>
                   </td>
-                  <td>{formatDate(result.submittedAt || result.attemptTime)}</td>
-                  <td>
+                  <td data-label="Date">{formatDate(result.submittedAt || result.attemptTime)}</td>
+                  <td className="result-action-cell" data-label="Action">
                     {result.passed ? (
                       <button
                         className="download-cert-btn"

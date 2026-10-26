@@ -332,13 +332,13 @@ function CourseOverview() {
         
         {/* TOP BAR */}
         <div className="co-top-bar">
-          <button className="co-back-btn" onClick={() => navigate(`${basePath}/courses`)}>
+          <button type="button" className="co-back-btn" onClick={() => navigate(`${basePath}/courses`)}>
             ← Back to Course Library
           </button>
           <div className="co-actions">
-            <button className="co-btn-edit" onClick={() => navigate(editLink)}>Edit Course</button>
-            <button className="co-btn-assign" onClick={() => navigate(assignLink)}>Assign Course</button>
-            <button className="co-btn-delete" onClick={deleteCourse}>Delete Course</button>
+            <button type="button" className="co-btn-edit" onClick={() => navigate(editLink)}>Edit Course</button>
+            <button type="button" className="co-btn-assign" onClick={() => navigate(assignLink)}>Assign Course</button>
+            <button type="button" className="co-btn-delete" onClick={deleteCourse}>Delete Course</button>
           </div>
         </div>
 
@@ -385,7 +385,16 @@ function CourseOverview() {
                       <div 
                         key={video.id} 
                         className="co-video-item clickable"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Play ${video.title || video.videoTitle || "video"}`}
                         onClick={() => setSelectedVideo(video)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            setSelectedVideo(video);
+                          }
+                        }}
                       >
                         <div className="co-video-number">{index + 1}</div>
                         <div className="co-video-thumb-small">

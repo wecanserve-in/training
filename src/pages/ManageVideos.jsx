@@ -90,40 +90,41 @@ function ManageVideos() {
             <tbody>
               {videos.map((video) => (
                 <tr key={video.id}>
-                  <td>
+                  <td data-label="Course">
                     <div className="table-cell-title">{video.title}</div>
                     <div className="table-cell-desc-truncate">
                       {video.description}
                     </div>
                   </td>
 
-                  <td>
+                  <td data-label="Department">
                     <span className="badge-metric accent-blue">
                       {video.department || "Not Set"}
                     </span>
                   </td>
 
-                  <td>
+                  <td data-label="Video Path">
                     <code className="table-cell-code-route">
                       {video.videoUrl}
                     </code>
                   </td>
 
-                  <td style={{ textAlign: "center" }}>
+                  <td className="is-center" data-label="Pass %">
                     <span className="badge-metric accent-blue">
                       {video.passingScore}%
                     </span>
                   </td>
 
-                  <td style={{ textAlign: "center" }}>
+                  <td className="is-center" data-label="Duration">
                     <span className="badge-metric accent-grey">
                       {video.testDuration}s
                     </span>
                   </td>
 
-                  <td>
+                  <td className="is-actions">
                     <div className="table-actions-cell-group">
                       <button
+                        type="button"
                         onClick={() =>
                           navigate(
                             basePath
@@ -137,6 +138,7 @@ function ManageVideos() {
                       </button>
 
                       <button
+                        type="button"
                         onClick={() => handleDelete(video.id)}
                         className="btn-action-table-delete"
                       >

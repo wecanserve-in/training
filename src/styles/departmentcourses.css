@@ -2,7 +2,7 @@
 
 /* ─── Base ─── */
 .dc-page {
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   min-height: 100vh;
   background: #f0faf5;
   padding: 0 24px 28px;
@@ -126,7 +126,7 @@
   font-size: 0.85rem;
   color: #1e293b;
   width: 100%;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 .dc-search-box input::placeholder {
@@ -145,7 +145,7 @@
   cursor: pointer;
   transition: all 0.2s;
   border: none;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   white-space: nowrap;
   text-decoration: none;
 }
@@ -172,7 +172,7 @@
   border: 1px solid #e8f5ee;
   border-radius: 8px;
   font-size: 0.8rem;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   background: #fff;
   color: #334155;
   cursor: pointer;
@@ -373,9 +373,33 @@
   background: #fee2e2;
 }
 
+/* Action labels: icon-only on desktop, labelled on touch layouts */
+.dc-action-label {
+  display: none;
+}
+
+.dc-course-actions button:focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 2px;
+}
+
+.dc-btn:focus-visible {
+  outline: 2px solid #047857;
+  outline-offset: 2px;
+}
+
 /* ─── Responsive ─── */
+@media (max-width: 1024px) {
+  .dc-page { padding: 0 8px 24px; margin-top: 0; }
+  .dc-hero { padding: 20px 24px; }
+  .dc-course-actions button { width: 40px; height: 40px; }
+  .dc-search-box { min-height: 44px; padding: 0 14px; }
+  .dc-search-box input { min-height: 42px; }
+  .dc-filter-select { min-height: 40px; font-size: 0.875rem; }
+}
+
 @media (max-width: 768px) {
-  .dc-page { padding: 0 12px 20px; }
+  .dc-page { padding: 0 4px 20px; }
   .dc-hero {
     flex-direction: column;
     align-items: flex-start;
@@ -383,22 +407,55 @@
     gap: 12px;
   }
   .dc-hero-content h1 { font-size: 1.25rem; }
-  .dc-hero-stats { gap: 16px; }
+  .dc-hero-stats { gap: 16px; flex-wrap: wrap; }
   .dc-action-bar { flex-direction: column; align-items: stretch; }
-  .dc-search-box { max-width: 100%; }
-  .dc-filters { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
-  .dc-filter-select { flex-shrink: 0; }
-  .dc-course-card { flex-direction: column; align-items: flex-start; }
-  .dc-course-thumb { width: 100%; height: 140px; }
-  .dc-course-actions { width: 100%; }
-  .dc-course-actions button { flex: 1; width: auto; }
+  .dc-search-box { max-width: 100%; min-height: 44px; padding: 0 14px; }
+  .dc-search-box input { font-size: 16px; min-height: 42px; }
+  .dc-action-bar .dc-btn { justify-content: center; min-height: 44px; font-size: 0.9rem; }
+  .dc-filters { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+  .dc-filter-select { flex-shrink: 0; min-height: 40px; font-size: 0.875rem; }
+
+  /* Compact card: small thumb beside info, labelled actions below */
+  .dc-course-card {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    align-items: start;
+    gap: 10px 12px;
+    padding: 12px;
+  }
+  .dc-course-card:hover { transform: none; }
+  .dc-course-thumb { width: 96px; height: 64px; }
+  .dc-course-info h3 { white-space: normal; font-size: 0.95rem; line-height: 1.3; }
+  .dc-course-desc { font-size: 0.82rem; }
+  .dc-course-actions {
+    grid-column: 1 / -1;
+    width: 100%;
+    gap: 8px;
+    padding-top: 10px;
+    border-top: 1px solid #f1f5f9;
+  }
+  .dc-course-actions button {
+    flex: 1;
+    width: auto;
+    height: 40px;
+    gap: 6px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .dc-course-actions .dc-action-edit { background: #eff6ff; }
+  .dc-course-actions .dc-action-assign { background: #f0fdf4; }
+  .dc-course-actions .dc-action-delete { background: #fef2f2; }
+  .dc-action-label { display: inline; }
 }
 
 @media (max-width: 480px) {
+  .dc-page { padding: 0 0 20px; }
   .dc-hero { margin: 0 0 12px; padding: 16px; }
-  .dc-hero-content h1 { font-size: 1.1rem; }
+  .dc-hero-content h1 { font-size: 1.15rem; }
   .dc-hero-stat-icon { width: 32px; height: 32px; }
   .dc-hero-stat strong { font-size: 0.95rem; }
-  .dc-hero-stat span { font-size: 0.65rem; }
-  .dc-btn { padding: 7px 10px; font-size: 0.78rem; }
+  .dc-hero-stat span { font-size: 0.72rem; }
+  .dc-course-card { grid-template-columns: 84px minmax(0, 1fr); }
+  .dc-course-thumb { width: 84px; height: 56px; }
 }

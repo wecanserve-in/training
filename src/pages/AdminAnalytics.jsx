@@ -556,7 +556,7 @@ function AdminAnalytics() {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
             Zone
           </label>
-          <select value={drillZone} onChange={(e) => drillIntoZone(e.target.value)}>
+          <select aria-label="Zone" value={drillZone} onChange={(e) => drillIntoZone(e.target.value)}>
             <option value="">All Zones</option>
             {zones.map((z) => <option key={z.name} value={z.name}>{z.name}</option>)}
           </select>
@@ -566,7 +566,7 @@ function AdminAnalytics() {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             State
           </label>
-          <select value={drillState} onChange={(e) => drillIntoState(e.target.value)}>
+          <select aria-label="State" value={drillState} onChange={(e) => drillIntoState(e.target.value)}>
             <option value="">All States</option>
             {states.map((s) => <option key={s.name} value={s.name}>{s.name}</option>)}
           </select>
@@ -576,7 +576,7 @@ function AdminAnalytics() {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             City
           </label>
-          <select value={drillCity} onChange={(e) => drillIntoCity(e.target.value)}>
+          <select aria-label="City" value={drillCity} onChange={(e) => drillIntoCity(e.target.value)}>
             <option value="">All Cities</option>
             {cities.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
           </select>
@@ -591,7 +591,7 @@ function AdminAnalytics() {
             if (!z) return null;
             return (
               <div className="sa-detail-card" onClick={() => { setDrillLevel("zone"); setDrillState(""); setDrillCity(""); }}>
-                <button className="sa-dcard-remove" onClick={(e) => { e.stopPropagation(); setDrillZone(""); setDrillState(""); setDrillCity(""); setSearch(""); setDesignationFilter(""); bumpAnim(); }}>&times;</button>
+                <button type="button" className="sa-dcard-remove" aria-label="Clear this filter" onClick={(e) => { e.stopPropagation(); setDrillZone(""); setDrillState(""); setDrillCity(""); setSearch(""); setDesignationFilter(""); bumpAnim(); }}>&times;</button>
                 <div className="sa-dcard-avatar" style={{ background: getAvatarColor(0).bg, color: getAvatarColor(0).color }}>{z.name.charAt(0).toUpperCase()}</div>
                 <div className="sa-dcard-body">
                   <strong>{z.name}</strong>
@@ -607,7 +607,7 @@ function AdminAnalytics() {
             if (!s) return null;
             return (
               <div className="sa-detail-card" onClick={() => { setDrillLevel("state"); setDrillCity(""); }}>
-                <button className="sa-dcard-remove" onClick={(e) => { e.stopPropagation(); setDrillState(""); setDrillCity(""); setSearch(""); setDesignationFilter(""); bumpAnim(); }}>&times;</button>
+                <button type="button" className="sa-dcard-remove" aria-label="Clear this filter" onClick={(e) => { e.stopPropagation(); setDrillState(""); setDrillCity(""); setSearch(""); setDesignationFilter(""); bumpAnim(); }}>&times;</button>
                 <div className="sa-dcard-avatar" style={{ background: getAvatarColor(1).bg, color: getAvatarColor(1).color }}>{s.name.charAt(0).toUpperCase()}</div>
                 <div className="sa-dcard-body">
                   <strong>{s.name}</strong>
@@ -623,7 +623,7 @@ function AdminAnalytics() {
             if (!c) return null;
             return (
               <div className="sa-detail-card" onClick={() => setDrillLevel("city")}>
-                <button className="sa-dcard-remove" onClick={(e) => { e.stopPropagation(); setDrillCity(""); setSearch(""); setDesignationFilter(""); bumpAnim(); }}>&times;</button>
+                <button type="button" className="sa-dcard-remove" aria-label="Clear this filter" onClick={(e) => { e.stopPropagation(); setDrillCity(""); setSearch(""); setDesignationFilter(""); bumpAnim(); }}>&times;</button>
                 <div className="sa-dcard-avatar" style={{ background: getAvatarColor(2).bg, color: getAvatarColor(2).color }}>{c.name.charAt(0).toUpperCase()}</div>
                 <div className="sa-dcard-body">
                   <strong>{c.name}</strong>
@@ -669,7 +669,7 @@ function AdminAnalytics() {
               <div className="sa-filters-row">
                 <div className="sa-search-box">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-                  <input type="text" placeholder={`Search users in ${currentLabel}...`} value={search} onChange={(e) => setSearch(e.target.value)} />
+                  <input type="text" aria-label="Search users" placeholder={`Search users in ${currentLabel}...`} value={search} onChange={(e) => setSearch(e.target.value)} />
                 </div>
                 <select className="sa-filter-select" value={designationFilter} onChange={(e) => setDesignationFilter(e.target.value)}>
                   <option value="">All Designations</option>
@@ -893,7 +893,7 @@ function AdminAnalytics() {
                     </p>
                   </div>
 
-                  <span>{selectedUserCourseRows.length} courses</span>
+                  <span>{selectedUserCourseRows.length} {selectedUserCourseRows.length === 1 ? "course" : "courses"}</span>
                 </div>
 
                 <div className="sa-user-course-list">

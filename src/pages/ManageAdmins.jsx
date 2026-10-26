@@ -150,7 +150,7 @@ function ManageAdmins() {
       <div className="ma-action-bar">
         <div className="ma-search-box">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-          <input type="text" placeholder="Search admins by name, email, designation..." value={adminSearch} onChange={(e) => setAdminSearch(e.target.value)} />
+          <input type="text" aria-label="Search admins" placeholder="Search admins by name, email, designation..." value={adminSearch} onChange={(e) => setAdminSearch(e.target.value)} />
         </div>
         <button className="ma-btn ma-btn-primary" onClick={openModal}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -184,21 +184,23 @@ function ManageAdmins() {
             <tbody>
               {filteredAdmins.map((admin, idx) => (
                 <tr key={admin.id}>
-                  <td className="ma-td-idx">{idx + 1}</td>
-                  <td className="ma-td-name">{admin.name || "-"}</td>
-                  <td className="ma-td-email">{admin.email || "-"}</td>
-                  <td>{admin.designation || "-"}</td>
-                  <td>
-                    <span className="ma-badge" style={seniorityColor(admin.seniority)}>
-                      {admin.seniority ? admin.seniority.charAt(0).toUpperCase() + admin.seniority.slice(1) : "-"}
-                    </span>
+                  <td className="ma-td-idx" data-label="#">{idx + 1}</td>
+                  <td className="ma-td-name" data-label="Name">{admin.name || "-"}</td>
+                  <td className="ma-td-email" data-label="Email">{admin.email || "-"}</td>
+                  <td data-label="Designation">{admin.designation || "-"}</td>
+                  <td data-label="Seniority">
+                    {admin.seniority ? (
+                      <span className="ma-badge" style={seniorityColor(admin.seniority)}>
+                        {admin.seniority.charAt(0).toUpperCase() + admin.seniority.slice(1)}
+                      </span>
+                    ) : "-"}
                   </td>
-                  <td>{admin.zone || "-"}</td>
-                  <td>{admin.state || "-"}</td>
-                  <td>{admin.cityArea || "-"}</td>
-                  <td>
-                    <button className="ma-action-remove" onClick={() => removeAdminRole(admin.id)} title="Remove Admin">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  <td data-label="Zone">{admin.zone || "-"}</td>
+                  <td data-label="State">{admin.state || "-"}</td>
+                  <td data-label="City">{admin.cityArea || "-"}</td>
+                  <td className="ma-td-actions" data-label="Action">
+                    <button className="ma-action-remove" onClick={() => removeAdminRole(admin.id)} title="Remove Admin" aria-label={`Remove admin role from ${admin.name || admin.email || "user"}`}>
+                      <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                     </button>
                   </td>
                 </tr>
@@ -220,7 +222,7 @@ function ManageAdmins() {
                 <h2>Make New Admin</h2>
                 <p>Search any user or choose from senior eligible users.</p>
               </div>
-              <button className="close-btn" onClick={closeModal}>×</button>
+              <button type="button" className="close-btn" aria-label="Close" onClick={closeModal}>×</button>
             </div>
 
             <form onSubmit={assignAdmin} className="ma-assign-form">
@@ -228,6 +230,7 @@ function ManageAdmins() {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                 <input
                   type="text"
+                  aria-label="Search users to make admin"
                   placeholder="Search user by name, email, designation..."
                   value={search}
                   onChange={(e) => { setSearch(e.target.value); setSelectedUserId(""); setDropdownOpen(true); }}

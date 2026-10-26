@@ -633,7 +633,12 @@ return (
     {/* Top Right Button Only */}
 
     <div className="analytics-topbar">
+  <div className="analytics-topbar-text">
+    <h1>Assignment Analytics</h1>
+    <p>Track learner progress for every assigned course.</p>
+  </div>
   <button
+    type="button"
     className="download-report-btn"
     onClick={downloadDepartmentReport}
   >
@@ -862,6 +867,7 @@ return (
 
       <input
         type="text"
+        aria-label="Search users"
         placeholder="Search user, designation, city..."
         value={search}
         onChange={(e) =>
@@ -871,6 +877,7 @@ return (
 
       <select
         className="analytics-filter-select"
+        aria-label="Filter by zone"
         value={selectedZone}
         onChange={(e) => {
           setSelectedZone(e.target.value);
@@ -890,6 +897,7 @@ return (
 
       <select
         className="analytics-filter-select"
+        aria-label="Filter by state"
         value={selectedState}
         onChange={(e) =>
           setSelectedState(e.target.value)
@@ -911,6 +919,7 @@ return (
         selectedState ||
         search) && (
         <button
+          type="button"
           className="clear-filter-btn"
           onClick={() => {
             setSelectedStatus("");
@@ -927,7 +936,7 @@ return (
 
     <div className="user-progress-table-wrap">
 
-  <table className="user-progress-table">
+  <table className="user-progress-table" aria-label="Learner progress">
 
     <thead>
 
@@ -966,7 +975,7 @@ return (
             }
           >
 
-            <td>
+            <td className="upt-td-user">
 
               <div className="user-cell">
 
@@ -982,19 +991,19 @@ return (
 
             </td>
 
-            <td>
+            <td className="upt-td-desig" data-label="Designation">
               {user.designation ||
                 user.userRole ||
                 "-"}
             </td>
 
-            <td>
+            <td className="upt-td-dept" data-label="Department">
               {user.department ||
                 user.departmentName ||
                 "-"}
             </td>
 
-            <td>
+            <td className="upt-td-location" data-label="Location">
 
               {[
                 user.city ||
@@ -1008,7 +1017,7 @@ return (
 
             </td>
 
-            <td>
+            <td className="upt-td-status">
 
               <span
                 className={`status-pill ${user.status}`}

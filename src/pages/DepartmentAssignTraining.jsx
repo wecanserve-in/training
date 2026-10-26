@@ -516,8 +516,8 @@ function DepartmentAssignTraining() {
                 <h3>{selectedCourse.title}</h3>
                 <p>{shortDescription}{courseDescription.length > 100 && <button type="button" className="ac-read-more" onClick={() => setShowFullDescription(!showFullDescription)}>{showFullDescription ? " Less" : " More"}</button>}</p>
                 <div className="ac-meta-row">
-                  <span>{selectedCourse.totalVideos || 0} videos</span>
-                  <span>{selectedCourse.totalQuestions || 0} questions</span>
+                  <span>{selectedCourse.totalVideos || 0} {selectedCourse.totalVideos === 1 ? "video" : "videos"}</span>
+                  <span>{selectedCourse.totalQuestions || 0} {selectedCourse.totalQuestions === 1 ? "question" : "questions"}</span>
                   <span>Pass {selectedCourse.passingScore || 70}%</span>
                 </div>
               </div>
@@ -836,11 +836,11 @@ function DepartmentAssignTraining() {
         </div>
 
         <div className="ac-table-wrap">
-          <table>
+          <table className="ac-users-table" aria-label="Available users">
             <thead>
               <tr>
                 <th className="ac-th-check">
-                  <input type="checkbox" checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0} onChange={() => selectedUsers.length === filteredUsers.length ? deselectAll() : selectAll()} />
+                  <input type="checkbox" aria-label="Select all users" checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0} onChange={() => selectedUsers.length === filteredUsers.length ? deselectAll() : selectAll()} />
                 </th>
                 <th>#</th>
                 <th>User</th>
@@ -899,22 +899,22 @@ function DepartmentAssignTraining() {
                       }`}
                       onClick={() => toggleUser(user.id)}
                     >
-                      <td className="ac-td-check"><input type="checkbox" checked={selected} onChange={() => toggleUser(user.id)} onClick={(e) => e.stopPropagation()} /></td>
+                      <td className="ac-td-check"><input type="checkbox" aria-label={`Select ${user.name || user.email || "user"}`} checked={selected} onChange={() => toggleUser(user.id)} onClick={(e) => e.stopPropagation()} /></td>
                       <td className="ac-td-idx">{idx + 1}</td>
                       <td className="ac-td-name">
                         <strong>{user.name || "Unnamed"}</strong>
                         <span>{user.email}</span>
                       </td>
-                      <td><span className={`ac-role-badge ${badge.cls}`}>{badge.label}</span></td>
-                      <td>
+                      <td className="ac-td-role" data-label="Role"><span className={`ac-role-badge ${badge.cls}`}>{badge.label}</span></td>
+                      <td className="ac-td-dept" data-label="Department">
                         {getField(
                           user,
                           fieldKeys.department
                         ) || "-"}
                       </td>
-                      <td>{getField(user, fieldKeys.designation) || "-"}</td>
-                      <td className="ac-td-location">{location}</td>
-                      <td>
+                      <td className="ac-td-desig" data-label="Designation">{getField(user, fieldKeys.designation) || "-"}</td>
+                      <td className="ac-td-location" data-label="Location">{location}</td>
+                      <td className="ac-td-status" data-label="Status">
                         <span
                           className={`ac-status ${status}`}
                         >

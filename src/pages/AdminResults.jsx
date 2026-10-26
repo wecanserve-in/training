@@ -636,6 +636,7 @@ function AdminResults() {
 
           <input
             type="text"
+            aria-label="Search test logs"
             placeholder="Search user, email, test, course, department..."
             value={search}
             onChange={(event) =>
@@ -645,6 +646,7 @@ function AdminResults() {
         </div>
 
         <select
+          aria-label="Filter by status"
           value={statusFilter}
           onChange={(event) =>
             setStatusFilter(event.target.value)
@@ -656,6 +658,7 @@ function AdminResults() {
         </select>
 
         <select
+          aria-label="Filter by test type"
           value={testTypeFilter}
           onChange={(event) =>
             setTestTypeFilter(event.target.value)
@@ -667,6 +670,7 @@ function AdminResults() {
         </select>
 
         <select
+          aria-label="Filter by department"
           value={departmentFilter}
           onChange={(event) =>
             setDepartmentFilter(event.target.value)
@@ -684,6 +688,7 @@ function AdminResults() {
         </select>
 
         <select
+          aria-label="Filter by course"
           value={courseFilter}
           onChange={(event) =>
             setCourseFilter(event.target.value)
@@ -698,6 +703,7 @@ function AdminResults() {
         </select>
 
         <select
+          aria-label="Sort records"
           value={sortBy}
           onChange={(event) =>
             setSortBy(event.target.value)
@@ -744,7 +750,7 @@ function AdminResults() {
           </div>
         ) : (
           <div className="log-table-wrapper">
-            <table className="admin-log-table">
+            <table className="admin-log-table" aria-label="Assessment submission records">
               <thead>
                 <tr>
                   <th>#</th>
@@ -768,7 +774,7 @@ function AdminResults() {
                       {index + 1}
                     </td>
 
-                    <td>
+                    <td className="lr-td-user">
                       <div className="log-user-cell">
                         <div className="log-user-avatar">
                           {(attempt.userName || "U")
@@ -779,7 +785,7 @@ function AdminResults() {
                             .toUpperCase()}
                         </div>
 
-                        <div>
+                        <div className="log-user-text">
                           <strong>{attempt.userName}</strong>
                           <small>{attempt.userEmail}</small>
                           <em>{attempt.designation}</em>
@@ -787,19 +793,19 @@ function AdminResults() {
                       </div>
                     </td>
 
-                    <td>
+                    <td className="lr-td-dept" data-label="Department">
                       <span className="log-department-pill">
                         {attempt.departmentName}
                       </span>
                     </td>
 
-                    <td>
+                    <td className="lr-td-course" data-label="Course">
                       <span className="log-course-name">
                         {attempt.courseTitle}
                       </span>
                     </td>
 
-                    <td>
+                    <td className="lr-td-test" data-label="Test">
                       <div className="log-test-cell">
                         <strong>{attempt.testTitle}</strong>
                         {attempt.quizId && (
@@ -810,7 +816,7 @@ function AdminResults() {
                       </div>
                     </td>
 
-                    <td>
+                    <td className="lr-td-type" data-label="Type">
                       <span
                         className={`log-type-chip ${
                           attempt.testType === "Video Quiz"
@@ -822,14 +828,14 @@ function AdminResults() {
                       </span>
                     </td>
 
-                    <td>
+                    <td className="lr-td-attempt" data-label="Attempt">
                       <span className="log-attempt-chip">
                         Attempt{" "}
                         {attemptNumberById[attempt.id] || 1}
                       </span>
                     </td>
 
-                    <td>
+                    <td className="lr-td-score" data-label="Score">
                       <div className="log-score-cell">
                         <div className="log-score-track">
                           <span
@@ -843,7 +849,7 @@ function AdminResults() {
                       </div>
                     </td>
 
-                    <td>
+                    <td className="lr-td-correct" data-label="Correct">
                       <span className="log-correct-chip">
                         {attempt.total > 0
                           ? `${attempt.correct}/${attempt.total}`
@@ -851,7 +857,7 @@ function AdminResults() {
                       </span>
                     </td>
 
-                    <td>
+                    <td className="lr-td-status">
                       <span
                         className={`log-status ${
                           attempt.passed
@@ -866,7 +872,7 @@ function AdminResults() {
                       </span>
                     </td>
 
-                    <td className="log-date-cell">
+                    <td className="log-date-cell" data-label="Submitted At">
                       {formatDateTime(attempt.submittedAt)}
                     </td>
                   </tr>

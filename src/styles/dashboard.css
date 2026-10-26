@@ -1,7 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
 .super-dashboard {
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   min-height: 100vh;
   background: #f0faf5;
   position: relative;
@@ -741,3 +741,259 @@
 }
 
 
+/* ═══════════════════════════════════════════════════════════
+   Learner dashboard refinements (scoped: .learner-dashboard)
+   The admin dashboard reuses the .super-dashboard classes, so
+   every rule here is scoped to the learner root.
+   ═══════════════════════════════════════════════════════════ */
+
+/* 5 stat cards → 5 equal columns on desktop (was 6, leaving a gap) */
+.learner-dashboard .dash-stat-cards {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.learner-dashboard .stat-card-info {
+  min-width: 0;
+}
+
+.learner-dashboard .card-head {
+  gap: 12px;
+  align-items: center;
+}
+
+.learner-dashboard .card-head a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+.learner-dashboard .newly-course-card,
+.learner-dashboard .completed-course-card {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Tablet & below (layout already gives 16px gutter) ── */
+@media (max-width: 1024px) {
+  .learner-dashboard {
+    margin-top: 0;
+    min-height: 0;
+    padding: 0 8px; /* 16px layout + 8px = 24px tablet gutter */
+  }
+
+  /* decorative blobs poke out at the screen edges on small screens */
+  .learner-dashboard::before,
+  .learner-dashboard::after,
+  .learner-dashboard .hero-decoration {
+    display: none;
+  }
+
+  .learner-dashboard .dash-hero,
+  .learner-dashboard .dash-stat-cards,
+  .learner-dashboard .newly-courses-section,
+  .learner-dashboard .completed-courses-section {
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .learner-dashboard .dash-hero {
+    margin-bottom: 16px;
+    padding: 22px 24px;
+  }
+
+  /* 5 cards: 3 on the first row, 2 wider ones on the second */
+  .learner-dashboard .dash-stat-cards {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 12px;
+    padding-bottom: 16px;
+  }
+
+  .learner-dashboard .stat-card {
+    grid-column: span 2;
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .learner-dashboard .stat-card:nth-child(n + 4) {
+    grid-column: span 3;
+  }
+
+  .learner-dashboard .stat-card-info span {
+    font-size: 0.78rem;
+    line-height: 1.3;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #64748b;
+  }
+
+  .learner-dashboard .stat-card-info strong {
+    font-size: 1.15rem;
+  }
+
+  .learner-dashboard .newly-courses-section,
+  .learner-dashboard .completed-courses-section {
+    padding-bottom: 16px;
+  }
+
+  .learner-dashboard .card-head a {
+    min-height: 40px;
+    padding: 8px 14px;
+    font-size: 0.82rem;
+  }
+
+  .learner-dashboard .card-head h2 {
+    font-size: 1rem;
+  }
+
+  .learner-dashboard .card-head p {
+    font-size: 0.8rem;
+  }
+
+  .learner-dashboard .newly-course-info h3,
+  .learner-dashboard .completed-course-info h3 {
+    font-size: 0.88rem;
+  }
+
+  .learner-dashboard .newly-course-info span,
+  .learner-dashboard .completed-course-info span {
+    font-size: 0.75rem;
+  }
+
+  .learner-dashboard .newly-course-progress strong {
+    font-size: 0.78rem;
+  }
+}
+
+/* ── Phone ── */
+@media (max-width: 600px) {
+  .learner-dashboard {
+    padding: 0; /* layout gutter of 16px is enough */
+  }
+
+  .learner-dashboard .dash-hero {
+    padding: 18px 16px;
+    border-radius: 14px;
+  }
+
+  .learner-dashboard .hero-content {
+    max-width: none;
+    width: 100%;
+  }
+
+  .learner-dashboard .hero-content h1 {
+    font-size: 1.25rem;
+  }
+
+  .learner-dashboard .hero-content p {
+    font-size: 0.875rem;
+    margin-bottom: 14px;
+  }
+
+  .learner-dashboard .hero-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .learner-dashboard .hero-stat span {
+    font-size: 0.75rem;
+  }
+
+  /* 2 columns, the 5th card spans the full row */
+  .learner-dashboard .dash-stat-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .learner-dashboard .stat-card,
+  .learner-dashboard .stat-card:nth-child(n + 4) {
+    grid-column: auto;
+    padding: 12px;
+    gap: 10px;
+    min-height: 68px;
+  }
+
+  .learner-dashboard .stat-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .learner-dashboard .stat-card-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* course cards become compact rows: thumbnail left, details right */
+  .learner-dashboard .newly-courses-grid,
+  .learner-dashboard .completed-courses-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .learner-dashboard .newly-course-card,
+  .learner-dashboard .completed-course-card {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  .learner-dashboard .newly-course-thumb,
+  .learner-dashboard .completed-course-thumb {
+    width: 112px;
+    flex-shrink: 0;
+    border-radius: 8px;
+  }
+
+  .learner-dashboard .newly-course-placeholder,
+  .learner-dashboard .completed-course-placeholder {
+    font-size: 1.3rem;
+  }
+
+  .learner-dashboard .new-video-badge {
+    top: 4px;
+    right: 4px;
+    padding: 2px 5px;
+    font-size: 0.55rem;
+    letter-spacing: 0.3px;
+  }
+
+  .learner-dashboard .completed-check {
+    width: 22px;
+    height: 22px;
+    bottom: 4px;
+    right: 4px;
+  }
+
+  .learner-dashboard .newly-course-info,
+  .learner-dashboard .completed-course-info {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+  }
+
+  .learner-dashboard .newly-course-info h3,
+  .learner-dashboard .completed-course-info h3 {
+    font-size: 0.92rem;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .learner-dashboard .newly-course-info span {
+    margin-bottom: 8px;
+  }
+
+  .learner-dashboard .newly-course-progress {
+    grid-template-columns: 1fr 40px;
+  }
+
+  .learner-dashboard .newly-course-progress .progress-bar {
+    height: 6px;
+  }
+}

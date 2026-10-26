@@ -549,18 +549,24 @@ function DepartmentUploadVideo() {
             </div>
           )}
 
-          <input
-            placeholder="Video Title *"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-          />
+          <label className="vl-field">
+            <span className="vl-field-label">Video Title *</span>
+            <input
+              placeholder="e.g., Product Basics"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </label>
 
-          <textarea
-            placeholder="Short Description *"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows="3"
-          />
+          <label className="vl-field">
+            <span className="vl-field-label">Short Description *</span>
+            <textarea
+              placeholder="What will learners get from this video?"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows="3"
+            />
+          </label>
 
           <div className="tag-picker">
             <label>Tags</label>
@@ -579,7 +585,7 @@ function DepartmentUploadVideo() {
                 {tags.map((tag) => (
                   <span key={tag} className="tag-chip">
                     {tag}
-                    <button type="button" onClick={() => removeTag(tag)}>
+                    <button type="button" onClick={() => removeTag(tag)} aria-label={`Remove tag ${tag}`}>
                       ×
                     </button>
                   </span>
@@ -724,19 +730,20 @@ function DepartmentUploadVideo() {
 
           <textarea 
             placeholder="Question"
+            aria-label="Question text"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             rows="2"
           />
 
           <div className="quiz-options-grid">
-            <input placeholder="Option A" value={optionA} onChange={(e) => setOptionA(e.target.value)} />
-            <input placeholder="Option B" value={optionB} onChange={(e) => setOptionB(e.target.value)} />
-            <input placeholder="Option C" value={optionC} onChange={(e) => setOptionC(e.target.value)} />
-            <input placeholder="Option D" value={optionD} onChange={(e) => setOptionD(e.target.value)} />
+            <input placeholder="Option A" aria-label="Option A" value={optionA} onChange={(e) => setOptionA(e.target.value)} />
+            <input placeholder="Option B" aria-label="Option B" value={optionB} onChange={(e) => setOptionB(e.target.value)} />
+            <input placeholder="Option C" aria-label="Option C" value={optionC} onChange={(e) => setOptionC(e.target.value)} />
+            <input placeholder="Option D" aria-label="Option D" value={optionD} onChange={(e) => setOptionD(e.target.value)} />
           </div>
 
-          <select value={correctAnswer} onChange={(e) => setCorrectAnswer(e.target.value)}>
+          <select value={correctAnswer} onChange={(e) => setCorrectAnswer(e.target.value)} aria-label="Correct answer">
             <option value="">Select Correct Answer</option>
             {optionA && <option value={optionA}>A: {optionA}</option>}
             {optionB && <option value={optionB}>B: {optionB}</option>}
@@ -757,7 +764,7 @@ function DepartmentUploadVideo() {
                     <strong>{index + 1}. {item.question}</strong>
                     <p>Correct: {item.correctAnswer}</p>
                   </div>
-                  <button type="button" onClick={() => removeQuizQuestion(index)}>Remove</button>
+                  <button type="button" onClick={() => removeQuizQuestion(index)} aria-label={`Remove question ${index + 1}`}>Remove</button>
                 </div>
               ))}
             </div>

@@ -2,7 +2,7 @@
 
 /* ─── Base ─── */
 .md-page {
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   min-height: 100vh;
   background: #f0faf5;
   padding: 0 24px 28px;
@@ -117,7 +117,7 @@
   font-size: 0.85rem;
   color: #1e293b;
   width: 100%;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 .md-search-box input::placeholder {
@@ -136,7 +136,7 @@
   cursor: pointer;
   transition: all 0.2s;
   border: none;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   white-space: nowrap;
 }
 
@@ -345,28 +345,34 @@
   background: #fee2e2;
 }
 
-/* ─── Modal ─── */
-.modal-overlay {
+/* ─── Modal (scoped: generic names are used by other pages) ─── */
+.md-page .modal-overlay {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
+  inset: 0;
   background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 16px;
   z-index: 1000;
   backdrop-filter: blur(4px);
 }
 
-.modal-content {
+.md-page .modal-content {
   background: white;
   padding: 24px;
   border-radius: 14px;
-  width: 90%;
+  width: 100%;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-sizing: border-box;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
   border: 1px solid #e8f5ee;
 }
 
-.md-modal {
+.md-page .md-modal {
   max-width: 520px;
 }
 
@@ -403,6 +409,17 @@
 
 .md-modal-head .close-btn:hover {
   color: #1e293b;
+  background: #f1f5f9;
+}
+
+.md-modal-head .close-btn {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: -6px -8px 0 0;
+  border-radius: 8px;
 }
 
 .md-form {
@@ -429,7 +446,7 @@
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   font-size: 0.85rem;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   background: #fff;
   color: #1e293b;
   transition: border-color 0.2s;
@@ -623,28 +640,247 @@
   color: #065f46;
 }
 
-/* ─── Responsive ─── */
-@media (max-width: 768px) {
-  .md-page { padding: 0 12px 20px; }
+/* ─── Tablet (≤1024px): gutter = layout 12px + 12px ─── */
+@media (max-width: 1024px) {
+  .md-page {
+    margin-top: 0;
+    padding: 0 8px 24px; /* + 16px from the app frame = 24px */
+    min-height: 0;
+  }
+
   .md-hero {
     flex-direction: column;
     align-items: flex-start;
-    padding: 18px 20px;
-    gap: 12px;
+    gap: 16px;
+    padding: 20px 24px;
   }
-  .md-hero-content h1 { font-size: 1.25rem; }
-  .md-hero-stats { gap: 16px; }
-  .md-action-bar { flex-direction: column; align-items: stretch; }
-  .md-search-box { max-width: 100%; }
-  .md-modal-actions { flex-direction: column; }
-  .md-modal-actions button { width: 100%; justify-content: center; }
+
+  .md-search-box {
+    min-height: 44px;
+    box-sizing: border-box;
+  }
+
+  .md-action-bar-btns .md-btn {
+    min-height: 44px;
+  }
+
+  .md-table-wrap {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .md-expand-btn,
+  .md-actions button {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+  }
+
+  .md-users-wrap {
+    padding: 8px 16px 14px;
+  }
 }
 
-@media (max-width: 480px) {
-  .md-hero { margin: 0 0 12px; padding: 16px; }
-  .md-hero-content h1 { font-size: 1.1rem; }
-  .md-hero-stat-icon { width: 32px; height: 32px; }
-  .md-hero-stat strong { font-size: 0.95rem; }
-  .md-hero-stat span { font-size: 0.65rem; }
-  .md-btn { padding: 7px 10px; font-size: 0.78rem; }
+/* ─── Phone (≤600px): gutter = layout 12px + 4px ─── */
+@media (max-width: 600px) {
+  .md-page {
+    padding: 0 0 16px; /* the app frame gives 16px */
+  }
+
+  .md-hero {
+    padding: 18px 16px;
+    margin-bottom: 12px;
+  }
+
+  .md-hero-content h1 { font-size: 1.2rem; }
+  .md-hero-content p { font-size: 0.82rem; }
+  .md-hero-stats { gap: 20px; flex-wrap: wrap; }
+  .md-hero-stat-icon { width: 34px; height: 34px; }
+  .md-hero-stat strong { font-size: 1rem; }
+  .md-hero-stat span { font-size: 0.75rem; }
+
+  .md-action-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .md-search-box {
+    max-width: none;
+  }
+
+  /* 16px text avoids iOS zoom-on-focus */
+  .md-search-box input,
+  .md-form-group input,
+  .md-form-group .nice-select {
+    font-size: 16px;
+  }
+
+  .md-form-group input,
+  .md-form-group .nice-select {
+    min-height: 44px;
+  }
+
+  .md-action-bar-btns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .md-action-bar-btns .md-btn {
+    justify-content: center;
+    min-width: 0;
+    padding: 8px 10px;
+    white-space: normal;
+    line-height: 1.2;
+    text-align: center;
+  }
+
+  /* Table → department cards */
+  .md-table-header {
+    padding: 14px 16px;
+  }
+
+  .md-table-wrap {
+    overflow: visible;
+    padding: 12px;
+  }
+
+  .md-table-wrap table,
+  .md-table-wrap tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .md-table-wrap thead {
+    display: none;
+  }
+
+  .md-table-wrap tr {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+    border: 1px solid #e8f5ee;
+    border-radius: 12px;
+    background: #fff;
+  }
+
+  .md-table-wrap tr:hover {
+    background: #fff;
+  }
+
+  .md-table-wrap tr.md-row-open {
+    background: #f0fdf4 !important;
+    border-color: #bbf7d0;
+  }
+
+  .md-table-wrap td {
+    min-width: 0;
+    padding: 0;
+    border: none;
+    font-size: 0.875rem;
+  }
+
+  .md-table-wrap .md-td-name {
+    font-size: 1rem;
+    overflow-wrap: anywhere;
+  }
+
+  .md-table-wrap .md-td-admin,
+  .md-table-wrap .md-td-desig,
+  .md-table-wrap .md-td-actions {
+    grid-column: 1 / -1;
+  }
+
+  .md-table-wrap .md-td-admin::before,
+  .md-table-wrap .md-td-desig::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .md-admin-cell > div:last-child {
+    min-width: 0;
+  }
+
+  .md-admin-cell strong {
+    font-size: 0.875rem;
+  }
+
+  .md-admin-cell span {
+    display: block;
+    font-size: 0.78rem;
+    overflow-wrap: anywhere;
+  }
+
+  .md-table-wrap .md-td-actions {
+    padding-top: 10px;
+    border-top: 1px solid #f1f5f9;
+  }
+
+  .md-actions {
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .md-actions .md-action-edit { background: #eff6ff; }
+  .md-actions .md-action-delete { background: #fef2f2; }
+
+  /* Expanded users list sits as its own panel under the card */
+  .md-table-wrap tr.md-users-row {
+    display: block;
+    padding: 0;
+    margin-top: -4px;
+    overflow: hidden;
+  }
+
+  .md-table-wrap tr.md-users-row td {
+    display: block;
+  }
+
+  .md-users-wrap {
+    padding: 10px 12px 12px;
+    border-bottom: none;
+  }
+
+  .md-user-row-body strong {
+    font-size: 0.85rem;
+  }
+
+  .md-user-row-body span {
+    font-size: 0.75rem;
+  }
+
+  .md-table-wrap tr:has(.md-empty) {
+    display: block;
+    border: none;
+    padding: 0;
+  }
+
+  .md-table-wrap .md-empty {
+    display: block;
+  }
+
+  /* Modals */
+  .md-page .modal-content {
+    padding: 18px 16px;
+  }
+
+  .md-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .md-modal-actions .md-btn {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
 }

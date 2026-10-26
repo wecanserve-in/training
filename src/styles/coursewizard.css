@@ -1,7 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
 .course-wizard-page {
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   width: 100%;
   max-width: 960px;
   margin: 0 auto;
@@ -26,7 +26,7 @@
 
 .wizard-logo { height: 36px; object-fit: contain; }
 
-.btn-admin-back {
+.course-wizard-page .btn-admin-back {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -39,14 +39,14 @@
   font-weight: 600;
   font-size: 0.78rem;
   cursor: pointer;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   transition: all 0.15s;
 }
 
-.btn-admin-back:hover { background: #dcfce7; border-color: #059669; }
+.course-wizard-page .btn-admin-back:hover { background: #dcfce7; border-color: #059669; }
 
 /* ─── Card ─── */
-.admin-form-card,
+.course-wizard-page .admin-form-card,
 .wizard-card {
   background: #fff;
   border: 1px solid #e8f5ee;
@@ -92,7 +92,7 @@
   bottom: -15px;
 }
 
-.admin-form-title {
+.course-wizard-page .admin-form-title {
   margin: 0;
   font-size: 1.2rem;
   font-weight: 700;
@@ -100,7 +100,7 @@
   z-index: 1;
 }
 
-.admin-form-subtitle {
+.course-wizard-page .admin-form-subtitle {
   margin: 2px 0 0;
   color: rgba(255,255,255,0.85);
   font-size: 0.78rem;
@@ -130,7 +130,7 @@
   font-size: 0.78rem;
   cursor: pointer;
   transition: 0.2s;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 .wizard-step-circle:hover { border-color: #059669; }
@@ -200,19 +200,19 @@
 }
 
 /* ─── Inputs ─── */
-.admin-input-group {
+.course-wizard-page .admin-input-group {
   display: grid;
   gap: 4px;
 }
 
-.admin-field-label {
+.course-wizard-page .admin-field-label {
   color: #334155;
   font-size: 0.78rem;
   font-weight: 600;
 }
 
-.admin-form-input,
-.admin-form-textarea,
+.course-wizard-page .admin-form-input,
+.course-wizard-page .admin-form-textarea,
 .wizard-section select {
   width: 100%;
   border: 1px solid #e8f5ee;
@@ -223,36 +223,36 @@
   font-weight: 500;
   outline: none;
   transition: 0.2s;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
-.admin-form-input,
+.course-wizard-page .admin-form-input,
 .wizard-section select {
   height: 38px;
   padding: 0 12px;
 }
 
-.admin-form-textarea {
+.course-wizard-page .admin-form-textarea {
   min-height: 72px;
   padding: 10px 12px;
   resize: vertical;
 }
 
-.admin-form-input:focus,
-.admin-form-textarea:focus,
+.course-wizard-page .admin-form-input:focus,
+.course-wizard-page .admin-form-textarea:focus,
 .wizard-section select:focus {
   border-color: #059669;
   background: #fff;
   box-shadow: 0 0 0 2px rgba(5,150,105,0.1);
 }
 
-.admin-form-input:disabled {
+.course-wizard-page .admin-form-input:disabled {
   background: #f0fdf4;
   color: #059669;
   font-weight: 600;
 }
 
-.admin-form-row-split {
+.course-wizard-page .admin-form-row-split {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
@@ -319,7 +319,7 @@
   font-size: 0.78rem;
   font-weight: 500;
   outline: none;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 .course-video-toolbar input:focus,
@@ -351,7 +351,7 @@
   font-weight: 600;
   font-size: 0.75rem;
   cursor: pointer;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 .bulk-select-row button:hover { background: #047857; }
@@ -377,7 +377,7 @@
   background: #fff;
   cursor: pointer;
   transition: 0.15s;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 .course-video-select-card:hover {
@@ -502,7 +502,7 @@
   font-weight: 600;
   font-size: 0.75rem;
   cursor: pointer;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 .simple-quiz-actions button {
@@ -521,7 +521,7 @@
 .simple-quiz-actions label:hover { background: #047857; }
 .simple-quiz-actions input { display: none; }
 
-.manual-divider {
+.course-wizard-page .manual-divider {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -529,8 +529,8 @@
   font-size: 0.78rem;
 }
 
-.manual-divider::before,
-.manual-divider::after {
+.course-wizard-page .manual-divider::before,
+.course-wizard-page .manual-divider::after {
   content: "";
   height: 1px;
   background: #e8f5ee;
@@ -546,7 +546,7 @@
   font-weight: 600;
   font-size: 0.82rem;
   cursor: pointer;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 .btn-add-inline:hover { background: #334155; }
@@ -581,7 +581,7 @@
   font-weight: 600;
   font-size: 0.72rem;
   cursor: pointer;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 .btn-remove-small:hover { background: #fee2e2; }
@@ -649,14 +649,14 @@
 }
 
 /* ─── Submit ─── */
-.admin-form-submit-zone {
+.course-wizard-page .admin-form-submit-zone {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 4px;
 }
 
-.btn-admin-submit-form {
+.course-wizard-page .btn-admin-submit-form {
   height: 38px;
   border: none;
   border-radius: 8px;
@@ -666,33 +666,33 @@
   font-weight: 600;
   font-size: 0.82rem;
   cursor: pointer;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   box-shadow: 0 3px 10px rgba(5,150,105,0.2);
   transition: all 0.15s;
 }
 
-.btn-admin-submit-form:hover {
+.course-wizard-page .btn-admin-submit-form:hover {
   transform: translateY(-1px);
   box-shadow: 0 5px 14px rgba(5,150,105,0.3);
 }
 
-.btn-admin-submit-form:disabled {
+.course-wizard-page .btn-admin-submit-form:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
 }
 
 /* ─── Success Modal ─── */
-.success-modal-overlay {
+.course-wizard-page .success-modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.4);
   display: grid;
   place-items: center;
-  z-index: 999;
+  z-index: 1100;
 }
 
-.success-modal {
+.course-wizard-page .success-modal {
   background: #fff;
   border-radius: 14px;
   padding: 24px;
@@ -701,7 +701,7 @@
   width: 90%;
 }
 
-.success-check {
+.course-wizard-page .success-check {
   width: 48px;
   height: 48px;
   border-radius: 50%;
@@ -714,10 +714,10 @@
   margin: 0 auto 10px;
 }
 
-.success-modal h3 { margin: 0 0 4px; font-size: 1rem; }
-.success-modal p { margin: 0 0 14px; color: #64748b; font-size: 0.82rem; }
+.course-wizard-page .success-modal h3 { margin: 0 0 4px; font-size: 1rem; }
+.course-wizard-page .success-modal p { margin: 0 0 14px; color: #64748b; font-size: 0.82rem; }
 
-.success-modal button {
+.course-wizard-page .success-modal button {
   height: 36px;
   border: none;
   border-radius: 8px;
@@ -727,73 +727,117 @@
   font-weight: 600;
   font-size: 0.82rem;
   cursor: pointer;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 /* ─── Responsive ─── */
-@media (max-width: 768px) {
-  .wizard-progress,
-  .course-video-toolbar,
-  .course-thumb-upload-box,
-  .course-video-select-card,
-  .quiz-basic-box,
-  .admin-form-row-split {
-    grid-template-columns: 1fr;
-  }
-
-  .bulk-select-row,
-  .admin-form-submit-zone,
-  .added-row,
-  .simple-quiz-upload-top {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .btn-admin-back,
-  .btn-admin-submit-form,
-  .bulk-select-row button { width: 100%; justify-content: center; }
-
-  .simple-quiz-actions { justify-content: stretch; }
-  .simple-quiz-actions button,
-  .simple-quiz-actions label { flex: 1; justify-content: center; }
-
-  .quiz-drop-zone { padding: 24px 16px; }
-  .course-overview-hint { gap: 6px; }
+.course-wizard-page .wizard-step-circle:focus-visible,
+.course-wizard-page .btn-admin-back:focus-visible,
+.course-wizard-page .btn-admin-submit-form:focus-visible,
+.course-wizard-page .course-video-select-card:focus-visible {
+  outline: 2px solid #047857;
+  outline-offset: 2px;
 }
 
-@media (max-width: 480px) {
-  .course-wizard-page {
-    padding: 8px;
-  }
+@media (max-width: 1024px) {
+  .course-wizard-page { padding: 0 8px 16px; }
+  /* App top bar already shows the logo on tablet/phone */
+  .course-wizard-page .wizard-logo { display: none; }
+  .course-wizard-page .wizard-topbar .btn-admin-back { height: 40px; }
+  .course-wizard-page .admin-form-input,
+  .course-wizard-page .wizard-section select,
+  .course-wizard-page .course-video-toolbar input,
+  .course-wizard-page .course-video-toolbar select { height: 44px; }
+  .course-wizard-page .btn-admin-submit-form,
+  .course-wizard-page .admin-form-submit-zone .btn-admin-back,
+  .course-wizard-page .btn-add-inline { min-height: 44px; }
+  .course-wizard-page .bulk-select-row button,
+  .course-wizard-page .btn-remove-small { min-height: 36px; }
+}
 
-  .wizard-header {
-    padding: 14px 16px;
-  }
-
-  .admin-form-card,
-  .wizard-card {
-    padding: 14px;
-    border-radius: 10px;
-  }
-
-  .wizard-progress {
-    gap: 6px;
-  }
-
-  .wizard-step-circle {
-    padding: 8px 10px;
-    font-size: 0.72rem;
-  }
-
-  .circle-number {
-    width: 20px;
-    height: 20px;
-    font-size: 0.66rem;
-  }
-
-  .review-grid {
+@media (max-width: 768px) {
+  .course-wizard-page .course-video-toolbar,
+  .course-wizard-page .course-thumb-upload-box,
+  .course-wizard-page .quiz-basic-box,
+  .course-wizard-page .admin-form-row-split {
     grid-template-columns: 1fr;
   }
+
+  .course-wizard-page .course-video-select-card {
+    grid-template-columns: 96px minmax(0, 1fr) 28px;
+  }
+
+  .course-wizard-page .bulk-select-row,
+  .course-wizard-page .added-row,
+  .course-wizard-page .simple-quiz-upload-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .course-wizard-page .added-row .btn-remove-small { align-self: flex-start; }
+
+  /* Back + primary side by side; primary takes remaining width */
+  .course-wizard-page .admin-form-submit-zone { flex-wrap: wrap; }
+  .course-wizard-page .admin-form-submit-zone .btn-admin-submit-form { flex: 1 1 160px; justify-content: center; }
+  .course-wizard-page .admin-form-submit-zone .btn-admin-back { flex: 0 0 auto; justify-content: center; }
+
+  .course-wizard-page .bulk-select-row button { width: 100%; justify-content: center; }
+
+  .course-wizard-page .simple-quiz-actions { justify-content: stretch; }
+  .course-wizard-page .simple-quiz-actions button,
+  .course-wizard-page .simple-quiz-actions label { flex: 1; justify-content: center; }
+
+  .course-wizard-page .quiz-drop-zone { padding: 24px 16px; }
+  .course-wizard-page .course-overview-hint { gap: 6px; }
+  .course-wizard-page .course-video-select-list { max-height: 55vh; }
+}
+
+@media (max-width: 600px) {
+  .course-wizard-page { padding: 0 0 12px; }
+
+  .course-wizard-page .wizard-header { padding: 14px 16px; }
+
+  .course-wizard-page .admin-form-card,
+  .course-wizard-page .wizard-card {
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  /* Step indicator stays one row of 4 at 390px: number above label */
+  .course-wizard-page .wizard-progress { gap: 6px; margin-bottom: 14px; }
+  .course-wizard-page .wizard-step-circle {
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 4px;
+    min-height: 56px;
+    font-size: 0.75rem;
+    text-align: center;
+  }
+  .course-wizard-page .circle-label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* 16px controls stop iOS zoom-on-focus */
+  .course-wizard-page .admin-form-input,
+  .course-wizard-page .admin-form-textarea,
+  .course-wizard-page .wizard-section select,
+  .course-wizard-page .course-video-toolbar input,
+  .course-wizard-page .course-video-toolbar select { font-size: 16px; }
+
+  .course-wizard-page .admin-field-label { font-size: 0.85rem; }
+  .course-wizard-page .admin-form-subtitle { font-size: 0.82rem; }
+  .course-wizard-page .course-video-info p,
+  .course-wizard-page .bulk-select-row p,
+  .course-wizard-page .added-row p { font-size: 0.8rem; }
+  .course-wizard-page .course-thumb-picker { aspect-ratio: auto; height: 120px; }
+  .course-wizard-page .review-grid { grid-template-columns: 1fr 1fr; }
+
+  .course-wizard-page .success-modal { max-height: calc(100vh - 32px); overflow-y: auto; }
 }
 
 /* ═══════════════════════════════════════════
@@ -978,7 +1022,7 @@
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
-  font-family: "Inter", sans-serif;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 .quiz-template-btn:hover {

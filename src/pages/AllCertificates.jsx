@@ -764,6 +764,7 @@ function AllCertificates() {
 
           <input
             type="search"
+            aria-label="Search certificates"
             placeholder="Search user, department, course or certificate ID..."
             value={search}
             onChange={(event) =>
@@ -959,7 +960,7 @@ function AllCertificates() {
         </div>
       ) : (
         <div className="all-cert-table-wrap">
-          <table className="all-cert-table">
+          <table className="all-cert-table" aria-label="Certificates">
             <thead>
               <tr>
                 <th>User</th>
@@ -1001,7 +1002,7 @@ function AllCertificates() {
                     <tr
                       key={`${certificate.userId}-${certificate.courseId}-${certificate.attemptId}-${index}`}
                     >
-                      <td>
+                      <td className="acert-td-user">
                         <div className="all-cert-user-cell">
                           <div className="all-cert-avatar">
                             {userName
@@ -1009,7 +1010,7 @@ function AllCertificates() {
                               .toUpperCase()}
                           </div>
 
-                          <div>
+                          <div className="all-cert-user-text">
                             <strong>
                               {userName}
                             </strong>
@@ -1023,34 +1024,34 @@ function AllCertificates() {
                         </div>
                       </td>
 
-                      <td>
+                      <td className="acert-td-dept" data-label="Department">
                         <span className="all-cert-department-name">
                           {certificate.departmentName ||
                             "Not Assigned"}
                         </span>
                       </td>
 
-                      <td>
+                      <td className="acert-td-course" data-label="Course">
                         <span className="all-cert-course-name">
                           {courseTitle}
                         </span>
                       </td>
 
-                      <td>
+                      <td className="acert-td-date" data-label="Date">
                         {formatDate(completedDate)}
                       </td>
 
-                      <td>
+                      <td className="acert-td-time" data-label="Time">
                         {formatTime(completedDate)}
                       </td>
 
-                      <td>
+                      <td className="acert-td-id" data-label="Certificate ID">
                         <span className="all-cert-id">
                           {certificateId}
                         </span>
                       </td>
 
-                      <td>
+                      <td className="acert-td-action">
                         {attemptId ? (
                           <Link
                             to={`${basePath}/certificate/${attemptId}`}
